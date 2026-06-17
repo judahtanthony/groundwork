@@ -1,0 +1,305 @@
+schema: groundwork_bootstrap_work_tree/v1
+root:
+  id: G-0001
+  kind: goal
+  title: Build Groundwork v1
+  description: Build a local-first agent orchestration system with CLI, SQLite operational store, localhost coordinator, approvals, validation, dashboard, and Codex runtime.
+  children:
+    - id: E-0001
+      kind: epic
+      title: Bootstrap durable project knowledge
+      children:
+        - id: T-0001
+          kind: ticket
+          title: Create root README and AGENTS guidance
+          acceptance:
+            - README explains project status and reading order.
+            - AGENTS explains future agent boundaries.
+        - id: T-0002
+          kind: ticket
+          title: Create product vision and requirements docs
+          acceptance:
+            - Vision captures local-first and Symphony-style goals.
+            - Requirements capture v1 scope and non-goals.
+        - id: T-0003
+          kind: ticket
+          title: Create architecture and contract docs
+          acceptance:
+            - Architecture docs cover store, coordinator, runtime, trust, validation, recovery, and dashboard.
+            - Contract docs cover CLI, HTTP, SQLite, file layout, workflow, tickets, runs, and policies.
+    - id: E-0002
+      kind: epic
+      title: Implement Go CLI foundation
+      children:
+        - id: T-0101
+          kind: ticket
+          title: Create Go module and gw command skeleton
+          acceptance:
+            - gw binary builds.
+            - gw help displays top-level commands.
+        - id: T-0102
+          kind: ticket
+          title: Implement config path discovery
+          acceptance:
+            - Config loader finds .groundwork/config.yaml from repo root.
+            - Missing config errors are clear.
+        - id: T-0103
+          kind: ticket
+          title: Implement gw init scaffold
+          acceptance:
+            - gw init creates .groundwork config, workflow, policies, and ignore guidance.
+            - It does not create runtime DB until needed.
+    - id: E-0003
+      kind: epic
+      title: Implement SQLite operational store
+      children:
+        - id: T-0201
+          kind: ticket
+          title: Create migration runner and initial schema
+          acceptance:
+            - Migrations apply in order.
+            - Re-running migrations is safe.
+        - id: T-0202
+          kind: ticket
+          title: Add ticket CRUD store methods
+          acceptance:
+            - Tickets can be created, listed, shown, edited, and transitioned.
+            - All mutations append audit events.
+        - id: T-0203
+          kind: ticket
+          title: Add transactional claim and lease renewal
+          acceptance:
+            - Only one run can claim an eligible ticket.
+            - Lease renewal and expiry are stored transactionally.
+    - id: E-0004
+      kind: epic
+      title: Implement ticket and work-tree model
+      children:
+        - id: T-0301
+          kind: ticket
+          title: Model uniform work-tree nodes with triage
+          acceptance:
+            - Nodes are uniform; kind is an advisory label and node_type is leaf or composite.
+            - Parent-child relationships can be queried.
+            - Triage classifies a claimed node as leaf or composite.
+        - id: T-0302
+          kind: ticket
+          title: Implement ticket Markdown export
+          acceptance:
+            - Ticket records export to stable Markdown with front matter.
+            - Exported files are deterministic.
+        - id: T-0303
+          kind: ticket
+          title: Implement state rollups for parent nodes
+          acceptance:
+            - Parent state derives from child progress.
+            - Blocked and active children are visible in rollup output.
+        - id: T-0304
+          kind: ticket
+          title: Model dependency edges as a DAG overlay
+          acceptance:
+            - Dependency edges can be added and queried between nodes.
+            - Cycles are rejected.
+        - id: T-0305
+          kind: ticket
+          title: Record escalation and upward-revision events
+          acceptance:
+            - A node can raise a typed escalation and transition to blocked.
+            - Re-plan decisions and any sibling rework are recorded and human-gated in v1.
+        - id: T-0306
+          kind: ticket
+          title: Implement canon distillation and parent reconciliation
+          acceptance:
+            - Durable design is distilled into canon at the ratification gate; the per-node journal stays ignored.
+            - A composite parent reconciles children's promoted design so canon is coherent and non-redundant.
+        - id: T-0307
+          kind: ticket
+          title: Implement gw context assembly
+          acceptance:
+            - gw context returns a bounded brief (ancestor spine, parent contract, direct dependencies, SOPs, open escalations).
+            - Broader queries such as siblings are explicit, not default.
+    - id: E-0005
+      kind: epic
+      title: Implement local coordinator
+      children:
+        - id: T-0401
+          kind: ticket
+          title: Implement gw server process and health endpoint
+          acceptance:
+            - Server binds localhost by default.
+            - Health endpoint reports store availability.
+        - id: T-0402
+          kind: ticket
+          title: Implement scheduler loop
+          acceptance:
+            - Scheduler finds eligible tickets.
+            - Scheduler respects max concurrency.
+        - id: T-0403
+          kind: ticket
+          title: Implement run pause, resume, and cancel state transitions
+          acceptance:
+            - CLI/API can request pause, resume, and cancel.
+            - State changes are audited.
+        - id: T-0404
+          kind: ticket
+          title: Implement dependency-aware scheduler eligibility
+          acceptance:
+            - A node is eligible only when todo and all dependencies are satisfied.
+            - Eligibility recomputes as dependencies complete.
+    - id: E-0006
+      kind: epic
+      title: Implement Codex runtime adapter
+      children:
+        - id: T-0501
+          kind: ticket
+          title: Create runtime interface and Codex adapter shell
+          acceptance:
+            - Runtime interface compiles.
+            - Codex adapter is selectable by config.
+        - id: T-0502
+          kind: ticket
+          title: Launch Codex in isolated worktree
+          acceptance:
+            - Runtime validates workspace containment.
+            - Codex command runs with configured cwd.
+        - id: T-0503
+          kind: ticket
+          title: Stream runtime events to store and JSONL
+          acceptance:
+            - Run events persist in SQLite.
+            - events.ndjson is appended locally.
+        - id: T-0504
+          kind: ticket
+          title: Implement run checkpoints and landing squash
+          acceptance:
+            - A run commits WIP checkpoints on its worktree branch, never on main.
+            - Checkpoints are squashed into the landing commit.
+    - id: E-0007
+      kind: epic
+      title: Implement approval and trust policy
+      children:
+        - id: T-0601
+          kind: ticket
+          title: Load trust policy YAML
+          acceptance:
+            - Trust policy parses and validates.
+            - Invalid policy errors are actionable.
+        - id: T-0602
+          kind: ticket
+          title: Implement approval records and decisions
+          acceptance:
+            - Approvals can be requested, listed, approved, and rejected.
+            - Decisions are audited.
+        - id: T-0603
+          kind: ticket
+          title: Implement documentation auto-approval rule
+          acceptance:
+            - Docs-only internal guidance changes can be classified low risk.
+            - Landing to main remains human-gated in v1.
+        - id: T-0604
+          kind: ticket
+          title: Gate decomposition with autonomy levels and SOPs
+          acceptance:
+            - Decompose is a gated action, human-required in v1.
+            - Task-type SOPs and context load from .groundwork/sops/.
+            - Autonomy levels can be elevated only by explicit human action.
+        - id: T-0605
+          kind: ticket
+          title: Implement reversibility as a gate input
+          acceptance:
+            - Actions are classified reversible or irreversible from their scope.
+            - Irreversible actions are forced to critical regardless of risk score.
+    - id: E-0008
+      kind: epic
+      title: Implement validation templates and gates
+      children:
+        - id: T-0701
+          kind: ticket
+          title: Load validation templates
+          acceptance:
+            - File patterns map to required checks.
+            - Templates support docs, Go, and web examples.
+        - id: T-0702
+          kind: ticket
+          title: Record validation results
+          acceptance:
+            - Validation results are stored and linked to tickets/runs.
+            - Artifact paths are preserved.
+        - id: T-0703
+          kind: ticket
+          title: Enforce landing validation gate
+          acceptance:
+            - Landing fails without required passing validation or explicit override.
+    - id: E-0009
+      kind: epic
+      title: Implement local dashboard and SSE
+      children:
+        - id: T-0801
+          kind: ticket
+          title: Implement server-rendered dashboard shell
+          acceptance:
+            - Dashboard renders active counts and recent events.
+            - UI uses server-rendered HTML.
+        - id: T-0802
+          kind: ticket
+          title: Implement ticket board and detail pages
+          acceptance:
+            - Board groups tickets by status.
+            - Ticket detail shows timeline, runs, approvals, and validation.
+        - id: T-0803
+          kind: ticket
+          title: Implement SSE event stream
+          acceptance:
+            - Dashboard receives realtime state updates.
+            - SSE reconnect is tolerated.
+    - id: E-0010
+      kind: epic
+      title: Implement recovery and export/import
+      children:
+        - id: T-0901
+          kind: ticket
+          title: Implement startup reconciliation
+          acceptance:
+            - Stale running runs are marked interrupted.
+            - Expired leases are released.
+        - id: T-0902
+          kind: ticket
+          title: Import ticket exports when SQLite is missing
+          acceptance:
+            - Ticket Markdown rebuilds ticket rows.
+            - Import does not restore runtime leases.
+        - id: T-0903
+          kind: ticket
+          title: Implement generated view export
+          acceptance:
+            - Board and state views can be regenerated.
+            - Generated views are ignored by default.
+        - id: T-0904
+          kind: ticket
+          title: Resume interrupted runs from last checkpoint
+          acceptance:
+            - An interrupted run resumes from its last worktree checkpoint commit.
+            - In-flight work is not lost when a run is interrupted.
+    - id: E-0011
+      kind: epic
+      title: Dogfood Groundwork on Groundwork
+      children:
+        - id: T-1001
+          kind: ticket
+          title: Import bootstrap work tree into Groundwork
+          acceptance:
+            - docs/plan/work-tree.yaml becomes managed Groundwork tickets.
+            - Imported records preserve hierarchy.
+        - id: T-1002
+          kind: ticket
+          title: Use Groundwork for low-risk documentation tasks
+          acceptance:
+            - A docs-only ticket is completed through Groundwork.
+            - Runtime logs remain ignored.
+        - id: T-1003
+          kind: ticket
+          title: Use Groundwork for first Codex-assisted implementation ticket
+          acceptance:
+            - Codex run is tracked.
+            - Human landing gate is exercised.
+

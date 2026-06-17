@@ -1,0 +1,32 @@
+# Glossary
+
+- **Groundwork**: The local-first agent orchestration system described by this repository.
+- **`gw`**: The Groundwork CLI.
+- **`.groundwork/`**: The dot directory Groundwork will create in managed repositories.
+- **Coordinator**: The local daemon that owns scheduling, claims, leases, run lifecycle, approvals, validation gates, exports, and API/SSE.
+- **Work node**: A single uniform unit of work. `kind` (goal, epic, ticket, task, etc.) is an advisory label; structure is leaf vs composite.
+- **Work tree**: The uniform hierarchy of work nodes, with a dependency-edge DAG overlay.
+- **Leaf**: A node that needs no further research or design and is implementable and verifiable as one unit.
+- **Composite**: A node with ambiguity or further breakdown; it decomposes into children.
+- **Triage**: The claim-time decision classifying a node as leaf or composite.
+- **Parent contract**: The schemas, interfaces, and requirements a parent records so children can run in parallel.
+- **Dependency edge**: An ordering constraint between nodes; eligibility requires all dependencies satisfied.
+- **Escalation**: Upward propagation of a revision from a node to its parent for re-planning.
+- **SOP**: A task-type standard operating procedure under `.groundwork/sops/` that, with context and validations, lets a gated action's autonomy loosen.
+- **Run**: One attempt by an agent runtime to work on a node (planning or implementation).
+- **Lease**: Exclusive active-work claim for a node.
+- **Approval**: A capability gate decision that unlocks a specific action (for example `execute`, `decompose`, or `land_to_main`).
+- **Risk**: A 0–100 score mapped onto named classes (`low`/`medium`/`high`/`critical`); policy gates key off the class.
+- **Autonomy level**: The approval requirement for a gated action, loosened over time as task-type SOPs, context, and validations mature.
+- **Reversibility**: Whether an action can be cheaply undone; an irreversible action is forced to `critical` regardless of risk score.
+- **Validation template**: A policy mapping file changes to required validation commands.
+- **Canon**: File-authoritative committed knowledge — code, docs, ADRs, policy, SOPs, and distilled design. The durable memory of the project.
+- **Journal**: A per-node, ephemeral, ignored log of in-progress decision notes; distilled into canon at ratification, then discarded.
+- **Distillation**: Promoting a settled decision from journal into the canonical document it changes.
+- **Ratification gate**: The point a decision becomes binding (proposal accepted, node landed, policy/SOP approved) and is written to canon.
+- **Context brief**: The bounded node-specific context (`gw context`) assembled at claim time from canon via the SQLite graph.
+- **Checkpoint**: A run's work-in-progress commit on its worktree branch, used for recovery and squashed at landing.
+- **Runtime state**: Volatile state such as active leases, process IDs, transcripts, raw logs, journals, worktrees, and generated views.
+- **Durable application state**: Committed or exportable state such as tickets, policies, workflow config, decisions, and code.
+- **Landing**: Moving validated changes into `main` or equivalent trunk.
+

@@ -1,0 +1,77 @@
+# Policy Contracts
+
+Policies live under `.groundwork/policies/` and are committed by default. Rules carry stable IDs and are evaluated top-down; the first matching rule decides. The dashboard surfaces these IDs (for example `R-01`) for auditability.
+
+## Trust Policy Example
+
+```yaml
+schema: groundwork_trust_policy/v1
+auto_approve:
+  - id: internal_docs
+    description: Allow documentation-only changes to internal agent guidance.
+    when:
+      files:
+        - AGENTS.md
+        - MEMORY.md
+        - ".groundwork/**/*.md"
+      change_type: documentation
+      max_diff_lines: 200
+  - id: safe_tests
+    when:
+      command_regex: "^(go test|npm test|pytest|make test)"
+      cwd_within_workspace: true
+      network: false
+require_human:
+  - id: secrets
+    files:
+      - "**/.env*"
+      - "**/*secret*"
+  - id: destructive_commands
+    command_categories: [destructive]
+  - id: landing_to_main_v1
+    action_types: [land_to_main]
+  - id: decomposition_v1
+    action_types: [decompose]
+```
+
+Gated actions (`execute`, `land_to_main`, `decompose`) carry an autonomy level that can be loosened as task-type SOPs, context, and validations mature. Elevation is a human act in v1; see `docs/architecture/trust-and-approvals.md` and `docs/adr/0011-progressive-planning-autonomy-via-sops.md`.
+
+Gates also key off **reversibility**: an action classified irreversible (non-reversible migration, external/production state, destructive command, credential access) is forced to `critical` and stays human-required regardless of risk score or autonomy level (see `docs/adr/0014-reversibility-as-a-gate-input.md`). A rule may set or assert `reversible: false` to force this.
+
+## Autonomy Levels Example
+
+```yaml
+schema: groundwork_autonomy_policy/v1
+actions:
+  execute:
+    default: require_human       # require_human | reviewer (phase 2) | auto
+  land_to_main:
+    default: require_human
+  decompose:
+    default: require_human
+    by_task_type:
+      docs:
+        level: auto              # earned via SOP + validations; elevated by a human
+        requires:
+          sop: sops/docs/
+          validations: [documentation]
+```
+
+## Validation Policy Example
+
+```yaml
+schema: groundwork_validation_policy/v1
+templates:
+  documentation:
+    match:
+      files: ["**/*.md", "AGENTS.md", "MEMORY.md"]
+    required: []
+    landing_risk_floor: low
+  go:
+    match:
+      files: ["**/*.go"]
+    required:
+      - name: go_tests
+        command: "go test ./..."
+```
+

@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Groundwork — Admin Wireframes</title>
+<link rel="stylesheet" href="groundwork.css" />
+<style>
+  html, body { margin: 0; height: 100%; background: #f0eee9; }
+  .anno { line-height: 1.5; }
+  .anno .p { color: #2a251f; }
+  .anno .a { color: #6b6157; }
+  .anno b { color: #2a251f; font-weight: 600; }
+</style>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel" src="design-canvas.jsx"></script>
+<script type="text/babel" src="components-core.jsx"></script>
+<script type="text/babel" src="components-blocks.jsx"></script>
+<script type="text/babel" src="data.jsx"></script>
+<script type="text/babel" src="screen-dashboard.jsx"></script>
+<script type="text/babel" src="screen-board.jsx"></script>
+<script type="text/babel" src="screen-ticket.jsx"></script>
+<script type="text/babel" src="screen-run.jsx"></script>
+<script type="text/babel" src="screen-approvals.jsx"></script>
+<script type="text/babel" src="screen-policies.jsx"></script>
+<script type="text/babel" src="screen-settings.jsx"></script>
+<script type="text/babel" src="screen-components.jsx"></script>
+
+<script type="text/babel" data-presets="react">
+const { useState } = React;
+
+function Anno({ purpose, actions }) {
+  return (
+    <div className="anno">
+      <div className="p"><b>Purpose.</b> {purpose}</div>
+      <div className="a"><b>Main actions:</b> {actions}</div>
+    </div>
+  );
+}
+
+// Frame backgrounds match the app canvas so any trailing space is invisible.
+const FRAME = { background: '#F4F2EE' };
+
+function App() {
+  return (
+    <DesignCanvas>
+      <DCSection id="dashboard" title="01 · Dashboard"
+        subtitle={<Anno purpose="Live operations overview — what is running, what is blocked, and what needs a human right now." actions="Triage the attention queue · open an active run · clear a pending approval." />}>
+        <DCArtboard id="dash-d" label="Desktop · 1440" width={1440} height={970} style={FRAME}><ScreenDashboard /></DCArtboard>
+        <DCArtboard id="dash-m" label="Narrow · 390" width={390} height={980} style={FRAME}><ScreenDashboardM /></DCArtboard>
+      </DCSection>
+
+      <DCSection id="board" title="02 · Board"
+        subtitle={<Anno purpose="Ticket flow across nine states, from backlog to done — a single glance at where every work item sits." actions="Drag a card to transition state · open a ticket · filter by agent or group." />}>
+        <DCArtboard id="board-d" label="Desktop · all 9 columns" width={2404} height={532} style={FRAME}><ScreenBoard /></DCArtboard>
+      </DCSection>
+
+      <DCSection id="ticket" title="03 · Ticket detail"
+        subtitle={<Anno purpose="Manage one work item end to end — problem, acceptance criteria, validations, runs, and history." actions="Assign agent · start / pause a run · transition status · request rework · approve for landing." />}>
+        <DCArtboard id="ticket-d" label="Desktop · 1440" width={1440} height={1312} style={FRAME}><ScreenTicket /></DCArtboard>
+        <DCArtboard id="ticket-m" label="Narrow · 390" width={390} height={648} style={FRAME}><ScreenTicketM /></DCArtboard>
+      </DCSection>
+
+      <DCSection id="run" title="04 · Run detail"
+        subtitle={<Anno purpose="Inspect one agent run — live transcript, plan, changed files, validations, and any blocking approval." actions="Pause / resume / cancel · open workspace · copy resume command · export transcript · review linked approval." />}>
+        <DCArtboard id="run-d" label="Desktop · 1440" width={1440} height={1158} style={FRAME}><ScreenRun /></DCArtboard>
+        <DCArtboard id="run-m" label="Narrow · 390" width={390} height={628} style={FRAME}><ScreenRunM /></DCArtboard>
+      </DCSection>
+
+      <DCSection id="approvals" title="05 · Approvals inbox"
+        subtitle={<Anno purpose="Decide tactical approvals grouped by risk — auto-approved low-risk, human-gated medium and high, blocked destructive." actions="Approve once · approve + suggest rule · ask agent to clarify · reject." />}>
+        <DCArtboard id="appr-d" label="Desktop · 1440" width={1440} height={810} style={FRAME}><ScreenApprovals /></DCArtboard>
+        <DCArtboard id="appr-m" label="Narrow · 390" width={390} height={614} style={FRAME}><ScreenApprovalsM /></DCArtboard>
+      </DCSection>
+
+      <DCSection id="policies" title="06 · Policies"
+        subtitle={<Anno purpose="Manage trust, risk thresholds, and validation gates — the rules that decide what agents may do unattended." actions="Edit a rule · promote a suggested auto-approval · tune validation templates by file type." />}>
+        <DCArtboard id="pol-d" label="Desktop · 1440" width={1440} height={1050} style={FRAME}><ScreenPolicies /></DCArtboard>
+      </DCSection>
+
+      <DCSection id="settings" title="07 · Settings"
+        subtitle={<Anno purpose="Configure the local Groundwork instance — paths, engine, concurrency, leases, server, and integrations." actions="Set repo / SQLite paths · sandbox mode · concurrency + lease timing · run doctor health checks." />}>
+        <DCArtboard id="set-d" label="Desktop · 1440" width={1440} height={1232} style={FRAME}><ScreenSettings /></DCArtboard>
+      </DCSection>
+
+      <DCSection id="components" title="Component inventory"
+        subtitle={<Anno purpose="The shared primitives used across all seven screens — one source of truth for status, risk, and validation language." actions="Reference for handoff — status / risk / validation badges, ticket card, run row, timeline, diff, command + approval block, policy row." />}>
+        <DCArtboard id="comp" label="Specimen sheet" width={1180} height={1340} style={FRAME}><ScreenComponents /></DCArtboard>
+      </DCSection>
+    </DesignCanvas>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>
