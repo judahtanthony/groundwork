@@ -65,6 +65,31 @@ func TestUpdateDoesNotChangeStatus(t *testing.T) {
 	}
 }
 
+func TestWorkTypeAndRequestedActorRoundTrip(t *testing.T) {
+	db := openTestDB(t)
+	tk := &ticket.Ticket{Title: "node", WorkType: "technical_implementation", RequestedActor: "ai.codex.default"}
+	if err := db.CreateTicket(tk, "human.owner"); err != nil {
+		t.Fatal(err)
+	}
+	got, _ := db.GetTicket(tk.ID)
+	if got.WorkType != "technical_implementation" {
+		t.Errorf("work_type = %q", got.WorkType)
+	}
+	if got.RequestedActor != "ai.codex.default" {
+		t.Errorf("requested_actor = %q", got.RequestedActor)
+	}
+
+	// Editable via update.
+	got.WorkType = "documentation"
+	if err := db.UpdateTicket(got, "human.owner"); err != nil {
+		t.Fatal(err)
+	}
+	again, _ := db.GetTicket(tk.ID)
+	if again.WorkType != "documentation" {
+		t.Errorf("work_type after update = %q, want documentation", again.WorkType)
+	}
+}
+
 func TestRenewLeaseExpiredRejectedAndAudited(t *testing.T) {
 	db := openTestDB(t)
 	id := todoNode(t, db)

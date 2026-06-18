@@ -50,6 +50,8 @@ func TestRenderContent(t *testing.T) {
 		"---\n",
 		"id: T-0001",
 		"node_type: leaf",
+		"work_type: null",
+		"requested_actor: null",
 		"depends_on:\n    - T-0000",
 		"## Problem",
 		"## Acceptance Criteria",
@@ -74,6 +76,19 @@ func TestRenderNullsForEmptyFields(t *testing.T) {
 	for _, want := range []string{"node_type: null", "assignee: null", "parent: null", "depends_on: []", "labels: []"} {
 		if !strings.Contains(s, want) {
 			t.Errorf("expected %q in:\n%s", want, s)
+		}
+	}
+}
+
+func TestRenderActorFields(t *testing.T) {
+	tk := sampleLeaf()
+	tk.WorkType = "technical_implementation"
+	tk.RequestedActor = "ai.codex.default"
+	out, _ := Render(tk, nil)
+	s := string(out)
+	for _, want := range []string{"work_type: technical_implementation", "requested_actor: ai.codex.default"} {
+		if !strings.Contains(s, want) {
+			t.Errorf("export missing %q:\n%s", want, s)
 		}
 	}
 }

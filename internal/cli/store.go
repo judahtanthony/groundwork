@@ -10,9 +10,10 @@ import (
 	"groundwork/internal/store/sqlite"
 )
 
-// actor is the audit actor for CLI-initiated mutations in Phase 1. All gw CLI
-// commands act on behalf of a human operator.
-const actor = "human"
+// actor is the audit actor for CLI-initiated mutations. CLI commands act on
+// behalf of the local human owner; this is the default actor id from the
+// scaffolded registry (ADR 0023, .groundwork/actors.yaml).
+const ownerActor = "human.owner"
 
 // openStore discovers the project, opens (lazily creating) the SQLite store,
 // and runs migrations. Callers must Close the returned DB.

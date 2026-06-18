@@ -86,6 +86,7 @@ func buildRoot() *Command {
 		Sub: []*Command{
 			newInitCmd(),
 			{Name: "ticket", Usage: "Manage work-tree nodes (tickets)", Sub: ticketSubcommands()},
+			newActorCmd(),
 			newContextCmd(),
 			newStatusCmd(),
 			newBoardCmd(),

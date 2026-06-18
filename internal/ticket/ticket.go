@@ -27,21 +27,28 @@ func (n NodeType) Valid() bool {
 // Ticket is a single work node. Nullable database columns are represented by
 // the empty string (text) or nil pointer (integers).
 type Ticket struct {
-	ID          string   `json:"id"`
-	ParentID    string   `json:"parent_id,omitempty"`
-	Kind        string   `json:"kind"`
-	NodeType    NodeType `json:"node_type,omitempty"`
-	Title       string   `json:"title"`
-	Description string   `json:"description,omitempty"`
+	ID       string   `json:"id"`
+	ParentID string   `json:"parent_id,omitempty"`
+	Kind     string   `json:"kind"`
+	NodeType NodeType `json:"node_type,omitempty"`
+	// WorkType is organization-defined operational metadata (ADR 0023) used by
+	// SOPs, policy, actor routing, and validation. It is not a status.
+	WorkType    string `json:"work_type,omitempty"`
+	Title       string `json:"title"`
+	Description string `json:"description,omitempty"`
 	// Contract holds the parent contract for composite nodes as canonical JSON
 	// (default "{}"). It is opaque to Phase 1.
-	Contract   string   `json:"contract,omitempty"`
-	Status     Status   `json:"status"`
-	Assignee   string   `json:"assignee,omitempty"`
-	Priority   *int     `json:"priority,omitempty"`
-	Labels     []string `json:"labels"`
-	Acceptance []string `json:"acceptance"`
-	RiskScore  *int     `json:"risk_score,omitempty"`
-	CreatedAt  string   `json:"created_at"`
-	UpdatedAt  string   `json:"updated_at"`
+	Contract string `json:"contract,omitempty"`
+	Status   Status `json:"status"`
+	Assignee string `json:"assignee,omitempty"`
+	// RequestedActor is an optional routing hint naming a preferred actor; policy
+	// must still authorize the claim (ADR 0023). Distinct from Assignee, which is
+	// a display-only ownership label.
+	RequestedActor string   `json:"requested_actor,omitempty"`
+	Priority       *int     `json:"priority,omitempty"`
+	Labels         []string `json:"labels"`
+	Acceptance     []string `json:"acceptance"`
+	RiskScore      *int     `json:"risk_score,omitempty"`
+	CreatedAt      string   `json:"created_at"`
+	UpdatedAt      string   `json:"updated_at"`
 }

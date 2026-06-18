@@ -60,6 +60,11 @@ func Init(root string) (*Result, error) {
 		return nil, err
 	}
 
+	// actors.yaml: the MVP registry (ADR 0023) — one human owner, one Codex actor.
+	if err := writeFile(root, p.ActorsPath(), []byte(actorsTemplate), res); err != nil {
+		return nil, err
+	}
+
 	// WORKFLOW.md and starter policies (committed canon).
 	if err := writeFile(root, p.WorkflowPath(), []byte(workflowTemplate), res); err != nil {
 		return nil, err
@@ -123,6 +128,37 @@ views/
 worktrees/
 `
 
+const actorsTemplate = `schema: groundwork_actors/v1
+
+actors:
+  - id: human.owner
+    type: human
+    display_name: Owner
+    roles: [owner]
+    capabilities:
+      work_types: ["*"]
+      approve: ["*"]
+      review: ["*"]
+
+  - id: ai.codex.default
+    type: ai_agent
+    display_name: Codex Default
+    runtime: codex
+    model: default
+    roles: [implementer]
+    capabilities:
+      work_types:
+        - technical_design
+        - technical_implementation
+        - test_implementation
+        - documentation
+      review:
+        - documentation
+    limits:
+      max_risk_class: medium
+    sandbox: workspace-write
+`
+
 const trustPolicyTemplate = `schema: groundwork_trust_policy/v1
 auto_approve:
   - id: internal_docs
@@ -134,6 +170,13 @@ auto_approve:
         - ".groundwork/**/*.md"
       change_type: documentation
       max_diff_lines: 200
+allow_claim:
+  - id: default_codex_medium_risk
+    when:
+      actor_ids: [ai.codex.default]
+      work_types: [technical_design, technical_implementation, test_implementation, documentation]
+      risk_class_at_most: medium
+    actions: [execute, decompose]
 require_human:
   - id: secrets
     files:

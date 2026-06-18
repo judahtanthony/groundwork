@@ -16,6 +16,7 @@ func runTicketCreate(ctx *Context, args []string) error {
 	fs := ctx.NewFlagSet("gw ticket create")
 	var (
 		title, kind, parent, status, desc, assignee string
+		workType, requestedActor                    string
 		priority                                    int
 		labels, acceptance                          stringSlice
 	)
@@ -24,7 +25,9 @@ func runTicketCreate(ctx *Context, args []string) error {
 	fs.StringVar(&parent, "parent", "", "parent node id")
 	fs.StringVar(&status, "status", "", "initial status (default: backlog)")
 	fs.StringVar(&desc, "description", "", "description")
-	fs.StringVar(&assignee, "assignee", "", "assignee")
+	fs.StringVar(&assignee, "assignee", "", "assignee (display-only ownership label)")
+	fs.StringVar(&workType, "work-type", "", "operational work type (e.g. technical_implementation)")
+	fs.StringVar(&requestedActor, "requested-actor", "", "preferred actor id (routing hint, still policy-checked)")
 	fs.IntVar(&priority, "priority", 0, "priority")
 	fs.Var(&labels, "label", "label (repeatable)")
 	fs.Var(&acceptance, "acceptance", "acceptance criterion (repeatable)")
@@ -41,14 +44,16 @@ func runTicketCreate(ctx *Context, args []string) error {
 	}
 
 	t := &ticket.Ticket{
-		Title:       title,
-		Kind:        kind,
-		ParentID:    parent,
-		Status:      ticket.Status(status),
-		Description: desc,
-		Assignee:    assignee,
-		Labels:      labels,
-		Acceptance:  acceptance,
+		Title:          title,
+		Kind:           kind,
+		ParentID:       parent,
+		Status:         ticket.Status(status),
+		Description:    desc,
+		Assignee:       assignee,
+		WorkType:       workType,
+		RequestedActor: requestedActor,
+		Labels:         labels,
+		Acceptance:     acceptance,
 	}
 	if set["priority"] {
 		t.Priority = &priority
@@ -60,7 +65,7 @@ func runTicketCreate(ctx *Context, args []string) error {
 	}
 	defer db.Close()
 
-	if err := db.CreateTicket(t, actor); err != nil {
+	if err := db.CreateTicket(t, ownerActor); err != nil {
 		return &Error{Code: "create_failed", Message: err.Error()}
 	}
 
@@ -160,13 +165,16 @@ func runTicketEdit(ctx *Context, args []string) error {
 	fs := ctx.NewFlagSet("gw ticket edit")
 	var (
 		title, kind, desc, assignee string
+		workType, requestedActor    string
 		priority                    int
 		labels, acceptance          stringSlice
 	)
 	fs.StringVar(&title, "title", "", "new title")
 	fs.StringVar(&kind, "kind", "", "new advisory kind")
 	fs.StringVar(&desc, "description", "", "new description")
-	fs.StringVar(&assignee, "assignee", "", "new assignee")
+	fs.StringVar(&assignee, "assignee", "", "new assignee (display-only label)")
+	fs.StringVar(&workType, "work-type", "", "new work type")
+	fs.StringVar(&requestedActor, "requested-actor", "", "new requested actor (routing hint)")
 	fs.IntVar(&priority, "priority", 0, "new priority")
 	fs.Var(&labels, "label", "replace labels (repeatable)")
 	fs.Var(&acceptance, "acceptance", "replace acceptance (repeatable)")
@@ -202,6 +210,12 @@ func runTicketEdit(ctx *Context, args []string) error {
 	if set["assignee"] {
 		t.Assignee = assignee
 	}
+	if set["work-type"] {
+		t.WorkType = workType
+	}
+	if set["requested-actor"] {
+		t.RequestedActor = requestedActor
+	}
 	if set["priority"] {
 		t.Priority = &priority
 	}
@@ -212,7 +226,7 @@ func runTicketEdit(ctx *Context, args []string) error {
 		t.Acceptance = acceptance
 	}
 
-	if err := db.UpdateTicket(t, actor); err != nil {
+	if err := db.UpdateTicket(t, ownerActor); err != nil {
 		return &Error{Code: "edit_failed", Message: err.Error()}
 	}
 	if ctx.JSON {
@@ -229,9 +243,15 @@ func renderTicket(ctx *Context, t *ticket.Ticket, dependsOn []string) {
 	fmt.Fprintf(w, "%s  %s\n", t.ID, t.Title)
 	fmt.Fprintf(w, "  kind:       %s\n", t.Kind)
 	fmt.Fprintf(w, "  node_type:  %s\n", orDash(string(t.NodeType), "(untriaged)"))
+	if t.WorkType != "" {
+		fmt.Fprintf(w, "  work_type:  %s\n", t.WorkType)
+	}
 	fmt.Fprintf(w, "  status:     %s\n", t.Status)
 	fmt.Fprintf(w, "  parent:     %s\n", orDash(t.ParentID, "-"))
 	fmt.Fprintf(w, "  assignee:   %s\n", orDash(t.Assignee, "-"))
+	if t.RequestedActor != "" {
+		fmt.Fprintf(w, "  requested_actor: %s\n", t.RequestedActor)
+	}
 	if len(dependsOn) > 0 {
 		fmt.Fprintf(w, "  depends_on: %s\n", strings.Join(dependsOn, ", "))
 	}

@@ -30,7 +30,7 @@ func runTicketTransition(ctx *Context, args []string) error {
 	}
 	defer db.Close()
 
-	if err := db.TransitionTicket(id, to, actor); err != nil {
+	if err := db.TransitionTicket(id, to, ownerActor); err != nil {
 		switch {
 		case errors.Is(err, sqlite.ErrNotFound):
 			return ticketError(err, id)
@@ -70,7 +70,7 @@ func runTicketTriage(ctx *Context, args []string) error {
 	}
 	defer db.Close()
 
-	if err := db.TriageTicket(id, nt, actor); err != nil {
+	if err := db.TriageTicket(id, nt, ownerActor); err != nil {
 		if errors.Is(err, sqlite.ErrNotFound) {
 			return ticketError(err, id)
 		}

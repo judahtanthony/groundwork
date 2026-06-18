@@ -33,7 +33,7 @@ func runTicketLink(ctx *Context, args []string) error {
 	defer db.Close()
 
 	if remove {
-		if err := db.RemoveDependency(id, dependsOn, actor); err != nil {
+		if err := db.RemoveDependency(id, dependsOn, ownerActor); err != nil {
 			if errors.Is(err, sqlite.ErrNotFound) {
 				return &Error{Code: "not_found", Message: fmt.Sprintf("no edge %s -> %s", id, dependsOn)}
 			}
@@ -42,7 +42,7 @@ func runTicketLink(ctx *Context, args []string) error {
 		return linkOutput(ctx, id, dependsOn, false)
 	}
 
-	if err := db.AddDependency(id, dependsOn, actor); err != nil {
+	if err := db.AddDependency(id, dependsOn, ownerActor); err != nil {
 		switch {
 		case errors.Is(err, sqlite.ErrSelfDependency):
 			return &Error{Code: "self_dependency", Message: err.Error()}

@@ -85,6 +85,9 @@ func (p *Project) Dir() string { return filepath.Join(p.Root, GroundworkDir) }
 // ConfigPath returns the path to config.yaml.
 func (p *Project) ConfigPath() string { return filepath.Join(p.Dir(), "config.yaml") }
 
+// ActorsPath returns the path to the actor registry (ADR 0023).
+func (p *Project) ActorsPath() string { return filepath.Join(p.Dir(), "actors.yaml") }
+
 // DBPath returns the path to the operational SQLite database.
 func (p *Project) DBPath() string { return filepath.Join(p.Dir(), "state.sqlite") }
 

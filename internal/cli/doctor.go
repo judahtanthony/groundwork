@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"groundwork/internal/actor"
 	"groundwork/internal/config"
 	"groundwork/internal/store/sqlite"
 )
@@ -56,6 +57,18 @@ func runDoctor(ctx *Context, args []string) error {
 	add("config", checkOK, fmt.Sprintf("schema: %s, runtime: %s", p.Config.Schema, p.Config.Runtime))
 	for _, w := range p.Warnings {
 		add("config", checkWarn, w)
+	}
+
+	// Actor registry (ADR 0023).
+	if _, statErr := os.Stat(p.ActorsPath()); os.IsNotExist(statErr) {
+		add("actors", checkWarn, "no actors.yaml (run \"gw init\" to scaffold one)")
+	} else if reg, warnings, aerr := actor.Load(p.ActorsPath()); aerr != nil {
+		add("actors", checkError, aerr.Error())
+	} else {
+		for _, w := range warnings {
+			add("actors", checkWarn, w)
+		}
+		add("actors", checkOK, fmt.Sprintf("%d actors", len(reg.Actors)))
 	}
 
 	// Database: report status without forcing creation.

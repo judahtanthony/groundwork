@@ -24,13 +24,18 @@ cd "$work"
 echo "==> gw init"
 "$bin" init >/dev/null
 [ -f .groundwork/config.yaml ] || fail "init did not create config.yaml"
+[ -f .groundwork/actors.yaml ] || fail "init did not create actors.yaml"
 [ -e .groundwork/state.sqlite ] && fail "init must not create state.sqlite"
+
+echo "==> actor registry"
+"$bin" actor validate >/dev/null || fail "actor validate failed"
+"$bin" actor list --json | grep -q '"id": "ai.codex.default"' || fail "actor list missing default Codex actor"
 
 echo "==> create + lazy DB"
 "$bin" ticket create --title "Build store" >/dev/null
 "$bin" ticket triage T-0001 composite >/dev/null
-"$bin" ticket create --title "Schema" --parent T-0001 --status todo >/dev/null
-"$bin" ticket create --title "Migrations" --parent T-0001 --status todo >/dev/null
+"$bin" ticket create --title "Schema" --parent T-0001 --status todo --work-type technical_implementation >/dev/null
+"$bin" ticket create --title "Migrations" --parent T-0001 --status todo --requested-actor ai.codex.default >/dev/null
 [ -f .groundwork/state.sqlite ] || fail "state.sqlite not created lazily"
 
 echo "==> dependency edge + cycle rejection"

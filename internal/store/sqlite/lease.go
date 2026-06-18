@@ -29,7 +29,7 @@ const leaseActiveStatus = "active"
 type Lease struct {
 	TicketID  string `json:"ticket_id"`
 	RunID     string `json:"run_id"`
-	AgentID   string `json:"agent_id"`
+	ActorID   string `json:"actor_id"`
 	Status    string `json:"status"`
 	ExpiresAt string `json:"expires_at"`
 	RenewedAt string `json:"renewed_at"`
@@ -44,7 +44,7 @@ type Lease struct {
 // reclaimed. Note that in Phase 1 nothing returns an in_progress node to todo,
 // so this branch is reached only once the Phase 2 recovery sweep
 // (docs/architecture/recovery.md) requeues interrupted runs.
-func (db *DB) ClaimTicket(ticketID, runID, agentID string, ttl time.Duration) (*Lease, error) {
+func (db *DB) ClaimTicket(ticketID, runID, actorID string, ttl time.Duration) (*Lease, error) {
 	now := time.Now()
 	var lease *Lease
 
@@ -88,9 +88,9 @@ func (db *DB) ClaimTicket(ticketID, runID, agentID string, ttl time.Duration) (*
 		nowStr := encoding.FormatTime(now)
 		expStr := encoding.FormatTime(now.Add(ttl))
 		if _, err := tx.Exec(
-			`INSERT INTO leases (ticket_id, run_id, agent_id, status, expires_at, renewed_at)
+			`INSERT INTO leases (ticket_id, run_id, actor_id, status, expires_at, renewed_at)
 			 VALUES (?,?,?,?,?,?)`,
-			ticketID, runID, agentID, leaseActiveStatus, expStr, nowStr,
+			ticketID, runID, actorID, leaseActiveStatus, expStr, nowStr,
 		); err != nil {
 			return err
 		}
@@ -98,13 +98,13 @@ func (db *DB) ClaimTicket(ticketID, runID, agentID string, ttl time.Duration) (*
 			string(ticket.StatusInProgress), nowStr, ticketID); err != nil {
 			return err
 		}
-		if err := appendAudit(tx, agentID, "ticket.claimed", "ticket", ticketID, map[string]any{
+		if err := appendAudit(tx, actorID, "ticket.claimed", "ticket", ticketID, map[string]any{
 			"run_id": runID,
 		}); err != nil {
 			return err
 		}
 		lease = &Lease{
-			TicketID: ticketID, RunID: runID, AgentID: agentID,
+			TicketID: ticketID, RunID: runID, ActorID: actorID,
 			Status: leaseActiveStatus, ExpiresAt: expStr, RenewedAt: nowStr,
 		}
 		return nil
@@ -122,10 +122,10 @@ func (db *DB) RenewLease(ticketID, runID string, ttl time.Duration) (*Lease, err
 	now := time.Now()
 	var lease *Lease
 	err := db.withTx(func(tx *sql.Tx) error {
-		var holder, agentID, expiresAt string
+		var holder, actorID, expiresAt string
 		err := tx.QueryRow(
-			`SELECT run_id, agent_id, expires_at FROM leases WHERE ticket_id=?`, ticketID,
-		).Scan(&holder, &agentID, &expiresAt)
+			`SELECT run_id, actor_id, expires_at FROM leases WHERE ticket_id=?`, ticketID,
+		).Scan(&holder, &actorID, &expiresAt)
 		if err == sql.ErrNoRows {
 			return ErrLeaseNotHeld
 		}
@@ -146,12 +146,12 @@ func (db *DB) RenewLease(ticketID, runID string, ttl time.Duration) (*Lease, err
 		); err != nil {
 			return err
 		}
-		if err := appendAudit(tx, agentID, "ticket.lease_renewed", "ticket", ticketID, map[string]any{
+		if err := appendAudit(tx, actorID, "ticket.lease_renewed", "ticket", ticketID, map[string]any{
 			"run_id": runID,
 		}); err != nil {
 			return err
 		}
-		lease = &Lease{TicketID: ticketID, RunID: runID, AgentID: agentID, Status: leaseActiveStatus, ExpiresAt: expStr, RenewedAt: nowStr}
+		lease = &Lease{TicketID: ticketID, RunID: runID, ActorID: actorID, Status: leaseActiveStatus, ExpiresAt: expStr, RenewedAt: nowStr}
 		return nil
 	})
 	if err != nil {
@@ -186,9 +186,9 @@ func (db *DB) ReleaseLease(ticketID, runID string) error {
 func (db *DB) GetLease(ticketID string) (*Lease, error) {
 	var l Lease
 	err := db.QueryRow(
-		`SELECT ticket_id, run_id, agent_id, status, expires_at, renewed_at FROM leases WHERE ticket_id=?`,
+		`SELECT ticket_id, run_id, actor_id, status, expires_at, renewed_at FROM leases WHERE ticket_id=?`,
 		ticketID,
-	).Scan(&l.TicketID, &l.RunID, &l.AgentID, &l.Status, &l.ExpiresAt, &l.RenewedAt)
+	).Scan(&l.TicketID, &l.RunID, &l.ActorID, &l.Status, &l.ExpiresAt, &l.RenewedAt)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}

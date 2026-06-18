@@ -14,18 +14,20 @@ import (
 // key order (yaml.v3 marshals struct fields in declaration order, ADR 0020).
 // Pointer fields render as `null` when nil.
 type frontMatter struct {
-	ID        string   `yaml:"id"`
-	Kind      string   `yaml:"kind"`
-	NodeType  *string  `yaml:"node_type"`
-	Title     string   `yaml:"title"`
-	Status    string   `yaml:"status"`
-	Assignee  *string  `yaml:"assignee"`
-	Priority  *int     `yaml:"priority"`
-	Labels    []string `yaml:"labels"`
-	Parent    *string  `yaml:"parent"`
-	DependsOn []string `yaml:"depends_on"`
-	CreatedAt string   `yaml:"created_at"`
-	UpdatedAt string   `yaml:"updated_at"`
+	ID             string   `yaml:"id"`
+	Kind           string   `yaml:"kind"`
+	NodeType       *string  `yaml:"node_type"`
+	WorkType       *string  `yaml:"work_type"`
+	Title          string   `yaml:"title"`
+	Status         string   `yaml:"status"`
+	Assignee       *string  `yaml:"assignee"`
+	RequestedActor *string  `yaml:"requested_actor"`
+	Priority       *int     `yaml:"priority"`
+	Labels         []string `yaml:"labels"`
+	Parent         *string  `yaml:"parent"`
+	DependsOn      []string `yaml:"depends_on"`
+	CreatedAt      string   `yaml:"created_at"`
+	UpdatedAt      string   `yaml:"updated_at"`
 }
 
 // Render returns the deterministic Markdown export of t, with dependsOn as the
@@ -33,18 +35,20 @@ type frontMatter struct {
 // endings and a single trailing newline.
 func Render(t *ticket.Ticket, dependsOn []string) ([]byte, error) {
 	fm := frontMatter{
-		ID:        t.ID,
-		Kind:      t.Kind,
-		NodeType:  ptrOrNil(string(t.NodeType)),
-		Title:     t.Title,
-		Status:    string(t.Status),
-		Assignee:  ptrOrNil(t.Assignee),
-		Priority:  t.Priority,
-		Labels:    nonNil(t.Labels),
-		Parent:    ptrOrNil(t.ParentID),
-		DependsOn: nonNil(dependsOn),
-		CreatedAt: t.CreatedAt,
-		UpdatedAt: t.UpdatedAt,
+		ID:             t.ID,
+		Kind:           t.Kind,
+		NodeType:       ptrOrNil(string(t.NodeType)),
+		WorkType:       ptrOrNil(t.WorkType),
+		Title:          t.Title,
+		Status:         string(t.Status),
+		Assignee:       ptrOrNil(t.Assignee),
+		RequestedActor: ptrOrNil(t.RequestedActor),
+		Priority:       t.Priority,
+		Labels:         nonNil(t.Labels),
+		Parent:         ptrOrNil(t.ParentID),
+		DependsOn:      nonNil(dependsOn),
+		CreatedAt:      t.CreatedAt,
+		UpdatedAt:      t.UpdatedAt,
 	}
 	yamlBytes, err := yaml.Marshal(fm)
 	if err != nil {

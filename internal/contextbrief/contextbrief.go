@@ -100,13 +100,17 @@ func Build(db *sqlite.DB, p *config.Project, id string, includeSiblings bool) (*
 }
 
 // relevantSOPs returns SOP directories under .groundwork/sops whose name matches
-// the node's advisory kind or one of its labels. Returns relative paths.
+// the node's work_type (the primary key for SOPs, ADR 0023), falling back to its
+// advisory kind or labels. Returns relative paths.
 func relevantSOPs(p *config.Project, node *ticket.Ticket) []string {
 	entries, err := os.ReadDir(p.SopsDir())
 	if err != nil {
 		return []string{}
 	}
 	want := map[string]bool{node.Kind: true}
+	if node.WorkType != "" {
+		want[node.WorkType] = true
+	}
 	for _, l := range node.Labels {
 		want[l] = true
 	}

@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"groundwork/internal/actor"
 	"groundwork/internal/config"
 )
 
@@ -21,6 +22,7 @@ func TestInitCreatesTreeWithoutDB(t *testing.T) {
 
 	want := []string{
 		".groundwork/config.yaml",
+		".groundwork/actors.yaml",
 		".groundwork/WORKFLOW.md",
 		".groundwork/policies/trust.yaml",
 		".groundwork/policies/validation.yaml",
@@ -45,6 +47,18 @@ func TestInitCreatesTreeWithoutDB(t *testing.T) {
 	}
 	if _, warnings, err := config.Parse(data); err != nil || len(warnings) != 0 {
 		t.Fatalf("scaffolded config did not parse cleanly: warnings=%v err=%v", warnings, err)
+	}
+
+	// The scaffolded actor registry must be valid (catches template typos).
+	reg, warnings, err := actor.Load(filepath.Join(root, ".groundwork", "actors.yaml"))
+	if err != nil || len(warnings) != 0 {
+		t.Fatalf("scaffolded actors.yaml invalid: warnings=%v err=%v", warnings, err)
+	}
+	if _, ok := reg.Get("human.owner"); !ok {
+		t.Error("scaffolded registry missing human.owner")
+	}
+	if _, ok := reg.Get("ai.codex.default"); !ok {
+		t.Error("scaffolded registry missing ai.codex.default")
 	}
 }
 

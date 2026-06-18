@@ -68,12 +68,17 @@ func TestMigrateIsIdempotent(t *testing.T) {
 	if err := db.Migrate(); err != nil {
 		t.Fatalf("second Migrate: %v", err)
 	}
+	// Two runs must record each embedded migration exactly once.
 	var count int
 	if err := db.QueryRow(`SELECT COUNT(*) FROM schema_migrations`).Scan(&count); err != nil {
 		t.Fatal(err)
 	}
-	if count != 1 {
-		t.Errorf("schema_migrations rows = %d, want 1", count)
+	embedded, err := loadMigrations()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if count != len(embedded) {
+		t.Errorf("schema_migrations rows = %d, want %d", count, len(embedded))
 	}
 }
 

@@ -16,9 +16,9 @@ import (
 var ErrNotFound = errors.New("not found")
 
 // ticketColumns is the canonical column order for ticket SELECTs.
-const ticketColumns = `id, parent_id, kind, node_type, title, description,
-	contract_json, status, assignee, priority, labels_json, acceptance_json,
-	risk_score, created_at, updated_at`
+const ticketColumns = `id, parent_id, kind, node_type, work_type, title, description,
+	contract_json, status, assignee, requested_actor, priority, labels_json,
+	acceptance_json, risk_score, created_at, updated_at`
 
 // withTx runs fn inside a transaction, committing on success.
 func (db *DB) withTx(fn func(*sql.Tx) error) error {
@@ -111,14 +111,14 @@ func (db *DB) CreateTicket(t *ticket.Ticket, actor string) error {
 		}
 
 		_, err = tx.Exec(`INSERT INTO tickets
-			(id, parent_id, kind, node_type, title, description, contract_json,
-			 status, assignee, priority, labels_json, acceptance_json, risk_score,
-			 created_at, updated_at)
-			VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-			t.ID, nullStr(t.ParentID), t.Kind, nullStr(string(t.NodeType)), t.Title,
-			t.Description, t.Contract, string(t.Status), nullStr(t.Assignee),
-			nullInt(t.Priority), labels, acceptance, nullInt(t.RiskScore),
-			t.CreatedAt, t.UpdatedAt)
+			(id, parent_id, kind, node_type, work_type, title, description, contract_json,
+			 status, assignee, requested_actor, priority, labels_json, acceptance_json,
+			 risk_score, created_at, updated_at)
+			VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+			t.ID, nullStr(t.ParentID), t.Kind, nullStr(string(t.NodeType)), nullStr(t.WorkType),
+			t.Title, t.Description, t.Contract, string(t.Status), nullStr(t.Assignee),
+			nullStr(t.RequestedActor), nullInt(t.Priority), labels, acceptance,
+			nullInt(t.RiskScore), t.CreatedAt, t.UpdatedAt)
 		if err != nil {
 			return err
 		}
@@ -174,11 +174,11 @@ func (db *DB) UpdateTicket(t *ticket.Ticket, actor string) error {
 			return err
 		}
 		res, err := tx.Exec(`UPDATE tickets SET
-			kind=?, node_type=?, title=?, description=?, contract_json=?,
-			assignee=?, priority=?, labels_json=?, acceptance_json=?,
+			kind=?, node_type=?, work_type=?, title=?, description=?, contract_json=?,
+			assignee=?, requested_actor=?, priority=?, labels_json=?, acceptance_json=?,
 			risk_score=?, updated_at=? WHERE id=?`,
-			t.Kind, nullStr(string(t.NodeType)), t.Title,
-			t.Description, t.Contract, nullStr(t.Assignee),
+			t.Kind, nullStr(string(t.NodeType)), nullStr(t.WorkType), t.Title,
+			t.Description, t.Contract, nullStr(t.Assignee), nullStr(t.RequestedActor),
 			nullInt(t.Priority), labels, acceptance, nullInt(t.RiskScore),
 			t.UpdatedAt, t.ID)
 		if err != nil {
@@ -254,17 +254,19 @@ type rowScanner interface {
 
 func scanTicket(s rowScanner) (*ticket.Ticket, error) {
 	var (
-		t          ticket.Ticket
-		parentID   sql.NullString
-		nodeType   sql.NullString
-		assignee   sql.NullString
-		priority   sql.NullInt64
-		riskScore  sql.NullInt64
-		labels     string
-		acceptance string
+		t              ticket.Ticket
+		parentID       sql.NullString
+		nodeType       sql.NullString
+		workType       sql.NullString
+		assignee       sql.NullString
+		requestedActor sql.NullString
+		priority       sql.NullInt64
+		riskScore      sql.NullInt64
+		labels         string
+		acceptance     string
 	)
-	err := s.Scan(&t.ID, &parentID, &t.Kind, &nodeType, &t.Title, &t.Description,
-		&t.Contract, &t.Status, &assignee, &priority, &labels, &acceptance,
+	err := s.Scan(&t.ID, &parentID, &t.Kind, &nodeType, &workType, &t.Title, &t.Description,
+		&t.Contract, &t.Status, &assignee, &requestedActor, &priority, &labels, &acceptance,
 		&riskScore, &t.CreatedAt, &t.UpdatedAt)
 	if err == sql.ErrNoRows {
 		return nil, ErrNotFound
@@ -275,7 +277,9 @@ func scanTicket(s rowScanner) (*ticket.Ticket, error) {
 
 	t.ParentID = parentID.String
 	t.NodeType = ticket.NodeType(nodeType.String)
+	t.WorkType = workType.String
 	t.Assignee = assignee.String
+	t.RequestedActor = requestedActor.String
 	if priority.Valid {
 		p := int(priority.Int64)
 		t.Priority = &p

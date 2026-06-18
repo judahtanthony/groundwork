@@ -79,7 +79,7 @@ func TestExpiredLeaseReclaimable(t *testing.T) {
 	// lease expired but whose status was reset by recovery). Reclaim must succeed.
 	past := encoding.FormatTime(time.Now().Add(-time.Hour))
 	if _, err := db.Exec(
-		`INSERT INTO leases (ticket_id, run_id, agent_id, status, expires_at, renewed_at)
+		`INSERT INTO leases (ticket_id, run_id, actor_id, status, expires_at, renewed_at)
 		 VALUES (?,?,?,?,?,?)`,
 		id, "run-old", "agent", leaseActiveStatus, past, past,
 	); err != nil {
