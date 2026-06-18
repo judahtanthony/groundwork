@@ -31,3 +31,12 @@ Policies become the authorization and routing layer. Requested actors on tickets
 
 The status enum should not grow to include organization-specific SDLC phases. `rework` remains a lifecycle state for failed review with actionable feedback; newly discovered scope should become new dependent nodes or an upward re-plan.
 
+## Provisional: Actor Identity Scheme
+
+The actor **identity** model here is intentionally minimal and **provisional**. The MVP uses a closed `type` set and flat actor ids — the degenerate "one instance per capability class" case. Two generalizations are anticipated and should be settled early in Phase 2, when actor-aware matching first binds code to the model (the ratification gate, per [ADR 0013](0013-canon-as-memory.md)):
+
+- **Class vs instance.** An actor *class* is a fungible capability set (e.g. a front-end engineer); an *instance* is the unique entity that holds and performs work — the node's `assignee` — possibly bound to a long-lived environment. Routing matches the class; audit records the instance. A pool of interchangeable instances per class is the scaling shape (humans are already instances-of-a-role; mature agents follow the same form).
+- **Tiered identity.** Identity may become a hierarchical, dotted namespace where any prefix is matchable: `human` → `human.frontend` → `human.frontend.judahtanthony`, or `agent` → `agent.backend-go` → `agent.backend-go.instance-a3fe35`. A policy can start coarse ("a `human` must approve") and tighten to a specific tier ("only `human.director.judahtanthony` may create new credit cards"). The tier depth a rule matches at is the fungibility boundary. Identity tiers (who / authority / grouping) stay **separate from capabilities** (what tools / work types an actor has): capabilities are a set, not a path.
+
+Until Phase 2 ratifies this, treat `type` as the coarsest tier, actor `id` as a free-form (already dot-segmented) string, and `requested_actor` / `assignee` as forward-compatible placeholders for the class request and the resolved instance. Nothing in v1 is hard-bound to the flat scheme except the `type`-enum validation, which can be relaxed when the tiered model is adopted.
+
