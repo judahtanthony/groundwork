@@ -7,9 +7,10 @@ gw CLI
 
 gw server
   -> scheduler (dependency-aware eligibility, triage dispatch)
+  -> actor registry (local humans and AI actors, capabilities, runtime config)
   -> run supervisor (planning and implementation runs, checkpoints)
   -> context assembler (gw context briefs)
-  -> approval router (risk + reversibility gates)
+  -> approval router (actor + risk + reversibility gates)
   -> validation engine
   -> canon distiller (ratification-time promotion, parent reconciliation)
   -> exporters
@@ -42,6 +43,7 @@ Package areas expected in later phases (not yet created):
 ```text
 internal/git
 internal/scheduler
+internal/actor
 internal/worktree
 internal/runtime/codex
 internal/approval
@@ -58,4 +60,3 @@ internal/ui
 Phase 1 folds the planned `internal/context` (the `gw context` brief) into
 `internal/cli`; it can be extracted if the assembler grows. Keep new package
 boundaries aligned with this map.
-

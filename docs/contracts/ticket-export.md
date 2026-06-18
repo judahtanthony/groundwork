@@ -9,9 +9,11 @@ Example:
 id: T-0001
 kind: ticket
 node_type: leaf
+work_type: technical_implementation
 title: Implement SQLite migration runner
 status: todo
 assignee: null
+requested_actor: ai.codex.default
 priority: 2
 labels: [store, sqlite]
 parent: EPIC-store
@@ -31,7 +33,6 @@ Groundwork needs a migration runner before SQLite-backed features can be impleme
 - Migration failures are surfaced clearly.
 ```
 
-Composite nodes additionally carry a `## Design / Contract` section recording the schemas, interfaces, and requirements their children depend on, and an `## Escalations` section recording upward-revision events and re-plan decisions. `node_type` (`leaf` | `composite`) and `depends_on` reflect the triage outcome and dependency overlay.
+Composite nodes additionally carry a `## Design / Contract` section recording the schemas, interfaces, and requirements their children depend on, and an `## Escalations` section recording upward-revision events and re-plan decisions. `node_type` (`leaf` | `composite`) and `depends_on` reflect the triage outcome and dependency overlay. `work_type` is organization-defined operational metadata used by SOPs, policy, actor routing, and validation; it is not a status. `requested_actor` is an optional routing hint that policy must still authorize.
 
 Direct edits to exported Markdown are not live state in v1. `gw ticket import` or `gw sync` may later reconcile explicit file edits.
-

@@ -10,7 +10,7 @@ All durable product, architecture, contract, ADR, reference, and planning docs e
 
 ## M2: Coordinator Foundation
 
-`gw server`, dependency-aware claims, leases, run records (planning and implementation), decomposition proposals, escalation, approvals, validation records, and SSE/API basics exist.
+`gw server`, dependency- and actor-aware claims, leases, run records (planning and implementation), actor snapshots, decomposition proposals, escalation, approvals, validation records, and SSE/API basics exist.
 
 ## M3: Self-Hosting Preparation
 
@@ -22,5 +22,4 @@ Codex runs execute in isolated worktrees, stream events, request approvals, and 
 
 ## M5: Autonomy Path
 
-Risk scoring, validation confidence, policy suggestions, and low-risk autonomous `execute`, `decompose`, and landing are available under explicit policy as task-type SOPs mature.
-
+Risk scoring, validation confidence, actor-aware policy suggestions, and low-risk autonomous `execute`, `decompose`, review, and landing are available under explicit policy as work-type SOPs mature.

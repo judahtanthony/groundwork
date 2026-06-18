@@ -5,19 +5,24 @@
 - **`.groundwork/`**: The dot directory Groundwork will create in managed repositories.
 - **Coordinator**: The local daemon that owns scheduling, claims, leases, run lifecycle, approvals, validation gates, exports, and API/SSE.
 - **Work node**: A single uniform unit of work. `kind` (goal, epic, ticket, task, etc.) is an advisory label; structure is leaf vs composite.
+- **Work type**: Organization-defined operational metadata on a node, used by SOPs, actor routing, validation, and policy. It captures SDLC shape without expanding statuses.
 - **Work tree**: The uniform hierarchy of work nodes, with a dependency-edge DAG overlay.
+- **Actor**: A human, AI agent, AI judge, or tool that can claim work, perform a run, review output, approve a gate, or appear in audit history.
+- **Actor registry**: `.groundwork/actors.yaml`, the committed local registry of actors, roles, capabilities, runtime/model settings, and coarse limits.
+- **Assignee**: A human-readable ownership label on a node (Symphony heritage), for display and filtering. It is descriptive only and does not authorize or route work.
+- **Requested actor**: An optional routing *hint* on a node naming a preferred actor. The scheduler still matches the node against policy before any claim; a requested actor never bypasses authorization. Distinct from **assignee**, which is a display label.
 - **Leaf**: A node that needs no further research or design and is implementable and verifiable as one unit.
 - **Composite**: A node with ambiguity or further breakdown; it decomposes into children.
 - **Triage**: The claim-time decision classifying a node as leaf or composite.
 - **Parent contract**: The schemas, interfaces, and requirements a parent records so children can run in parallel.
 - **Dependency edge**: An ordering constraint between nodes; eligibility requires all dependencies satisfied.
 - **Escalation**: Upward propagation of a revision from a node to its parent for re-planning.
-- **SOP**: A task-type standard operating procedure under `.groundwork/sops/` that, with context and validations, lets a gated action's autonomy loosen.
-- **Run**: One attempt by an agent runtime to work on a node (planning or implementation).
+- **SOP**: A work-type standard operating procedure under `.groundwork/sops/` that, with context and validations, lets a gated action's autonomy loosen.
+- **Run**: One attempt by an actor/runtime to work on a node (planning or implementation).
 - **Lease**: Exclusive active-work claim for a node.
 - **Approval**: A capability gate decision that unlocks a specific action (for example `execute`, `decompose`, or `land_to_main`).
 - **Risk**: A 0–100 score mapped onto named classes (`low`/`medium`/`high`/`critical`); policy gates key off the class.
-- **Autonomy level**: The approval requirement for a gated action, loosened over time as task-type SOPs, context, and validations mature.
+- **Autonomy level**: The approval requirement for a gated action, loosened over time as work-type SOPs, context, and validations mature.
 - **Reversibility**: Whether an action can be cheaply undone; an irreversible action is forced to `critical` regardless of risk score.
 - **Validation template**: A policy mapping file changes to required validation commands.
 - **Canon**: File-authoritative committed knowledge — code, docs, ADRs, policy, SOPs, and distilled design. The durable memory of the project.
@@ -29,4 +34,3 @@
 - **Runtime state**: Volatile state such as active leases, process IDs, transcripts, raw logs, journals, worktrees, and generated views.
 - **Durable application state**: Committed or exportable state such as tickets, policies, workflow config, decisions, and code.
 - **Landing**: Moving validated changes into `main` or equivalent trunk.
-

@@ -118,6 +118,14 @@ root:
           acceptance:
             - gw context returns a bounded brief (ancestor spine, parent contract, direct dependencies, SOPs, open escalations).
             - Broader queries such as siblings are explicit, not default.
+        - id: T-0308
+          kind: ticket
+          title: Model work types and actor routing metadata
+          acceptance:
+            - Tickets support a work_type field used by planner SOPs, policy, scheduler, validation, and context assembly.
+            - Tickets may optionally request an actor or declare required actor capabilities.
+            - Ticket Markdown export includes work_type and requested_actor.
+            - Work type remains organization-defined operational metadata, not a hardcoded SDLC status list.
     - id: E-0005
       kind: epic
       title: Implement local coordinator
@@ -134,6 +142,7 @@ root:
           acceptance:
             - Scheduler finds eligible tickets.
             - Scheduler respects max concurrency.
+            - Scheduler filters actor claims through actor-aware policy and work_type capability matching.
         - id: T-0403
           kind: ticket
           title: Implement run pause, resume, and cancel state transitions
@@ -156,6 +165,7 @@ root:
           acceptance:
             - Runtime interface compiles.
             - Codex adapter is selectable by config.
+            - Runtime launch accepts actor configuration selected by the coordinator.
         - id: T-0502
           kind: ticket
           title: Launch Codex in isolated worktree
@@ -168,12 +178,20 @@ root:
           acceptance:
             - Run events persist in SQLite.
             - events.ndjson is appended locally.
+            - Run records include actor_id and runtime/model metadata.
         - id: T-0504
           kind: ticket
           title: Implement run checkpoints and landing squash
           acceptance:
             - A run commits WIP checkpoints on its worktree branch, never on main.
             - Checkpoints are squashed into the landing commit.
+        - id: T-0505
+          kind: ticket
+          title: Record actor snapshots on runs
+          acceptance:
+            - Runs persist actor_id, runtime, model, and actor_snapshot_json.
+            - Actor snapshots preserve the selected actor configuration for audit after .groundwork/actors.yaml changes.
+            - Resume and run detail output include the actor identity and relevant snapshot summary.
     - id: E-0007
       kind: epic
       title: Implement approval and trust policy
@@ -184,12 +202,22 @@ root:
           acceptance:
             - Trust policy parses and validates.
             - Invalid policy errors are actionable.
+        - id: T-0606
+          kind: ticket
+          title: Add actor registry and actor-aware policy matching
+          acceptance:
+            - .groundwork/actors.yaml defines local human and AI actors.
+            - The default scaffold creates human.owner and ai.codex.default.
+            - Actors have type, roles, runtime/model config, and coarse capabilities.
+            - Policy rules can match actor id, actor type, roles, work_type, action, files, and risk class.
+            - Requested actors are treated as routing hints and still require policy authorization.
         - id: T-0602
           kind: ticket
           title: Implement approval records and decisions
           acceptance:
             - Approvals can be requested, listed, approved, and rejected.
             - Decisions are audited.
+            - Approvals record requesting actor, required actor/role constraints, and deciding actor.
         - id: T-0603
           kind: ticket
           title: Implement documentation auto-approval rule
@@ -302,4 +330,3 @@ root:
           acceptance:
             - Codex run is tracked.
             - Human landing gate is exercised.
-

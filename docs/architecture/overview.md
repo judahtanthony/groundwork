@@ -12,7 +12,7 @@ gw CLI / Web UI / Agent Runner
   -> .groundwork files
 ```
 
-The coordinator owns live decisions. SQLite gives transactional claims, leases, approvals, run state, validation gates, dependency eligibility, decomposition proposals, and escalations. Exported files make durable project state inspectable by humans and agents.
+The coordinator owns live decisions. SQLite gives transactional claims, leases, approvals, run state, validation gates, dependency eligibility, decomposition proposals, actor snapshots, and escalations. Exported files make durable project state inspectable by humans and agents.
 
 ## Operational State Versus Durable State
 
@@ -30,7 +30,7 @@ The first implementation should keep these subsystem boundaries:
 
 - CLI and HTTP handlers call coordinator/store services.
 - The scheduler owns claims and run lifecycle.
+- Actor registry and policy determine which humans or agents may claim, review, approve, edit, or land work.
 - Agent runtimes communicate through a runtime interface.
 - Policy and validation engines produce decisions, not side effects.
 - Exporters write readable projections from canonical state.
-

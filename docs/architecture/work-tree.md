@@ -8,6 +8,10 @@ All work is one node type. `kind` is an advisory human label (for example `goal`
 
 The only structural distinction is **leaf** versus **composite**, and it is decided at claim time by the triage gate rather than fixed when the node is authored.
 
+`work_type` is separate from `kind`. It is operational metadata used by planner SOPs, policy, actor routing, validation, and context assembly. Organizations may define their own work types (for example `value_research`, `functional_spec`, `ux_design`, `technical_design`, `technical_implementation`, `functional_testing`, `deployment`, or `monitoring`) to reflect their SDLC. Groundwork must not encode those SDLC phases as statuses; the graph models the work, while status models lifecycle state.
+
+Nodes may optionally carry a requested actor or required actor capabilities. These are routing hints and policy inputs, not ownership facts. The scheduler still has to match the node, its risk, touched files, requested action, and available actors against policy before a claim or gated action proceeds.
+
 ## Triage Gate
 
 When a node is claimed, the agent triages it ("definition of ready"):

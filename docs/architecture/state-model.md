@@ -19,7 +19,8 @@ File-authoritative and committed:
 - code,
 - product, visual (`docs/design/`), and technical design (ADRs, architecture docs),
 - trust, risk, validation, and autonomy policies,
-- task-type SOPs,
+- local actor registry (`.groundwork/actors.yaml`),
+- work-type SOPs,
 - distilled design decisions promoted to canon.
 
 Distilled design is written to a file at the **ratification gate** — when a decision becomes binding on other work (a decomposition proposal accepted, a node lands, a policy/SOP change approved) — not continuously and not only at root completion. Before ratification it is mutable ephemeral state; a decision never ratified never touches the repo. See [ADR 0013](../adr/0013-canon-as-memory.md).
@@ -28,15 +29,16 @@ Distilled design is written to a file at the **ratification gate** — when a de
 
 Commit or preserve (SQLite-primary, exported to files):
 
-- node identity, title, description, acceptance criteria, labels, priority, status, assignee, advisory kind, and parent,
+- node identity, title, description, acceptance criteria, labels, priority, status, assignee, advisory kind, work type, requested actor, and parent,
 - parent design/contract for composite nodes,
 - dependency edges between nodes,
 - escalation / upward-revision events and re-plan decisions,
-- task-type SOPs and context,
+- work-type SOPs and context,
 - meaningful node timeline entries,
 - workflow prompt and operating policy,
 - trust, risk, and validation policies,
 - decomposition, landing, and other gate decisions and human overrides,
+- run actor ids and actor configuration snapshots,
 - code commits.
 
 ## Runtime State
@@ -74,4 +76,3 @@ Differences from Symphony:
 - `Merging` becomes `landing` because Groundwork may land through trunk commits, local branch merges, fast-forward, or future PR integration.
 - `blocked` is first-class because tactical approvals are central.
 - `backlog` remains non-dispatchable for ideas and future work.
-

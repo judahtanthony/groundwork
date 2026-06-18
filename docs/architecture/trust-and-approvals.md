@@ -1,6 +1,6 @@
 # Trust And Approvals
 
-Approvals are capability gates. They unlock specific actions and must be auditable.
+Approvals are capability gates. They unlock specific actions and must be auditable. Policy evaluates both the action and the actor: a human owner, a Codex implementer, an AI judge, and a future domain reviewer can have different authority over the same node.
 
 ## Risk Classes
 
@@ -43,17 +43,22 @@ Require human approval:
 - Decomposition proposals (`decompose`) in v1.
 - Production deploys or production credential access.
 
+Actor-specific examples:
+
+- A billing policy may allow only actors with role `billing_owner` to edit `billing/**`.
+- A documentation policy may allow an `ai_judge` actor to review low-risk documentation, while landing remains human-gated.
+- A default Codex actor may claim medium-risk Go implementation work but be denied critical or irreversible actions.
+
 ## Progressive Autonomy
 
-High-leverage agent actions are treated uniformly as gated capabilities: leaf `execute`, `land_to_main`, and `decompose`. Each has a risk class and an approval requirement (an autonomy level) that can be loosened over time.
+High-leverage actions are treated uniformly as gated capabilities: leaf `execute`, `land_to_main`, `decompose`, and `review` (who may judge a prepared change or proposal — a human or an `ai_judge` actor). Each has an actor, a risk class, and an approval requirement (an autonomy level) that can be loosened over time.
 
-Loosening is earned as task-type SOPs, updatable task-type context, and defined validations mature. As an action class becomes well-defined and reliably approved, its autonomy level can move from human-required toward policy/auto. This generalizes the landing gate (see [ADR 0006](../adr/0006-human-landing-gate-v1.md) and [ADR 0011](../adr/0011-progressive-planning-autonomy-via-sops.md)): planning decomposition becomes progressively autonomous the same way execution and landing do.
+Loosening is earned as work-type SOPs, updatable work-type context, and defined validations mature. As an action class becomes well-defined and reliably approved, its autonomy level can move from human-required toward policy/auto. This generalizes the landing gate (see [ADR 0006](../adr/0006-human-landing-gate-v1.md) and [ADR 0011](../adr/0011-progressive-planning-autonomy-via-sops.md)): planning decomposition becomes progressively autonomous the same way execution and landing do.
 
 ## Phase 2
 
-Phase 2 should add chat approvals and reviewer-agent approvals. These must write the same approval records as CLI/web decisions and must not silently override human-required rules.
+Phase 2 should add chat approvals and reviewer-agent approvals. These must write the same actor-aware approval records as CLI/web decisions and must not silently override human-required rules.
 
 ## Policy Learning
 
 Groundwork may suggest loosening any gated action — including `decompose` — after repeated clean human approvals, and may suggest refinements to the SOPs and context that justify it. Trust elevation is a human act in v1: Groundwork must not install learned rules or raise an autonomy level without explicit approval.
-

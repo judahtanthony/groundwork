@@ -1,6 +1,6 @@
 # Policy Contracts
 
-Policies live under `.groundwork/policies/` and are committed by default. Rules carry stable IDs and are evaluated top-down; the first matching rule decides. The dashboard surfaces these IDs (for example `R-01`) for auditability.
+Policies live under `.groundwork/policies/` and are committed by default. Rules carry stable IDs and are evaluated top-down; the first matching rule decides. The dashboard surfaces these IDs (for example `R-01`) for auditability. Policies may match actors from `.groundwork/actors.yaml` by id, type, role, runtime, and capability.
 
 ## Trust Policy Example
 
@@ -21,6 +21,12 @@ auto_approve:
       command_regex: "^(go test|npm test|pytest|make test)"
       cwd_within_workspace: true
       network: false
+  - id: docs_ai_judge
+    when:
+      work_type: documentation
+      risk_class: low
+    review_allowed_by:
+      actor_ids: [ai.docs_judge]
 require_human:
   - id: secrets
     files:
@@ -32,9 +38,22 @@ require_human:
     action_types: [land_to_main]
   - id: decomposition_v1
     action_types: [decompose]
+allow_claim:
+  - id: default_codex_medium_risk
+    when:
+      actor_ids: [ai.codex.default]
+      work_types: [technical_design, technical_implementation, test_implementation, documentation]
+      risk_class_at_most: medium
+    actions: [execute, decompose]
+  - id: billing_human_only
+    when:
+      files: ["billing/**", "payments/**"]
+    actor_types: [human]
 ```
 
-Gated actions (`execute`, `land_to_main`, `decompose`) carry an autonomy level that can be loosened as task-type SOPs, context, and validations mature. Elevation is a human act in v1; see `docs/architecture/trust-and-approvals.md` and `docs/adr/0011-progressive-planning-autonomy-via-sops.md`.
+Gated actions (`execute`, `land_to_main`, `decompose`) carry an autonomy level that can be loosened as work-type SOPs, context, and validations mature. Elevation is a human act in v1; see `docs/architecture/trust-and-approvals.md` and `docs/adr/0011-progressive-planning-autonomy-via-sops.md`.
+
+Actor-aware policy matching is the smallest v1 authorization model. It is local and declarative: rules match action, work type, file scope, risk class, reversibility, actor id, actor type, and actor roles/capabilities. The result may allow a claim, require an approval from a role, deny an edit, or select a reviewer. This supports the single-developer default while preserving a path to multiple human roles and task-specific AI actors.
 
 Gates also key off **reversibility**: an action classified irreversible (non-reversible migration, external/production state, destructive command, credential access) is forced to `critical` and stays human-required regardless of risk score or autonomy level (see `docs/adr/0014-reversibility-as-a-gate-input.md`). A rule may set or assert `reversible: false` to force this.
 
@@ -49,7 +68,7 @@ actions:
     default: require_human
   decompose:
     default: require_human
-    by_task_type:
+    by_work_type:
       docs:
         level: auto              # earned via SOP + validations; elevated by a human
         requires:
@@ -74,4 +93,3 @@ templates:
       - name: go_tests
         command: "go test ./..."
 ```
-

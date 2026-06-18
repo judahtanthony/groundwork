@@ -12,6 +12,9 @@ gw ticket list
 gw ticket show <id>
 gw ticket edit <id>
 gw ticket assign <id> <assignee>
+gw actor list
+gw actor show <id>
+gw actor validate
 gw ticket transition <id> <status>
 gw ticket tree [id]
 gw ticket context <id>
@@ -44,7 +47,11 @@ gw sync
 
 ## Context Brief
 
-`gw ticket context <id>` returns the bounded, node-specific brief an agent receives at claim time: ancestor spine, parent contract, direct dependencies, relevant SOPs, and open escalations. It reads canon resolved through the SQLite graph; broader queries (for example `--siblings`) are explicit. See [ADR 0013](../adr/0013-canon-as-memory.md).
+`gw ticket context <id>` returns the bounded, node-specific brief an agent receives at claim time: ancestor spine, parent contract, direct dependencies, relevant SOPs, actor constraints, and open escalations. It reads canon resolved through the SQLite graph; broader queries (for example `--siblings`) are explicit. See [ADR 0013](../adr/0013-canon-as-memory.md).
+
+## Actors
+
+`gw actor list`, `gw actor show <id>`, and `gw actor validate` operate on `.groundwork/actors.yaml`. Actor definitions are committed project configuration; run history stores actor snapshots separately.
 
 ## Output
 
@@ -53,4 +60,3 @@ Default output should be human-readable and script-friendly. Every data command 
 ## Coordinator Interaction
 
 If `gw server` is running, mutating commands should call the local API by default. If it is not running, simple ticket/config commands may open SQLite directly through the shared store package. Commands requiring live run control must fail clearly without the coordinator.
-

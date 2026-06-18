@@ -5,6 +5,7 @@ Groundwork manages one dot directory in target repositories:
 ```text
 .groundwork/
   config.yaml
+  actors.yaml
   WORKFLOW.md
   state.sqlite
   tickets/
@@ -19,9 +20,10 @@ Groundwork manages one dot directory in target repositories:
 ## Commit By Default
 
 - `.groundwork/config.yaml`
+- `.groundwork/actors.yaml`
 - `.groundwork/WORKFLOW.md`
 - `.groundwork/policies/*.yaml`
-- `.groundwork/sops/<task-type>/**` (task-type SOPs and context)
+- `.groundwork/sops/<work-type>/**` (work-type SOPs and context)
 - `.groundwork/tickets/**/ticket.md`
 - `.groundwork/tickets/**/timeline.ndjson` when configured as durable audit export
 
@@ -36,4 +38,3 @@ Groundwork manages one dot directory in target repositories:
 - `.groundwork/worktrees/`
 
 Generated views are never source of truth.
-

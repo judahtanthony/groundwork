@@ -25,7 +25,7 @@ The dashboard must expose the work-node model (see [work-tree.md](work-tree.md) 
 - decomposition proposals as a reviewable approval (`decompose`), gated like landing;
 - dependency edges (blocks / blocked-by) and dispatch eligibility;
 - escalation / upward-revision entries on a node;
-- autonomy levels and task-type SOPs on the Policies surface.
+- autonomy levels and work-type SOPs on the Policies surface.
 
 ## Risk And Reviewer Display
 

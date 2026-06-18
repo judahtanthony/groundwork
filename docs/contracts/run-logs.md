@@ -17,7 +17,7 @@ Expected directory:
 
 ## Events
 
-`events.ndjson` is append-only structured telemetry for run lifecycle, agent messages, tool calls, approvals, validation, and state changes. For planning runs it also records triage, decomposition proposals, and escalation events. The run manifest records the run mode (planning or implementation).
+`events.ndjson` is append-only structured telemetry for run lifecycle, actor messages, tool calls, approvals, validation, and state changes. For planning runs it also records triage, decomposition proposals, and escalation events. The run manifest records the run mode (planning or implementation), actor id, runtime/model metadata, and an actor snapshot summary.
 
 ## Transcript
 
@@ -34,4 +34,3 @@ A per-node **journal** of in-progress decision notes is ephemeral (ignored by de
 ## Artifacts
 
 Raw command output, screenshots, and large logs belong under `artifacts/` and are ignored by default.
-

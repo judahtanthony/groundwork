@@ -9,9 +9,11 @@ It should follow the Symphony-style shape: optional YAML front matter plus a Mar
 `WORKFLOW.md` tells agents how to operate in the managed project:
 
 - how to interpret work nodes,
+- how to interpret organization-defined work types,
 - how to triage a claimed node as leaf or composite,
 - how to decompose a composite node into children and a parent contract, and submit it as a proposal,
-- how to follow task-type SOPs and context,
+- how to follow work-type SOPs and context,
+- how to obey actor constraints from policy,
 - how to update progress,
 - how to request approvals, including the `decompose` gate,
 - how to escalate revisions upward,
@@ -22,4 +24,3 @@ It should follow the Symphony-style shape: optional YAML front matter plus a Mar
 ## V1 Boundary
 
 The workflow is durable committed state. It is not runtime state. Changes to workflow should be reviewed like other project policy changes.
-

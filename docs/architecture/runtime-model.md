@@ -19,16 +19,17 @@ A run is one of two modes:
 ## Runtime Flow
 
 1. A node becomes eligible (`todo` and all dependencies satisfied).
-2. Coordinator claims it transactionally in SQLite.
-3. Coordinator creates a run and lease.
-4. The agent receives a bounded context brief (`gw context`): ancestor spine, parent contract, direct dependencies, relevant SOPs, open escalations.
-5. The claiming agent triages the node as leaf or composite.
-6. Composite -> planning run produces a decomposition proposal -> `review`.
-7. Leaf -> implementation run in an isolated worktree, checkpointing WIP as it goes.
-8. Events stream to SQLite and local JSONL logs.
-9. Approval requests pause gated actions (including `decompose`).
-10. Validation results are recorded.
-11. Landing is gated by validation and policy; WIP checkpoints are squashed into the landing commit, and ratified design is distilled into canon.
+2. Coordinator selects an eligible actor by matching node `work_type`, requested actor/capabilities, risk, file scope, and action policy.
+3. Coordinator claims the node transactionally in SQLite.
+4. Coordinator creates a run and lease, recording the actor id and an actor configuration snapshot.
+5. The agent receives a bounded context brief (`gw context`): ancestor spine, parent contract, direct dependencies, relevant SOPs, actor constraints, open escalations.
+6. The claiming actor triages the node as leaf or composite.
+7. Composite -> planning run produces a decomposition proposal -> `review`.
+8. Leaf -> implementation run in an isolated worktree, checkpointing WIP as it goes.
+9. Events stream to SQLite and local JSONL logs.
+10. Approval requests pause gated actions (including `decompose`).
+11. Validation results are recorded.
+12. Landing is gated by validation and policy; WIP checkpoints are squashed into the landing commit, and ratified design is distilled into canon.
 
 ## Checkpoints And Distillation
 
@@ -43,4 +44,3 @@ An implementation run periodically commits work-in-progress as a **checkpoint** 
 ## Runtime State
 
 Runtime state is local and ignored by default. It can be reconstructed enough for stable continuation, but exact model-internal state is not guaranteed after crashes.
-

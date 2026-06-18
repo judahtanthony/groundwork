@@ -25,6 +25,9 @@ GET  /api/v1/runs/:id/events
 POST /api/v1/runs/:id/pause
 POST /api/v1/runs/:id/resume
 POST /api/v1/runs/:id/cancel
+GET  /api/v1/actors
+GET  /api/v1/actors/:id
+POST /api/v1/actors/validate
 GET  /api/v1/approvals
 GET  /api/v1/approvals/:id
 POST /api/v1/approvals/:id/approve
@@ -40,6 +43,8 @@ GET  /api/v1/events
 
 `POST /api/v1/tickets/:id/decompose` opens a planning run; the resulting decomposition proposal is decided through the approvals endpoints (`approve` accepts the proposal, `clarify` asks the agent for more detail). `approve`/`reject` cover the `decompose`, landing, and tactical gates uniformly.
 
+Actor endpoints expose the current local actor registry from `.groundwork/actors.yaml`. Runs expose actor ids and snapshots through the run endpoints; snapshots are runtime audit records, not edits to the actor registry.
+
 `GET /api/v1/events` should use Server-Sent Events for realtime dashboard updates.
 
 ## Error Shape
@@ -54,4 +59,3 @@ Use a consistent JSON error envelope:
   }
 }
 ```
-
