@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 
 	"groundwork/internal/encoding"
 	"groundwork/internal/ticket"
@@ -65,9 +66,12 @@ func (db *DB) SeedTicketSeq(n int) error {
 		var cur int
 		var s string
 		err := tx.QueryRow(`SELECT value FROM meta WHERE key='ticket_seq'`).Scan(&s)
-		if err == nil {
-			cur, _ = strconv.Atoi(s)
-		} else if err != sql.ErrNoRows {
+		switch {
+		case err == nil:
+			if cur, err = strconv.Atoi(s); err != nil {
+				return fmt.Errorf("corrupt ticket_seq %q: %w", s, err)
+			}
+		case err != sql.ErrNoRows:
 			return err
 		}
 		if n <= cur {
@@ -86,7 +90,9 @@ func (db *DB) SeedTicketSeq(n int) error {
 // It appends a ticket.created audit event in the same transaction. The assigned
 // id and timestamps are written back into t.
 func (db *DB) CreateTicket(t *ticket.Ticket, actor string) error {
-	applyDefaults(t)
+	if err := prepareTicket(t); err != nil {
+		return err
+	}
 	now := encoding.Now()
 	t.CreatedAt, t.UpdatedAt = now, now
 
@@ -136,6 +142,11 @@ func (db *DB) ListTickets() ([]*ticket.Ticket, error) {
 		return nil, err
 	}
 	defer rows.Close()
+	return scanTickets(rows)
+}
+
+// scanTickets drains rows of ticketColumns into tickets.
+func scanTickets(rows *sql.Rows) ([]*ticket.Ticket, error) {
 	var out []*ticket.Ticket
 	for rows.Next() {
 		t, err := scanTicket(rows)
@@ -148,9 +159,14 @@ func (db *DB) ListTickets() ([]*ticket.Ticket, error) {
 }
 
 // UpdateTicket persists mutable fields of t and refreshes updated_at, appending
-// a ticket.updated audit event.
+// a ticket.updated audit event. It deliberately does NOT change status or
+// parent_id: status moves only through TransitionTicket (ADR 0022), and parentage
+// is fixed at creation in Phase 1 (no reparent command), which also keeps the
+// parent tree acyclic by construction.
 func (db *DB) UpdateTicket(t *ticket.Ticket, actor string) error {
-	applyDefaults(t)
+	if err := prepareTicket(t); err != nil {
+		return err
+	}
 	t.UpdatedAt = encoding.Now()
 	return db.withTx(func(tx *sql.Tx) error {
 		labels, acceptance, err := marshalLists(t)
@@ -158,11 +174,11 @@ func (db *DB) UpdateTicket(t *ticket.Ticket, actor string) error {
 			return err
 		}
 		res, err := tx.Exec(`UPDATE tickets SET
-			parent_id=?, kind=?, node_type=?, title=?, description=?, contract_json=?,
-			status=?, assignee=?, priority=?, labels_json=?, acceptance_json=?,
+			kind=?, node_type=?, title=?, description=?, contract_json=?,
+			assignee=?, priority=?, labels_json=?, acceptance_json=?,
 			risk_score=?, updated_at=? WHERE id=?`,
-			nullStr(t.ParentID), t.Kind, nullStr(string(t.NodeType)), t.Title,
-			t.Description, t.Contract, string(t.Status), nullStr(t.Assignee),
+			t.Kind, nullStr(string(t.NodeType)), t.Title,
+			t.Description, t.Contract, nullStr(t.Assignee),
 			nullInt(t.Priority), labels, acceptance, nullInt(t.RiskScore),
 			t.UpdatedAt, t.ID)
 		if err != nil {
@@ -176,6 +192,34 @@ func (db *DB) UpdateTicket(t *ticket.Ticket, actor string) error {
 }
 
 // --- helpers ---
+
+// ErrEmptyTitle is returned when a ticket would be persisted without a title.
+var ErrEmptyTitle = errors.New("ticket title must not be empty")
+
+// prepareTicket applies defaults, validates required fields, and canonicalizes
+// the contract JSON (ADR 0020) before a write.
+func prepareTicket(t *ticket.Ticket) error {
+	applyDefaults(t)
+	if strings.TrimSpace(t.Title) == "" {
+		return ErrEmptyTitle
+	}
+	canonical, err := canonicalizeJSON(t.Contract)
+	if err != nil {
+		return fmt.Errorf("invalid contract JSON: %w", err)
+	}
+	t.Contract = canonical
+	return nil
+}
+
+// canonicalizeJSON round-trips a JSON document into canonical form (sorted keys,
+// no insignificant whitespace) per ADR 0020.
+func canonicalizeJSON(s string) (string, error) {
+	var v any
+	if err := json.Unmarshal([]byte(s), &v); err != nil {
+		return "", err
+	}
+	return encoding.JSON(v)
+}
 
 func applyDefaults(t *ticket.Ticket) {
 	if t.Kind == "" {

@@ -15,22 +15,37 @@ func newBoardCmd() *Command {
 	return &Command{Name: "board", Usage: "Show tickets grouped by status", Run: runBoard}
 }
 
-// rollupTree builds the child map and returns a function computing the derived
-// rollup for any node id (memoized).
-func rollupTree(all []*ticket.Ticket) (byID map[string]*ticket.Ticket, children map[string][]*ticket.Ticket, rollup func(string) ticket.Rollup) {
+// indexByParent indexes tickets by id and groups them by parent id (the empty
+// string key holds roots). Each child slice is sorted by id.
+func indexByParent(all []*ticket.Ticket) (byID map[string]*ticket.Ticket, children map[string][]*ticket.Ticket) {
 	byID = make(map[string]*ticket.Ticket, len(all))
 	children = make(map[string][]*ticket.Ticket)
 	for _, t := range all {
 		byID[t.ID] = t
 		children[t.ParentID] = append(children[t.ParentID], t)
 	}
+	for k := range children {
+		sort.Slice(children[k], func(i, j int) bool { return children[k][i].ID < children[k][j].ID })
+	}
+	return byID, children
+}
+
+// rollupTree builds the child map and returns a function computing the derived
+// rollup for any node id (memoized).
+func rollupTree(all []*ticket.Ticket) (byID map[string]*ticket.Ticket, children map[string][]*ticket.Ticket, rollup func(string) ticket.Rollup) {
+	byID, children = indexByParent(all)
 	memo := map[string]ticket.Rollup{}
 	var compute func(id string) ticket.Rollup
 	compute = func(id string) ticket.Rollup {
 		if r, ok := memo[id]; ok {
 			return r
 		}
-		t := byID[id]
+		t, ok := byID[id]
+		if !ok {
+			return ticket.Rollup{}
+		}
+		// Provisional entry breaks any parent cycle before recursing.
+		memo[id] = ticket.Rollup{}
 		var childRollups []ticket.Rollup
 		for _, c := range children[id] {
 			childRollups = append(childRollups, compute(c.ID))

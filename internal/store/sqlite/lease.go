@@ -18,6 +18,9 @@ var (
 	// ErrLeaseNotHeld is returned when renewing/releasing a lease not held by
 	// the given run.
 	ErrLeaseNotHeld = errors.New("lease not held by this run")
+	// ErrLeaseExpired is returned when renewing a lease that has already expired;
+	// it must be re-claimed rather than renewed.
+	ErrLeaseExpired = errors.New("lease has expired and cannot be renewed")
 )
 
 const leaseActiveStatus = "active"
@@ -35,8 +38,12 @@ type Lease struct {
 // ClaimTicket atomically claims an eligible node: it verifies eligibility
 // (todo + dependencies satisfied), ensures no active lease exists, records a
 // lease, and moves the node to in_progress — all in one transaction so only one
-// run can win. An expired lease is reclaimable. Appends a ticket.claimed audit
-// event.
+// run can win. Appends a ticket.claimed audit event.
+//
+// A stale (expired) lease on an otherwise-eligible node is cleared and the node
+// reclaimed. Note that in Phase 1 nothing returns an in_progress node to todo,
+// so this branch is reached only once the Phase 2 recovery sweep
+// (docs/architecture/recovery.md) requeues interrupted runs.
 func (db *DB) ClaimTicket(ticketID, runID, agentID string, ttl time.Duration) (*Lease, error) {
 	now := time.Now()
 	var lease *Lease
@@ -108,14 +115,17 @@ func (db *DB) ClaimTicket(ticketID, runID, agentID string, ttl time.Duration) (*
 	return lease, nil
 }
 
-// RenewLease extends a lease held by runID. It fails if the lease is missing or
-// held by a different run.
+// RenewLease extends a lease held by runID. It fails if the lease is missing,
+// held by a different run, or already expired (an expired lease must be
+// re-claimed, not renewed). It appends a ticket.lease_renewed audit event.
 func (db *DB) RenewLease(ticketID, runID string, ttl time.Duration) (*Lease, error) {
 	now := time.Now()
 	var lease *Lease
 	err := db.withTx(func(tx *sql.Tx) error {
-		var holder string
-		err := tx.QueryRow(`SELECT run_id FROM leases WHERE ticket_id=?`, ticketID).Scan(&holder)
+		var holder, agentID, expiresAt string
+		err := tx.QueryRow(
+			`SELECT run_id, agent_id, expires_at FROM leases WHERE ticket_id=?`, ticketID,
+		).Scan(&holder, &agentID, &expiresAt)
 		if err == sql.ErrNoRows {
 			return ErrLeaseNotHeld
 		}
@@ -125,6 +135,9 @@ func (db *DB) RenewLease(ticketID, runID string, ttl time.Duration) (*Lease, err
 		if holder != runID {
 			return ErrLeaseNotHeld
 		}
+		if !leaseIsActive(expiresAt, now) {
+			return ErrLeaseExpired
+		}
 		nowStr := encoding.FormatTime(now)
 		expStr := encoding.FormatTime(now.Add(ttl))
 		if _, err := tx.Exec(
@@ -133,15 +146,16 @@ func (db *DB) RenewLease(ticketID, runID string, ttl time.Duration) (*Lease, err
 		); err != nil {
 			return err
 		}
-		lease = &Lease{TicketID: ticketID, RunID: runID, Status: leaseActiveStatus, ExpiresAt: expStr, RenewedAt: nowStr}
+		if err := appendAudit(tx, agentID, "ticket.lease_renewed", "ticket", ticketID, map[string]any{
+			"run_id": runID,
+		}); err != nil {
+			return err
+		}
+		lease = &Lease{TicketID: ticketID, RunID: runID, AgentID: agentID, Status: leaseActiveStatus, ExpiresAt: expStr, RenewedAt: nowStr}
 		return nil
 	})
 	if err != nil {
 		return nil, err
-	}
-	// Fill agent_id for the returned value.
-	if got, gerr := db.GetLease(ticketID); gerr == nil && got != nil {
-		lease.AgentID = got.AgentID
 	}
 	return lease, nil
 }
@@ -200,7 +214,7 @@ func txDependenciesSatisfied(tx *sql.Tx, fromID string) (bool, error) {
 		if err := rows.Scan(&s); err != nil {
 			return false, err
 		}
-		if ticket.Status(s) != ticket.StatusDone {
+		if !ticket.DependencyMet(ticket.Status(s)) {
 			return false, nil
 		}
 	}

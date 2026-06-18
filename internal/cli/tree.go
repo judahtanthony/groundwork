@@ -2,7 +2,6 @@ package cli
 
 import (
 	"fmt"
-	"sort"
 
 	"groundwork/internal/ticket"
 )
@@ -29,15 +28,7 @@ func runTicketTree(ctx *Context, args []string) error {
 		return &Error{Code: "list_failed", Message: err.Error()}
 	}
 
-	byID := make(map[string]*ticket.Ticket, len(all))
-	children := make(map[string][]*ticket.Ticket)
-	for _, t := range all {
-		byID[t.ID] = t
-		children[t.ParentID] = append(children[t.ParentID], t)
-	}
-	for k := range children {
-		sort.Slice(children[k], func(i, j int) bool { return children[k][i].ID < children[k][j].ID })
-	}
+	byID, children := indexByParent(all)
 
 	// Determine the roots to print: a given subtree, or all top-level nodes.
 	var roots []*ticket.Ticket

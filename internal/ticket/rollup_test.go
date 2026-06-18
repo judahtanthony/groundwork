@@ -49,3 +49,17 @@ func TestRollupLeafIsOwnStatus(t *testing.T) {
 		t.Error("leaf rollup should be its own status")
 	}
 }
+
+func TestRollupAllCancelledIsCancelled(t *testing.T) {
+	r := ComputeRollup(StatusInProgress, []Rollup{leaf(StatusCancelled), leaf(StatusCancelled)})
+	if r.Status != StatusCancelled {
+		t.Errorf("status = %q, want cancelled (not done) when all children cancelled", r.Status)
+	}
+}
+
+func TestRollupMixedDoneAndCancelledIsDone(t *testing.T) {
+	r := ComputeRollup(StatusInProgress, []Rollup{leaf(StatusDone), leaf(StatusCancelled)})
+	if r.Status != StatusDone {
+		t.Errorf("status = %q, want done when children are done+cancelled", r.Status)
+	}
+}

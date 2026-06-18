@@ -1,4 +1,4 @@
-package cli
+package contextbrief
 
 import (
 	"path/filepath"
@@ -9,12 +9,11 @@ import (
 	"groundwork/internal/ticket"
 )
 
-// newProjectStore builds a temp project + migrated store for CLI integration
-// tests that exercise assembly helpers directly.
 func newProjectStore(t *testing.T) (*config.Project, *sqlite.DB) {
 	t.Helper()
 	root := t.TempDir()
-	p := &config.Project{Root: root, Config: ptrConfig()}
+	cfg := config.Defaults()
+	p := &config.Project{Root: root, Config: &cfg}
 	db, err := sqlite.Open(filepath.Join(root, "state.sqlite"))
 	if err != nil {
 		t.Fatal(err)
@@ -26,12 +25,7 @@ func newProjectStore(t *testing.T) (*config.Project, *sqlite.DB) {
 	return p, db
 }
 
-func ptrConfig() *config.Config {
-	c := config.Defaults()
-	return &c
-}
-
-func TestBuildBrief(t *testing.T) {
+func TestBuild(t *testing.T) {
 	p, db := newProjectStore(t)
 
 	parent := &ticket.Ticket{Title: "Build store", NodeType: ticket.NodeComposite, Contract: `{"schema":"v1"}`}
@@ -50,11 +44,10 @@ func TestBuildBrief(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	b, err := buildBrief(db, p, node.ID, false)
+	b, err := Build(db, p, node.ID, false)
 	if err != nil {
-		t.Fatalf("buildBrief: %v", err)
+		t.Fatalf("Build: %v", err)
 	}
-
 	if len(b.AncestorSpine) != 1 || b.AncestorSpine[0].ID != parent.ID {
 		t.Errorf("ancestor spine = %+v, want [%s]", b.AncestorSpine, parent.ID)
 	}
@@ -64,13 +57,12 @@ func TestBuildBrief(t *testing.T) {
 	if len(b.Dependencies) != 1 || b.Dependencies[0].ID != dep.ID {
 		t.Errorf("dependencies = %+v, want [%s]", b.Dependencies, dep.ID)
 	}
-	// Siblings excluded by default.
 	if b.Siblings != nil {
-		t.Errorf("siblings should be nil without --siblings: %+v", b.Siblings)
+		t.Errorf("siblings should be nil without includeSiblings: %+v", b.Siblings)
 	}
 }
 
-func TestBuildBriefWithSiblings(t *testing.T) {
+func TestBuildWithSiblings(t *testing.T) {
 	p, db := newProjectStore(t)
 	parent := &ticket.Ticket{Title: "p", NodeType: ticket.NodeComposite}
 	if err := db.CreateTicket(parent, "human"); err != nil {
@@ -84,7 +76,7 @@ func TestBuildBriefWithSiblings(t *testing.T) {
 		}
 	}
 
-	b, err := buildBrief(db, p, node.ID, true)
+	b, err := Build(db, p, node.ID, true)
 	if err != nil {
 		t.Fatal(err)
 	}

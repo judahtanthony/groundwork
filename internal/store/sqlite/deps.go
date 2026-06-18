@@ -26,6 +26,25 @@ func (db *DB) DependentIDs(toID string) ([]string, error) {
 	return queryIDs(db, `SELECT from_id FROM dependencies WHERE to_id=? ORDER BY from_id`, toID)
 }
 
+// DependencyMap returns from_id -> sorted to_ids for every edge in one query,
+// so bulk operations (e.g. exporting all tickets) avoid an N+1 query pattern.
+func (db *DB) DependencyMap() (map[string][]string, error) {
+	rows, err := db.Query(`SELECT from_id, to_id FROM dependencies ORDER BY from_id, to_id`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := map[string][]string{}
+	for rows.Next() {
+		var from, to string
+		if err := rows.Scan(&from, &to); err != nil {
+			return nil, err
+		}
+		out[from] = append(out[from], to)
+	}
+	return out, rows.Err()
+}
+
 // AddDependency records that fromID depends on toID. It rejects self-edges and
 // any edge that would create a cycle (ADR 0010), and is idempotent if the edge
 // already exists. Both nodes must exist. An audit event is appended.

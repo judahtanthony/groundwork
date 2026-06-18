@@ -13,15 +13,7 @@ func (db *DB) ListChildren(parentID string) ([]*ticket.Ticket, error) {
 		return nil, err
 	}
 	defer rows.Close()
-	var out []*ticket.Ticket
-	for rows.Next() {
-		t, err := scanTicket(rows)
-		if err != nil {
-			return nil, err
-		}
-		out = append(out, t)
-	}
-	return out, rows.Err()
+	return scanTickets(rows)
 }
 
 // Ancestors returns id's ancestor spine ordered root-first (excluding id

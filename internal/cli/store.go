@@ -4,6 +4,7 @@ import (
 	"errors"
 	"flag"
 	"os"
+	"strings"
 
 	"groundwork/internal/config"
 	"groundwork/internal/store/sqlite"
@@ -51,23 +52,12 @@ func (s *stringSlice) String() string {
 	if s == nil {
 		return ""
 	}
-	return joinComma(*s)
+	return strings.Join(*s, ", ")
 }
 
 func (s *stringSlice) Set(v string) error {
 	*s = append(*s, v)
 	return nil
-}
-
-func joinComma(items []string) string {
-	out := ""
-	for i, s := range items {
-		if i > 0 {
-			out += ", "
-		}
-		out += s
-	}
-	return out
 }
 
 // setFlags returns the set of flags explicitly provided on the command line.

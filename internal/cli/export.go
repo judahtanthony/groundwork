@@ -7,17 +7,11 @@ import (
 
 	"groundwork/internal/config"
 	"groundwork/internal/exporter"
-	"groundwork/internal/store/sqlite"
 	"groundwork/internal/ticket"
 )
 
-// newExportCmd is the top-level `gw export` (all tickets).
+// newExportCmd backs both `gw export` and `gw ticket export [id]`.
 func newExportCmd() *Command {
-	return &Command{Name: "export", Usage: "Export tickets to Markdown", Run: runExport}
-}
-
-// newTicketExportCmd is `gw ticket export [id]`.
-func newTicketExportCmd() *Command {
 	return &Command{Name: "export", Usage: "Export tickets to Markdown", Args: "[id]", Run: runExport}
 }
 
@@ -48,9 +42,15 @@ func runExport(ctx *Context, args []string) error {
 		}
 	}
 
+	// One bulk dependency query instead of one per ticket.
+	depMap, err := db.DependencyMap()
+	if err != nil {
+		return &Error{Code: "store_error", Message: err.Error()}
+	}
+
 	var written []string
 	for _, t := range tickets {
-		path, err := exportTicket(p, db, t)
+		path, err := exportTicket(p, t, depMap[t.ID])
 		if err != nil {
 			return &Error{Code: "export_failed", Message: err.Error()}
 		}
@@ -74,13 +74,10 @@ func runExport(ctx *Context, args []string) error {
 	return nil
 }
 
-// exportTicket renders t and writes .groundwork/tickets/<id>/ticket.md.
-func exportTicket(p *config.Project, db *sqlite.DB, t *ticket.Ticket) (string, error) {
-	deps, err := db.DependencyIDs(t.ID)
-	if err != nil {
-		return "", err
-	}
-	data, err := exporter.Render(t, deps)
+// exportTicket renders t with the given dependency ids and writes
+// .groundwork/tickets/<id>/ticket.md.
+func exportTicket(p *config.Project, t *ticket.Ticket, dependsOn []string) (string, error) {
+	data, err := exporter.Render(t, dependsOn)
 	if err != nil {
 		return "", err
 	}

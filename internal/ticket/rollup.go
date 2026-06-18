@@ -30,15 +30,17 @@ func ComputeRollup(self Status, children []Rollup) Rollup {
 		}
 	}
 
-	allDone := true
+	allTerminal := true
+	anyDone := false
 	anyBlocked := false
 	anyActive := false
-	anyUnfinished := false
 	for _, c := range children {
-		done := c.Status == StatusDone || c.Status == StatusCancelled
-		if !done {
-			allDone = false
-			anyUnfinished = true
+		// done and cancelled are both terminal/settled (ADR 0024).
+		if c.Status != StatusDone && c.Status != StatusCancelled {
+			allTerminal = false
+		}
+		if c.Status == StatusDone {
+			anyDone = true
 		}
 		if c.HasBlocked || c.Status == StatusBlocked {
 			anyBlocked = true
@@ -50,16 +52,17 @@ func ComputeRollup(self Status, children []Rollup) Rollup {
 
 	out := Rollup{HasBlocked: anyBlocked, HasActive: anyActive}
 	switch {
-	case allDone:
+	case allTerminal && anyDone:
 		out.Status = StatusDone
+	case allTerminal:
+		// All children settled but none done: everything was cancelled.
+		out.Status = StatusCancelled
 	case anyBlocked:
 		out.Status = StatusBlocked
 	case anyActive:
 		out.Status = StatusInProgress
-	case anyUnfinished:
-		out.Status = StatusTodo
 	default:
-		out.Status = self
+		out.Status = StatusTodo
 	}
 	return out
 }

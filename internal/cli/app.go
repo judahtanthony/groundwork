@@ -107,8 +107,8 @@ func ticketSubcommands() []*Command {
 		newTicketTransitionCmd(),
 		newTicketTriageCmd(),
 		newTicketTreeCmd(),
-		newTicketContextCmd(),
+		newContextCmd(),
 		newTicketLinkCmd(),
-		newTicketExportCmd(),
+		newExportCmd(),
 	}
 }

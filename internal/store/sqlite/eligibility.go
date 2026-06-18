@@ -16,7 +16,7 @@ func (db *DB) DependenciesSatisfied(id string) (bool, error) {
 		if err != nil {
 			return false, err
 		}
-		if dep.Status != ticket.StatusDone {
+		if !ticket.DependencyMet(dep.Status) {
 			return false, nil
 		}
 	}

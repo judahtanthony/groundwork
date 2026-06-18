@@ -120,6 +120,9 @@ func runTicketList(ctx *Context, args []string) error {
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
+	if status != "" && !ticket.Status(status).Valid() {
+		return &Error{Code: "invalid_args", Message: fmt.Sprintf("invalid status %q", status)}
+	}
 
 	_, db, err := ctx.openStore()
 	if err != nil {

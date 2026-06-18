@@ -54,8 +54,23 @@ var legalTransitions = map[Status][]Status{
 	StatusCancelled:  {},
 }
 
+// DependencyMet reports whether a dependency in the given status counts as
+// satisfied for eligibility. Only done satisfies: a cancelled prerequisite is a
+// scope-change signal requiring an explicit re-plan, not auto-satisfaction (see
+// ADR 0024). This is the single satisfaction predicate shared by the eligibility
+// query and the claim path.
+func DependencyMet(s Status) bool {
+	return s == StatusDone
+}
+
 // CanTransition reports whether from -> to is a legal manual transition. A
 // no-op transition (from == to) is allowed.
+//
+// There is intentionally no in_progress/blocked -> rework edge: rework is for
+// failed review with actionable feedback, while newly discovered scope becomes
+// new dependent nodes or an upward re-plan (ADR 0022, ADR 0023). The escalation/
+// re-plan cascade that drives sibling rework is human-gated and deferred to
+// Phase 2.
 func CanTransition(from, to Status) bool {
 	if from == to {
 		return true
