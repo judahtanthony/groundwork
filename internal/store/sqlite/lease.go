@@ -47,72 +47,81 @@ type Lease struct {
 func (db *DB) ClaimTicket(ticketID, runID, actorID string, ttl time.Duration) (*Lease, error) {
 	now := time.Now()
 	var lease *Lease
-
 	err := db.withTx(func(tx *sql.Tx) error {
-		var statusStr string
-		err := tx.QueryRow(`SELECT status FROM tickets WHERE id=?`, ticketID).Scan(&statusStr)
-		if err == sql.ErrNoRows {
-			return ErrNotFound
-		}
-		if err != nil {
-			return err
-		}
-		if ticket.Status(statusStr) != ticket.StatusTodo {
-			return ErrNotEligible
-		}
-		satisfied, err := txDependenciesSatisfied(tx, ticketID)
-		if err != nil {
-			return err
-		}
-		if !satisfied {
-			return ErrNotEligible
-		}
-
-		// Reject if an unexpired lease exists; clear an expired one.
-		var expiresAt string
-		err = tx.QueryRow(`SELECT expires_at FROM leases WHERE ticket_id=?`, ticketID).Scan(&expiresAt)
-		switch {
-		case err == nil:
-			if leaseIsActive(expiresAt, now) {
-				return ErrAlreadyLeased
-			}
-			if _, err := tx.Exec(`DELETE FROM leases WHERE ticket_id=?`, ticketID); err != nil {
-				return err
-			}
-		case err == sql.ErrNoRows:
-			// no existing lease
-		default:
-			return err
-		}
-
-		nowStr := encoding.FormatTime(now)
-		expStr := encoding.FormatTime(now.Add(ttl))
-		if _, err := tx.Exec(
-			`INSERT INTO leases (ticket_id, run_id, actor_id, status, expires_at, renewed_at)
-			 VALUES (?,?,?,?,?,?)`,
-			ticketID, runID, actorID, leaseActiveStatus, expStr, nowStr,
-		); err != nil {
-			return err
-		}
-		if _, err := tx.Exec(`UPDATE tickets SET status=?, updated_at=? WHERE id=?`,
-			string(ticket.StatusInProgress), nowStr, ticketID); err != nil {
-			return err
-		}
-		if err := appendAudit(tx, actorID, "ticket.claimed", "ticket", ticketID, map[string]any{
-			"run_id": runID,
-		}); err != nil {
-			return err
-		}
-		lease = &Lease{
-			TicketID: ticketID, RunID: runID, ActorID: actorID,
-			Status: leaseActiveStatus, ExpiresAt: expStr, RenewedAt: nowStr,
-		}
-		return nil
+		l, err := txClaim(tx, ticketID, runID, actorID, now, ttl)
+		lease = l
+		return err
 	})
 	if err != nil {
 		return nil, err
 	}
 	return lease, nil
+}
+
+// txClaim is the transactional single-winner claim core shared by ClaimTicket
+// and StartRun: it verifies eligibility (todo + dependencies satisfied), rejects
+// an active lease (clearing an expired one), records the lease, moves the node to
+// in_progress, and appends a ticket.claimed audit event. It must run inside a
+// write transaction so only one run can win.
+func txClaim(tx *sql.Tx, ticketID, runID, actorID string, now time.Time, ttl time.Duration) (*Lease, error) {
+	var statusStr string
+	err := tx.QueryRow(`SELECT status FROM tickets WHERE id=?`, ticketID).Scan(&statusStr)
+	if err == sql.ErrNoRows {
+		return nil, ErrNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+	if ticket.Status(statusStr) != ticket.StatusTodo {
+		return nil, ErrNotEligible
+	}
+	satisfied, err := txDependenciesSatisfied(tx, ticketID)
+	if err != nil {
+		return nil, err
+	}
+	if !satisfied {
+		return nil, ErrNotEligible
+	}
+
+	// Reject if an unexpired lease exists; clear an expired one.
+	var expiresAt string
+	err = tx.QueryRow(`SELECT expires_at FROM leases WHERE ticket_id=?`, ticketID).Scan(&expiresAt)
+	switch {
+	case err == nil:
+		if leaseIsActive(expiresAt, now) {
+			return nil, ErrAlreadyLeased
+		}
+		if _, err := tx.Exec(`DELETE FROM leases WHERE ticket_id=?`, ticketID); err != nil {
+			return nil, err
+		}
+	case err == sql.ErrNoRows:
+		// no existing lease
+	default:
+		return nil, err
+	}
+
+	nowStr := encoding.FormatTime(now)
+	expStr := encoding.FormatTime(now.Add(ttl))
+	if _, err := tx.Exec(
+		`INSERT INTO leases (ticket_id, run_id, actor_id, status, expires_at, renewed_at)
+		 VALUES (?,?,?,?,?,?)`,
+		ticketID, runID, actorID, leaseActiveStatus, expStr, nowStr,
+	); err != nil {
+		return nil, err
+	}
+	if _, err := tx.Exec(`UPDATE tickets SET status=?, updated_at=? WHERE id=?`,
+		string(ticket.StatusInProgress), nowStr, ticketID); err != nil {
+		return nil, err
+	}
+	if err := appendAudit(tx, actorID, "ticket.claimed", "ticket", ticketID, map[string]any{
+		"run_id": runID,
+	}); err != nil {
+		return nil, err
+	}
+	return &Lease{
+		TicketID: ticketID, RunID: runID, ActorID: actorID,
+		Status: leaseActiveStatus, ExpiresAt: expStr, RenewedAt: nowStr,
+	}, nil
 }
 
 // RenewLease extends a lease held by runID. It fails if the lease is missing,

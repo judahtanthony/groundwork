@@ -7,6 +7,7 @@ import (
 
 	"groundwork/internal/actor"
 	"groundwork/internal/config"
+	"groundwork/internal/policy"
 )
 
 func TestInitCreatesTreeWithoutDB(t *testing.T) {
@@ -59,6 +60,16 @@ func TestInitCreatesTreeWithoutDB(t *testing.T) {
 	}
 	if _, ok := reg.Get("ai.codex.default"); !ok {
 		t.Error("scaffolded registry missing ai.codex.default")
+	}
+
+	// The scaffolded policies must load cleanly (catches template typos and
+	// schema drift).
+	set, pwarn, err := policy.Load(filepath.Join(root, ".groundwork", "policies"))
+	if err != nil || len(pwarn) != 0 {
+		t.Fatalf("scaffolded policies invalid: warnings=%v err=%v", pwarn, err)
+	}
+	if set.Trust == nil || set.Autonomy == nil || set.Validation == nil {
+		t.Errorf("scaffolded policies incomplete: %+v", set)
 	}
 }
 

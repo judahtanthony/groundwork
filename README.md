@@ -1,10 +1,18 @@
 # Groundwork
 
-Groundwork is a planned local-first orchestration system for managing coding agents against a single software project.
+Groundwork is a local-first orchestration system for managing coding agents against a single software project.
 
-This repository is currently a **documentation-only bootstrap**. It intentionally contains no Go source code, no `go.mod`, no generated app assets, no `.groundwork/` runtime directory, and no SQLite database. The purpose of this first scaffold is to preserve the product, architecture, contracts, and planning decisions before implementation begins.
+## Status
 
-## What Groundwork Will Be
+Phase 1 (CLI & Store) and Phase 2 (Coordinator) are implemented and committed: the `gw`
+CLI, the pure-Go SQLite store, `gw server` (localhost HTTP API + SSE), the dependency-
+and actor-aware scheduler, run records, the trust/risk/reversibility gate engine,
+approvals, decomposition and escalation/re-plan flows, the validation + landing gate,
+canon journal + ratification hooks, and recovery/import. The Codex runtime is a
+records-only stub pending Phase 4. Next: Phase 3 (self-hosting). See
+[docs/product/roadmap.md](docs/product/roadmap.md) and [docs/plan/milestones.md](docs/plan/milestones.md).
+
+## What Groundwork Is
 
 - Project name: Groundwork.
 - CLI name: `gw`.
@@ -29,11 +37,12 @@ The v1 trust boundary is conservative. Human approval is required before landing
 
 Start here:
 
-1. [AGENTS.md](AGENTS.md) for future agent operating instructions.
-2. [docs/reference/agent-quickstart.md](docs/reference/agent-quickstart.md) for the compact implementation briefing.
+1. [AGENTS.md](AGENTS.md) for agent operating instructions and the current boundary.
+2. [docs/reference/agent-quickstart.md](docs/reference/agent-quickstart.md) for the compact briefing and build/verify commands.
 3. [docs/product/vision.md](docs/product/vision.md) for product intent.
 4. [docs/architecture/overview.md](docs/architecture/overview.md) for the architecture.
-5. [docs/plan/work-tree.yaml](docs/plan/work-tree.yaml) for the initial implementation breakdown.
+5. [docs/reference/architecture-map.md](docs/reference/architecture-map.md) for the package layout.
+6. [docs/plan/work-tree.yaml](docs/plan/work-tree.yaml) for the implementation breakdown.
 
-Implementation should begin in a fresh session from these docs. Do not infer missing design from this chat; record refinements in docs and ADRs.
+Work against the committed docs and ADRs; do not infer missing design from chat history. Record refinements as ADRs and keep the reference docs current.
 

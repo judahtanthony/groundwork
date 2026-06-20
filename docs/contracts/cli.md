@@ -21,6 +21,7 @@ gw ticket context <id>
 gw ticket decompose <id>
 gw ticket link <id> --depends-on <id>
 gw ticket escalate <id>
+gw ticket land <id>
 gw ticket export [id]
 gw ticket import [path]
 gw status

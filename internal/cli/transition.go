@@ -24,13 +24,13 @@ func runTicketTransition(ctx *Context, args []string) error {
 	id := pos[0]
 	to := ticket.Status(pos[1])
 
-	_, db, err := ctx.openStore()
+	store, closeStore, err := ctx.openTicketStore()
 	if err != nil {
 		return err
 	}
-	defer db.Close()
+	defer closeStore()
 
-	if err := db.TransitionTicket(id, to, ownerActor); err != nil {
+	if err := store.TransitionTicket(id, to, ownerActor); err != nil {
 		switch {
 		case errors.Is(err, sqlite.ErrNotFound):
 			return ticketError(err, id)

@@ -2,6 +2,8 @@
 
 Policies live under `.groundwork/policies/` and are committed by default. Rules carry stable IDs and are evaluated top-down; the first matching rule decides. The dashboard surfaces these IDs (for example `R-01`) for auditability. Policies may match actors from `.groundwork/actors.yaml` by id, type, role, runtime, and capability.
 
+Every rule carries one uniform `when:` predicate; all match conditions (files, actor ids/types/roles, work types, action types, risk class, reversibility, commands) live under it (normalized per [ADR 0028](../adr/0028-gate-evaluation-engine.md)). Conditions present in `when:` must all hold (logical AND); absent conditions are wildcards.
+
 ## Trust Policy Example
 
 ```yaml
@@ -23,21 +25,25 @@ auto_approve:
       network: false
   - id: docs_ai_judge
     when:
-      work_type: documentation
+      work_types: [documentation]
       risk_class: low
     review_allowed_by:
       actor_ids: [ai.docs_judge]
 require_human:
   - id: secrets
-    files:
-      - "**/.env*"
-      - "**/*secret*"
+    when:
+      files:
+        - "**/.env*"
+        - "**/*secret*"
   - id: destructive_commands
-    command_categories: [destructive]
+    when:
+      command_categories: [destructive]
   - id: landing_to_main_v1
-    action_types: [land_to_main]
+    when:
+      action_types: [land_to_main]
   - id: decomposition_v1
-    action_types: [decompose]
+    when:
+      action_types: [decompose]
 allow_claim:
   - id: default_codex_medium_risk
     when:
@@ -48,7 +54,7 @@ allow_claim:
   - id: billing_human_only
     when:
       files: ["billing/**", "payments/**"]
-    actor_types: [human]
+      actor_types: [human]
 ```
 
 Gated actions (`execute`, `land_to_main`, `decompose`) carry an autonomy level that can be loosened as work-type SOPs, context, and validations mature. Elevation is a human act in v1; see `docs/architecture/trust-and-approvals.md` and `docs/adr/0011-progressive-planning-autonomy-via-sops.md`.

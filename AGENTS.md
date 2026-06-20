@@ -1,8 +1,8 @@
 # Agent Instructions For Groundwork
 
-This repository has entered **Phase 1 (CLI & Store)** implementation. The Phase 0
-documentation bootstrap is complete and remains the source of truth for design; code
-is now being written against it. The documentation-only boundary has been lifted.
+**Phase 1 (CLI & Store, M1)** and **Phase 2 (Coordinator, M2)** are complete and
+committed. The committed docs and ADRs remain the source of truth for design; code is
+written against them. **Phase 3 (Self-Host Low-Risk Work, M3)** is next.
 
 ## Required Reading
 
@@ -17,27 +17,37 @@ For deeper context, read the matching architecture, contract, or ADR file before
 
 ## Current Boundary
 
-Phase 1 implementation is active. Creating `go.mod`, `cmd/`, `internal/`, SQLite
-databases, and migrations is now expected work. Build against the committed contracts
-and architecture docs; where a contract must change, record an ADR rather than diverging
-silently. Phase 1 scope is the CLI and store (steps 1–7 of
-`docs/reference/implementation-guide.md`): module + `gw` skeleton, config discovery,
-`gw init`, SQLite migrations + store, node CRUD + triage + deterministic export,
-work-tree records + dependency edges + rollups + `gw context`, and transactional
-claim/lease. The coordinator/server, runs, dashboard, escalation routing, canon
-distillation, reversibility gating, and checkpoints remain **Phase 2** and should not be
-built yet.
+Phase 3 (M3, self-hosting) is next: import the bootstrap work tree
+(`docs/plan/work-tree.yaml`) into Groundwork and run low-risk docs and CLI/store
+tickets *through* Groundwork itself, keeping human landing approval. Build against the
+committed contracts and architecture docs; where a contract must change, record an ADR
+rather than diverging silently.
+
+What already exists (build on it, do not rebuild): the `gw` CLI and pure-Go SQLite store
+(M1), and the M2 coordinator — `gw server` (localhost HTTP API + SSE), the dependency-
+and actor-aware scheduler over the transactional claim, run records + lifecycle, the
+gate engine (trust + reversibility + risk + actor policy), approvals, decomposition and
+escalation/re-plan flows, validation records + the landing gate, the canon journal +
+ratification hooks, startup reconciliation, and cold-start import.
 
 Still out of bounds until their phase begins:
 
-- `gw server`, runs, scheduler, approvals, validation gates (Phase 2).
-- Generated frontend assets — `docs/design/` holds the web-surface visual reference
+- The **Codex runtime** — real agent execution, isolated worktrees, run-event streaming,
+  transcripts, and real git checkpoints/resume (Phase 4). M2 ships a records-only runtime
+  stub; do not launch Codex yet.
+- **Autonomy elevation** — earned/auto loosening of gated actions (Phase 5). Gates stay
+  human-required in v1; never self-elevate.
+- **Generated frontend assets** — `docs/design/` holds the web-surface visual reference
   (the Claude Design wireframe handoff) and the decomposition UI spec. It is reference
-  only; do not turn the prototypes into generated frontend assets until web-surface work
-  is explicitly started.
+  only; the M2 dashboard surface is API/SSE only. Do not turn the prototypes into
+  generated frontend assets until web-surface work is explicitly started.
+- **Multi-human roles / authentication / remote mode** (post-v1).
 
 Phase 1 decisions are recorded in ADRs 0016–0022 (CLI framework, SQLite driver,
 migrations, ticket IDs, encoding/export determinism, config discovery, status model).
+Phase 2 decisions are recorded in ADRs 0025–0031 (HTTP/SSE transport, coordinator
+concurrency, run lifecycle/checkpoint records, gate engine, actor identity, canon
+distillation, server-vs-store boundary).
 
 ## Design Commitments To Preserve
 

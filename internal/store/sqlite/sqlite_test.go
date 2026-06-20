@@ -53,7 +53,10 @@ func TestOpenAppliesPragmas(t *testing.T) {
 
 func TestMigrateCreatesSchema(t *testing.T) {
 	db := openTestDB(t)
-	for _, table := range []string{"meta", "tickets", "dependencies", "leases", "audit_events", "schema_migrations"} {
+	for _, table := range []string{
+		"meta", "tickets", "dependencies", "leases", "audit_events", "schema_migrations",
+		"runs", "run_events", "approvals", "validation_results",
+	} {
 		var name string
 		err := db.QueryRow(`SELECT name FROM sqlite_master WHERE type='table' AND name=?`, table).Scan(&name)
 		if err != nil {

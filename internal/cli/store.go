@@ -1,9 +1,7 @@
 package cli
 
 import (
-	"errors"
 	"flag"
-	"os"
 	"strings"
 
 	"groundwork/internal/config"
@@ -16,32 +14,17 @@ import (
 const ownerActor = "human.owner"
 
 // openStore discovers the project, opens (lazily creating) the SQLite store,
-// and runs migrations. Callers must Close the returned DB.
+// and runs migrations. Callers must Close the returned DB. It is the direct
+// store path used by reads and by store-safe mutations when no coordinator is
+// running (ADR 0031).
 func (ctx *Context) openStore() (*config.Project, *sqlite.DB, error) {
-	cwd, err := os.Getwd()
+	p, err := ctx.resolveProject()
 	if err != nil {
-		return nil, nil, &Error{Code: "cwd_failed", Message: err.Error()}
+		return nil, nil, err
 	}
-	p, err := config.Open(cwd, ctx.RootFlag)
+	db, err := openDB(p)
 	if err != nil {
-		if errors.Is(err, config.ErrProjectNotFound) {
-			return nil, nil, &Error{Code: "no_project", Message: err.Error()}
-		}
-		return nil, nil, &Error{Code: "config_error", Message: err.Error()}
-	}
-	for _, w := range p.Warnings {
-		// Warnings are advisory (ADR 0021); surface them on stderr.
-		if !ctx.JSON {
-			ctx.Stderr.Write([]byte("gw: warning: " + w + "\n"))
-		}
-	}
-	db, err := sqlite.Open(p.DBPath())
-	if err != nil {
-		return nil, nil, &Error{Code: "store_error", Message: err.Error()}
-	}
-	if err := db.Migrate(); err != nil {
-		db.Close()
-		return nil, nil, &Error{Code: "migrate_error", Message: err.Error()}
+		return nil, nil, err
 	}
 	return p, db, nil
 }

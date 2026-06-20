@@ -36,24 +36,36 @@ internal/store/sqlite  # connection, migrations, CRUD, deps, leases, eligibility
 internal/ticket        # work-node domain model, status map, rollups
 internal/exporter      # deterministic Markdown export (ADR 0020)
 internal/encoding      # canonical timestamp/JSON encoding (ADR 0020)
+internal/actor         # actor registry parsing + validation (ADR 0023; Phase 1.5)
+internal/contextbrief  # bounded `gw context` brief assembly (ADR 0013)
 ```
+
+Packages added in Phase 2 (M2):
+
+```text
+internal/server        # gw server HTTP API + SSE (ADR 0025)
+internal/client        # coordinator HTTP client; store-vs-server boundary (ADR 0031)
+internal/policy        # policy loading + gate evaluation engine (ADR 0028)
+internal/risk          # risk score/class + reversibility classifier (ADR 0014)
+internal/run           # run domain: status/mode state machines (ADR 0027)
+internal/runtime       # runtime.Runtime seam + records-only stub (ADR 0027); codex adapter is Phase 4
+internal/eventbus      # in-process pub/sub hub for SSE (ADR 0026)
+internal/scheduler     # scheduler loop + actor selection + run supervisors (ADR 0026)
+internal/approval      # approval domain; service lives in internal/server (ADR 0028)
+internal/sop           # work-type SOP loading from .groundwork/sops/ (ADR 0011)
+internal/canon         # journal + ratification hooks + parent reconciliation (ADR 0013/0030)
+```
+
+Validation has no package of its own: template matching lives in `internal/policy`
+(`RequiredChecks`/`LandingRiskFloor`) and result records + the landing gate live in
+`internal/store/sqlite` (`RecordValidation`, `Land`).
 
 Package areas expected in later phases (not yet created):
 
 ```text
 internal/git
-internal/scheduler
-internal/actor
 internal/worktree
 internal/runtime/codex
-internal/approval
-internal/policy
-internal/sop
-internal/risk
-internal/canon
-internal/checkpoint
-internal/validation
-internal/server
 internal/ui
 ```
 

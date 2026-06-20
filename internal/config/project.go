@@ -94,6 +94,13 @@ func (p *Project) DBPath() string { return filepath.Join(p.Dir(), "state.sqlite"
 // TicketsDir returns the ticket-export directory.
 func (p *Project) TicketsDir() string { return filepath.Join(p.Dir(), "tickets") }
 
+// RunsDir returns the run-log directory (ignored runtime state).
+func (p *Project) RunsDir() string { return filepath.Join(p.Dir(), "runs") }
+
+// JournalDir returns the per-node decision-journal directory (tier-1 ephemeral,
+// ignored; ADR 0013).
+func (p *Project) JournalDir() string { return filepath.Join(p.RunsDir(), "journal") }
+
 // SopsDir returns the SOP directory.
 func (p *Project) SopsDir() string { return filepath.Join(p.Dir(), "sops") }
 

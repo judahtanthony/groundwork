@@ -59,13 +59,13 @@ func runTicketCreate(ctx *Context, args []string) error {
 		t.Priority = &priority
 	}
 
-	_, db, err := ctx.openStore()
+	store, closeStore, err := ctx.openTicketStore()
 	if err != nil {
 		return err
 	}
-	defer db.Close()
+	defer closeStore()
 
-	if err := db.CreateTicket(t, ownerActor); err != nil {
+	if err := store.CreateTicket(t, ownerActor); err != nil {
 		return &Error{Code: "create_failed", Message: err.Error()}
 	}
 
@@ -187,13 +187,13 @@ func runTicketEdit(ctx *Context, args []string) error {
 	}
 	set := setFlags(fs)
 
-	_, db, err := ctx.openStore()
+	store, closeStore, err := ctx.openTicketStore()
 	if err != nil {
 		return err
 	}
-	defer db.Close()
+	defer closeStore()
 
-	t, err := db.GetTicket(pos[0])
+	t, err := store.GetTicket(pos[0])
 	if err != nil {
 		return ticketError(err, pos[0])
 	}
@@ -226,7 +226,7 @@ func runTicketEdit(ctx *Context, args []string) error {
 		t.Acceptance = acceptance
 	}
 
-	if err := db.UpdateTicket(t, ownerActor); err != nil {
+	if err := store.UpdateTicket(t, ownerActor); err != nil {
 		return &Error{Code: "edit_failed", Message: err.Error()}
 	}
 	if ctx.JSON {

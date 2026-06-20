@@ -179,13 +179,16 @@ allow_claim:
     actions: [execute, decompose]
 require_human:
   - id: secrets
-    files:
-      - "**/.env*"
-      - "**/*secret*"
+    when:
+      files:
+        - "**/.env*"
+        - "**/*secret*"
   - id: landing_to_main_v1
-    action_types: [land_to_main]
+    when:
+      action_types: [land_to_main]
   - id: decomposition_v1
-    action_types: [decompose]
+    when:
+      action_types: [decompose]
 `
 
 const validationPolicyTemplate = `schema: groundwork_validation_policy/v1

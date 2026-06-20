@@ -26,14 +26,14 @@ func runTicketLink(ctx *Context, args []string) error {
 	}
 	id := pos[0]
 
-	_, db, err := ctx.openStore()
+	store, closeStore, err := ctx.openTicketStore()
 	if err != nil {
 		return err
 	}
-	defer db.Close()
+	defer closeStore()
 
 	if remove {
-		if err := db.RemoveDependency(id, dependsOn, ownerActor); err != nil {
+		if err := store.RemoveDependency(id, dependsOn, ownerActor); err != nil {
 			if errors.Is(err, sqlite.ErrNotFound) {
 				return &Error{Code: "not_found", Message: fmt.Sprintf("no edge %s -> %s", id, dependsOn)}
 			}
@@ -42,7 +42,7 @@ func runTicketLink(ctx *Context, args []string) error {
 		return linkOutput(ctx, id, dependsOn, false)
 	}
 
-	if err := db.AddDependency(id, dependsOn, ownerActor); err != nil {
+	if err := store.AddDependency(id, dependsOn, ownerActor); err != nil {
 		switch {
 		case errors.Is(err, sqlite.ErrSelfDependency):
 			return &Error{Code: "self_dependency", Message: err.Error()}

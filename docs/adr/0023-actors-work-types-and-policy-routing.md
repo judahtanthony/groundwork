@@ -33,6 +33,12 @@ The status enum should not grow to include organization-specific SDLC phases. `r
 
 ## Provisional: Actor Identity Scheme
 
+> **Resolved in Phase 2 by [ADR 0029](0029-actor-identity-model.md):** the identity
+> path carries authority/grouping only (prefix-matchable, variable depth),
+> capabilities are a separate parameterized property object, and routing matches a
+> class while audit records the resolved instance. The provisional notes below are
+> retained for historical context.
+
 The actor **identity** model here is intentionally minimal and **provisional**. The MVP uses a closed `type` set and flat actor ids — the degenerate "one instance per capability class" case. Two generalizations are anticipated and should be settled early in Phase 2, when actor-aware matching first binds code to the model (the ratification gate, per [ADR 0013](0013-canon-as-memory.md)):
 
 - **Class vs instance.** An actor *class* is a fungible capability set (e.g. a front-end engineer); an *instance* is the unique entity that holds and performs work — the node's `assignee` — possibly bound to a long-lived environment. Routing matches the class; audit records the instance. A pool of interchangeable instances per class is the scaling shape (humans are already instances-of-a-role; mature agents follow the same form).

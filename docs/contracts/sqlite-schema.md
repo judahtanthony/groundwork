@@ -56,6 +56,7 @@ runs(
   ticket_id TEXT NOT NULL REFERENCES tickets(id) ON DELETE CASCADE,
   actor_id TEXT NOT NULL,         -- actor selected from .groundwork/actors.yaml
   actor_snapshot_json TEXT NOT NULL DEFAULT '{}',
+  mode TEXT NOT NULL,             -- planning | implementation (ADR 0027)
   runtime TEXT NOT NULL,          -- e.g. codex
   model TEXT,
   status TEXT NOT NULL,
@@ -81,11 +82,12 @@ run_events(
 
 approvals(
   id TEXT PRIMARY KEY,
-  run_id TEXT NOT NULL REFERENCES runs(id) ON DELETE CASCADE,
+  run_id TEXT REFERENCES runs(id) ON DELETE SET NULL,  -- null for human/system-initiated gates (decompose, replan)
   ticket_id TEXT NOT NULL REFERENCES tickets(id) ON DELETE CASCADE,
   type TEXT NOT NULL,             -- e.g. execute | land_to_main | decompose | replan
   risk_class TEXT NOT NULL,       -- low | medium | high | critical
   risk_score INTEGER,             -- 0–100; class is what gates key off
+  reversible INTEGER,             -- 1 reversible, 0 irreversible; false forces critical (ADR 0014)
   summary TEXT NOT NULL,
   action_json TEXT NOT NULL,
   status TEXT NOT NULL,

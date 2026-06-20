@@ -18,6 +18,9 @@ POST /api/v1/tickets/:id/escalate
 GET  /api/v1/tickets/:id/dependencies
 POST /api/v1/tickets/:id/dependencies
 DELETE /api/v1/tickets/:id/dependencies/:depId
+GET  /api/v1/tickets/:id/validations
+POST /api/v1/tickets/:id/validations
+POST /api/v1/tickets/:id/land
 GET  /api/v1/runs
 POST /api/v1/runs
 GET  /api/v1/runs/:id
@@ -42,6 +45,17 @@ GET  /api/v1/events
 ```
 
 `POST /api/v1/tickets/:id/decompose` opens a planning run; the resulting decomposition proposal is decided through the approvals endpoints (`approve` accepts the proposal, `clarify` asks the agent for more detail). `approve`/`reject` cover the `decompose`, landing, and tactical gates uniformly.
+
+`GET /api/v1/tickets/:id/validations` lists recorded validation results and
+`POST /api/v1/tickets/:id/validations` records one (the coordinator-mediated path
+`gw validation run` uses, so the server's state/SSE stay coherent — ADR 0031).
+`POST /api/v1/tickets/:id/land` drives landing through the `land_to_main` approval
+gate (ADR 0028): policy auto-approves and lands immediately, otherwise it returns
+`{"landed": false, "approval": …}` for a human to approve (approving lands).
+`{"override": true}` lands immediately, bypassing both the approval and validation
+gates with an audited override. These were added in M2; the changed-file set that
+selects template-required checks and enables docs auto-approval of landing is
+supplied by the Phase 4 runtime.
 
 Actor endpoints expose the current local actor registry from `.groundwork/actors.yaml`. Runs expose actor ids and snapshots through the run endpoints; snapshots are runtime audit records, not edits to the actor registry.
 
