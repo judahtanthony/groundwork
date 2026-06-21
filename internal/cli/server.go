@@ -30,7 +30,11 @@ func newServerCmd() *Command {
 func runServer(ctx *Context, args []string) error {
 	fs := ctx.NewFlagSet("gw server")
 	var addr string
+	var noScheduler bool
 	fs.StringVar(&addr, "addr", "", "bind address override (default: config server.addr)")
+	fs.BoolVar(&noScheduler, "no-scheduler", false,
+		"run the coordinator without the scheduler, so eligible nodes are not auto-claimed "+
+			"(human-performed work owns the lifecycle; ADR 0033)")
 	if _, err := parseFlags(fs, args); err != nil {
 		return err
 	}
@@ -76,22 +80,30 @@ func runServer(ctx *Context, args []string) error {
 
 	bus := eventbus.New(0)
 	defer bus.Close()
-	sched := scheduler.New(db, policies, registry, runtime.Stub{}, bus, scheduler.Config{
-		MaxConcurrency: p.Config.MaxConcurrency,
-		LeaseTTL:       p.Config.Lease.TTL.Duration(),
-		Heartbeat:      p.Config.Lease.Heartbeat.Duration(),
-		TickInterval:   time.Second,
-	})
 
 	srv := server.New(db, p, Version)
-	srv.SetScheduler(sched)
 	srv.SetBus(bus)
 	srv.SetApprovals(server.NewApprovalService(db, policies, registry))
 
 	sigCtx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	go func() { _ = sched.Run(sigCtx) }()
+	// The scheduler auto-claims eligible nodes and dispatches them to AI actors
+	// through the runtime. In M3, human-performed work owns the node lifecycle via
+	// manual transitions (ADR 0033); --no-scheduler runs the coordinator (API,
+	// gates, approvals, landing) without auto-dispatch so the human is not raced.
+	if noScheduler {
+		ctx.Stderr.Write([]byte("gw: scheduler disabled (--no-scheduler); nodes are not auto-claimed\n"))
+	} else {
+		sched := scheduler.New(db, policies, registry, runtime.Stub{}, bus, scheduler.Config{
+			MaxConcurrency: p.Config.MaxConcurrency,
+			LeaseTTL:       p.Config.Lease.TTL.Duration(),
+			Heartbeat:      p.Config.Lease.Heartbeat.Duration(),
+			TickInterval:   time.Second,
+		})
+		srv.SetScheduler(sched)
+		go func() { _ = sched.Run(sigCtx) }()
+	}
 
 	if err := srv.Serve(sigCtx, addr, ctx.Stderr); err != nil {
 		return &Error{Code: "server_error", Message: err.Error()}

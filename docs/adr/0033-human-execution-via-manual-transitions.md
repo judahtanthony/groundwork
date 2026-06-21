@@ -32,6 +32,12 @@ the `land_to_main` approval and enforces the validation gate
 `human.owner` already holds `approve`/`review: ["*"]` in the scaffolded
 `actors.yaml`, so the human landing-approval path needs no new policy.
 
+Because the M2 scheduler auto-claims eligible `todo` nodes and dispatches them to
+AI actors through the runtime stub, running it would race the human for any node.
+`gw server --no-scheduler` therefore runs the coordinator — API, gates, approvals,
+landing — without the scheduler, so the human owns the lifecycle. The scheduler
+remains on by default; `--no-scheduler` is the M3 human-work mode.
+
 ## Consequences
 
 M3 adds no runtime, scheduler, or CLI surface for the human execution path, and the

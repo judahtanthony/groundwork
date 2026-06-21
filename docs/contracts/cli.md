@@ -61,3 +61,5 @@ Default output should be human-readable and script-friendly. Every data command 
 ## Coordinator Interaction
 
 If `gw server` is running, mutating commands should call the local API by default. If it is not running, simple ticket/config commands may open SQLite directly through the shared store package. Commands requiring live run control must fail clearly without the coordinator.
+
+`gw server --no-scheduler` runs the coordinator (HTTP API, gates, approvals, landing) without the scheduler, so eligible nodes are not auto-claimed and dispatched to AI actors. In M3 this lets human-performed work own the node lifecycle through manual transitions and the landing gate ([ADR 0033](../adr/0033-human-execution-via-manual-transitions.md)) without the scheduler racing for the node.
