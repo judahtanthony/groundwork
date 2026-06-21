@@ -26,6 +26,7 @@ type Node struct {
 // Brief is the bounded context assembled from canon via the SQLite graph.
 type Brief struct {
 	Node            Node     `json:"node"`
+	Acceptance      []string `json:"acceptance"`
 	AncestorSpine   []Node   `json:"ancestor_spine"`
 	ParentContract  string   `json:"parent_contract,omitempty"`
 	Dependencies    []Node   `json:"dependencies"`
@@ -43,6 +44,7 @@ func Build(db *sqlite.DB, p *config.Project, id string, includeSiblings bool) (*
 	}
 	b := &Brief{
 		Node:            toNode(node),
+		Acceptance:      nonNilStrings(node.Acceptance),
 		AncestorSpine:   []Node{},
 		Dependencies:    []Node{},
 		SOPs:            []string{},
@@ -126,4 +128,11 @@ func relevantSOPs(p *config.Project, node *ticket.Ticket) []string {
 
 func toNode(t *ticket.Ticket) Node {
 	return Node{ID: t.ID, Title: t.Title, Status: string(t.Status), NodeType: string(t.NodeType)}
+}
+
+func nonNilStrings(in []string) []string {
+	if in == nil {
+		return []string{}
+	}
+	return in
 }

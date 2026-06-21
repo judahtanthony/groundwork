@@ -22,6 +22,7 @@ import (
 type JournalEntry struct {
 	At    string `json:"at"`
 	Gate  string `json:"gate,omitempty"` // set for ratification entries
+	Kind  string `json:"kind,omitempty"` // set for typed entries (e.g. "context_miss")
 	Entry string `json:"entry"`
 }
 
@@ -42,6 +43,28 @@ func Append(journalDir, nodeID, entry string) error {
 // canonical documents is the Phase 4 runtime's job.
 func Ratify(journalDir, nodeID, gate, note string) error {
 	return appendEntry(journalDir, nodeID, JournalEntry{At: now(), Gate: gate, Entry: note})
+}
+
+// Miss records a context-miss for a node: something the worker needed that the
+// context brief did not provide (ADR 0035, ADR 0013). Misses are ignored runtime
+// state; the review step promotes recurring ones into canon (SOPs, docs, brief).
+func Miss(journalDir, nodeID, note string) error {
+	return appendEntry(journalDir, nodeID, JournalEntry{At: now(), Kind: "context_miss", Entry: note})
+}
+
+// Misses returns a node's recorded context-misses, oldest first.
+func Misses(journalDir, nodeID string) ([]JournalEntry, error) {
+	entries, err := Read(journalDir, nodeID)
+	if err != nil {
+		return nil, err
+	}
+	var out []JournalEntry
+	for _, e := range entries {
+		if e.Kind == "context_miss" {
+			out = append(out, e)
+		}
+	}
+	return out, nil
 }
 
 func appendEntry(journalDir, nodeID string, e JournalEntry) error {
