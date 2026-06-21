@@ -60,10 +60,21 @@ Validation has no package of its own: template matching lives in `internal/polic
 (`RequiredChecks`/`LandingRiskFloor`) and result records + the landing gate live in
 `internal/store/sqlite` (`RecordValidation`, `Land`).
 
+Packages added in Phase 3 (M3):
+
+```text
+internal/git           # minimal git-landing: stage + commit on the current branch (ADR 0034)
+```
+
+M3 added no other package: bootstrap import reuses `internal/exporter` + the cold-start
+importer (`internal/cli`), the human path uses existing transitions/gates with AI claims
+gated by trust policy, context-miss capture lives in `internal/canon` (`Miss`/`Misses`),
+and land-time staging lives in `internal/cli` (`resolveLandStaging`). The commit itself
+is made by the coordinator (`internal/server`) after a landing gate completes.
+
 Package areas expected in later phases (not yet created):
 
 ```text
-internal/git
 internal/worktree
 internal/runtime/codex
 internal/ui

@@ -1,8 +1,8 @@
 # Agent Instructions For Groundwork
 
-**Phase 1 (CLI & Store, M1)** and **Phase 2 (Coordinator, M2)** are complete and
-committed. The committed docs and ADRs remain the source of truth for design; code is
-written against them. **Phase 3 (Self-Host Low-Risk Work, M3)** is next.
+**Phases 1–3 are complete and committed** — M1 (CLI & store), M2 (coordinator), and M3
+(self-host low-risk work). The committed docs and ADRs remain the source of truth for
+design; code is written against them. **Phase 4 (Codex Runtime, M4)** is next.
 
 ## Required Reading
 
@@ -17,24 +17,30 @@ For deeper context, read the matching architecture, contract, or ADR file before
 
 ## Current Boundary
 
-Phase 3 (M3, self-hosting) is next: import the bootstrap work tree
-(`docs/plan/work-tree.yaml`) into Groundwork and run low-risk docs and CLI/store
-tickets *through* Groundwork itself, keeping human landing approval. Build against the
-committed contracts and architecture docs; where a contract must change, record an ADR
-rather than diverging silently.
+Phase 4 (M4, Codex runtime) is next: replace the records-only run stub with the real
+Codex adapter — agent execution in isolated worktrees, run-event streaming and
+transcripts, and real git checkpoints/squash/resume — then run the first Codex-assisted
+ticket (T-1003) through Groundwork. Build against the committed contracts and
+architecture docs; where a contract must change, record an ADR rather than diverging
+silently.
 
-What already exists (build on it, do not rebuild): the `gw` CLI and pure-Go SQLite store
-(M1), and the M2 coordinator — `gw server` (localhost HTTP API + SSE), the dependency-
-and actor-aware scheduler over the transactional claim, run records + lifecycle, the
-gate engine (trust + reversibility + risk + actor policy), approvals, decomposition and
-escalation/re-plan flows, validation records + the landing gate, the canon journal +
-ratification hooks, startup reconciliation, and cold-start import.
+What already exists (build on it, do not rebuild):
+
+- **M1** — the `gw` CLI and pure-Go SQLite store.
+- **M2** — the coordinator: `gw server` (localhost HTTP API + SSE), the dependency- and
+  actor-aware scheduler over the transactional claim, run records + lifecycle, the gate
+  engine (trust + reversibility + risk + actor policy), approvals, decomposition and
+  escalation/re-plan flows, validation records + the landing gate, the canon journal +
+  ratification hooks, startup reconciliation, and cold-start import.
+- **M3 (self-hosting)** — Groundwork manages its own work tree: the bootstrap tree is
+  imported as committed Markdown ticket exports (ADR 0032); low-risk docs work runs
+  through Groundwork human-performed via manual status transitions, with AI claims gated
+  by the trust policy (`allow_claim`) rather than auto-dispatched (ADR 0033); landing is a
+  real git commit the coordinator makes on the current branch via the minimal
+  `internal/git` (ADR 0034); and context-misses feed the canon/brief loop (ADR 0035).
 
 Still out of bounds until their phase begins:
 
-- The **Codex runtime** — real agent execution, isolated worktrees, run-event streaming,
-  transcripts, and real git checkpoints/resume (Phase 4). M2 ships a records-only runtime
-  stub; do not launch Codex yet.
 - **Autonomy elevation** — earned/auto loosening of gated actions (Phase 5). Gates stay
   human-required in v1; never self-elevate.
 - **Generated frontend assets** — `docs/design/` holds the web-surface visual reference
@@ -47,7 +53,9 @@ Phase 1 decisions are recorded in ADRs 0016–0022 (CLI framework, SQLite driver
 migrations, ticket IDs, encoding/export determinism, config discovery, status model).
 Phase 2 decisions are recorded in ADRs 0025–0031 (HTTP/SSE transport, coordinator
 concurrency, run lifecycle/checkpoint records, gate engine, actor identity, canon
-distillation, server-vs-store boundary).
+distillation, server-vs-store boundary). Phase 3 decisions are recorded in ADRs
+0032–0035 (bootstrap import via authored Markdown, human execution via manual
+transitions, minimal git-landing, context-miss capture).
 
 ## Design Commitments To Preserve
 
@@ -70,7 +78,7 @@ distillation, server-vs-store boundary).
 
 ## Planning Source
 
-Until Groundwork can manage itself, use `docs/plan/work-tree.yaml` as the initial breakdown. Keep tickets small enough to validate independently.
+Groundwork now manages its own work tree: the bootstrap `docs/plan/work-tree.yaml` has been imported as managed ticket exports under `.groundwork/tickets/` (the YAML is the historical bootstrap, no longer the live plan). Inspect and evolve the plan through `gw` (`gw ticket tree`, `gw ticket create`, …). Keep tickets small enough to validate independently.
 
-When implementation starts, create ADRs for any new major decisions and update the condensed reference docs so future sessions can quickly understand the system.
+Create ADRs for any new major decisions and update the condensed reference docs so future sessions can quickly understand the system.
 

@@ -24,7 +24,7 @@ recorded in ADRs 0025–0031.
 
 ## Phase 3: Self-Host Low-Risk Work
 
-Import the bootstrap work tree into Groundwork. Use Groundwork for docs, policies, and low-risk CLI/store tickets. Keep human landing approval.
+Import the bootstrap work tree into Groundwork. Use Groundwork for docs, policies, and low-risk CLI/store tickets. Keep human landing approval. Implemented; decisions are recorded in ADRs 0032–0035.
 
 ## Phase 4: Codex Runtime
 
