@@ -4,7 +4,7 @@ kind: ticket
 node_type: leaf
 work_type: documentation
 title: Retire/archive static plan files
-status: backlog
+status: done
 assignee: null
 requested_actor: null
 priority: null
@@ -14,7 +14,7 @@ depends_on:
     - T-1016
     - T-1017
 created_at: "2026-06-21T20:09:01Z"
-updated_at: "2026-06-21T20:09:01Z"
+updated_at: "2026-06-21T22:50:34Z"
 ---
 
 ## Problem

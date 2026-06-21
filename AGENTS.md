@@ -11,7 +11,7 @@ Before proposing or making implementation changes, read:
 1. `docs/reference/agent-quickstart.md`
 2. `docs/reference/architecture-map.md`
 3. `docs/reference/conventions.md`
-4. `docs/plan/work-tree.yaml`
+4. `.groundwork/WORKFLOW.md`, then the live plan via `gw ticket tree`
 
 For deeper context, read the matching architecture, contract, or ADR file before changing that area.
 
@@ -90,7 +90,7 @@ and [ADR 0038](docs/adr/0038-authority-as-loosenable-gate.md)):
 
 ## Planning Source
 
-Groundwork now manages its own work tree: the bootstrap `docs/plan/work-tree.yaml` has been imported as managed ticket exports under `.groundwork/tickets/` (the YAML is the historical bootstrap, no longer the live plan). Inspect and evolve the plan through `gw` (`gw ticket tree`, `gw ticket create`, …). Keep tickets small enough to validate independently.
+Groundwork manages its own work tree: it is the planning source of truth (ADR 0040). The bootstrap `work-tree.yaml` and the static phase-by-phase breakdowns have been imported and retired (see git history); the live plan is the managed ticket exports under `.groundwork/tickets/`. Inspect and evolve it through `gw` (`gw ticket tree`, `gw ticket create`, `gw ticket context`, …) per `.groundwork/WORKFLOW.md`. Keep tickets small enough to validate independently.
 
 Create ADRs for any new major decisions and update the condensed reference docs so future sessions can quickly understand the system.
 

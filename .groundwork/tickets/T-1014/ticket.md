@@ -4,7 +4,7 @@ kind: epic
 node_type: composite
 work_type: documentation
 title: Planning self-hosting transition (ADR 0040)
-status: in_progress
+status: done
 assignee: null
 requested_actor: null
 priority: 0.7
@@ -12,7 +12,7 @@ labels: []
 parent: G-0001
 depends_on: []
 created_at: "2026-06-21T20:09:01Z"
-updated_at: "2026-06-21T22:35:55Z"
+updated_at: "2026-06-21T22:50:34Z"
 ---
 
 ## Problem

@@ -9,8 +9,8 @@ CLI, the pure-Go SQLite store, `gw server` (localhost HTTP API + SSE), the depen
 and actor-aware scheduler, run records, the trust/risk/reversibility gate engine,
 approvals, decomposition and escalation/re-plan flows, the validation + landing gate,
 canon journal + ratification hooks, and recovery/import. The Codex runtime is a
-records-only stub pending Phase 4. Next: Phase 3 (self-hosting). See
-[docs/product/roadmap.md](docs/product/roadmap.md) and [docs/plan/milestones.md](docs/plan/milestones.md).
+records-only stub pending Phase 4. Phases 1–3 are complete; Phase 4 (Codex runtime)
+is next. See [docs/product/roadmap.md](docs/product/roadmap.md).
 
 ## What Groundwork Is
 
@@ -42,7 +42,7 @@ Start here:
 3. [docs/product/vision.md](docs/product/vision.md) for product intent.
 4. [docs/architecture/overview.md](docs/architecture/overview.md) for the architecture.
 5. [docs/reference/architecture-map.md](docs/reference/architecture-map.md) for the package layout.
-6. [docs/plan/work-tree.yaml](docs/plan/work-tree.yaml) for the implementation breakdown.
+6. The live plan in Groundwork: run `gw ticket tree` (the work tree is the planning source of truth, [ADR 0040](docs/adr/0040-groundwork-is-planning-source-of-truth.md)); see [.groundwork/WORKFLOW.md](.groundwork/WORKFLOW.md).
 
 Work against the committed docs and ADRs; do not infer missing design from chat history. Record refinements as ADRs and keep the reference docs current.
 

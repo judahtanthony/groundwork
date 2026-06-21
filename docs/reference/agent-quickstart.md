@@ -8,8 +8,8 @@ You are working in the Groundwork repository. **Phases 1 (CLI & Store) and 2
 1. `README.md`
 2. `AGENTS.md` (current boundary and what is out of bounds)
 3. `docs/reference/architecture-map.md` (package layout)
-4. `docs/plan/milestones.md` and `docs/product/roadmap.md` (phase status)
-5. `docs/plan/work-tree.yaml` (the breakdown Phase 3 imports)
+4. `docs/product/roadmap.md` (phase status)
+5. the live plan via `gw ticket tree` (the work tree is the planning source of truth, ADR 0040); see `.groundwork/WORKFLOW.md` for the loop
 6. The specific contract or architecture doc for your task, and its governing ADR.
 
 ## What Exists

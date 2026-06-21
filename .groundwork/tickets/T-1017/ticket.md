@@ -4,7 +4,7 @@ kind: ticket
 node_type: leaf
 work_type: documentation
 title: Write WORKFLOW.md + fix orientation docs
-status: todo
+status: done
 assignee: null
 requested_actor: null
 priority: null
@@ -12,7 +12,7 @@ labels: []
 parent: T-1014
 depends_on: []
 created_at: "2026-06-21T20:09:01Z"
-updated_at: "2026-06-21T20:09:01Z"
+updated_at: "2026-06-21T22:50:34Z"
 ---
 
 ## Problem

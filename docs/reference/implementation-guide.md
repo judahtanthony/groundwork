@@ -15,7 +15,7 @@ This is the recommended first implementation sequence after documentation bootst
 11. Implement actor-aware approval records and CLI/web decisions, including the `decompose` gate, reversibility gating, and escalation/re-plan.
 12. Implement validation templates, validation results, and canon distillation with parent reconciliation.
 13. Implement recovery and stale run handling, resuming runs from their last checkpoint.
-14. Import `docs/plan/work-tree.yaml` into Groundwork.
+14. Import the bootstrap work tree into Groundwork (done; the plan is now managed in gw, ADR 0040).
 15. Add Codex runtime adapter, planning/implementation runs, isolated worktrees, actor snapshots, and run checkpoints squashed at landing.
 
 Phases 1–2 cover steps 1–8/10–12; decomposition proposals, SOPs, and autonomy elevation build on the approval and policy work. See `docs/product/roadmap.md`.

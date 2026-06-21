@@ -12,6 +12,7 @@
 
 ## Planning
 
+- The gw work tree is the planning source of truth (ADR 0040); evolve the plan through `gw`, not static files. See `.groundwork/WORKFLOW.md` for the loop.
 - Use the uniform work tree; `kind` is an advisory label, the structural fact is leaf vs composite.
 - Use `work_type` for SOP, actor-routing, validation, and policy semantics; do not add organization-specific SDLC phases to the status model.
 - Triage nodes on claim: leaf nodes execute; composite nodes decompose just-in-time as a reviewable proposal.

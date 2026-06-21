@@ -1,27 +1,27 @@
 # Self-hosting runbook (M3)
 
-Groundwork manages its own work. The bootstrap work tree
-(`docs/plan/work-tree.yaml`) is imported as managed tickets, and low-risk
-documentation changes are taken through Groundwork itself — as the system of record
-and the gate keeper — with human landing approval. Agent execution is
-human-performed in M3; the Codex runtime is Phase 4.
+Groundwork manages its own work: the work tree is the planning source of truth
+(ADR 0040). Low-risk documentation changes are taken through Groundwork itself — as
+the system of record and the gate keeper — with human landing approval. Agent
+execution is human-performed in M3; the Codex runtime is Phase 4.
 
 This runbook is the concrete procedure. For the work-type conventions see
 `.groundwork/sops/documentation/SOP.md`; for the decisions behind it see ADRs
-0032–0035.
+0032–0035 and `.groundwork/WORKFLOW.md`.
 
-## One-time setup
+## Setup
+
+The tree is already managed; the durable artifacts are the committed Markdown
+exports under `.groundwork/tickets/`. `state.sqlite` is runtime-only and git-ignored,
+so on a fresh checkout it rebuilds from those exports:
 
 ```sh
-gw init                      # scaffold .groundwork (config, actors, policies, WORKFLOW)
-go run scripts/bootstrap_import.go   # transcribe work-tree.yaml -> ticket exports
-gw ticket import             # rebuild the managed tree from the exports
-gw ticket tree               # confirm the hierarchy and statuses
+gw ticket import   # rebuild the store from the committed exports (cold start)
+gw ticket tree     # confirm the hierarchy and statuses
 ```
 
-`gw` never reads the planning YAML; the durable artifacts are the committed
-Markdown exports under `.groundwork/tickets/` (ADR 0032). `state.sqlite` is
-runtime-only and git-ignored — it rebuilds from the exports on cold start.
+The original bootstrap transcribed the now-retired `work-tree.yaml` into these
+exports; that one-time step lives in git history (ADR 0032, 0040).
 
 ## Run a documentation ticket (human-performed)
 
