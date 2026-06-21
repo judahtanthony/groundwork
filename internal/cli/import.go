@@ -138,14 +138,18 @@ func importExports(db *sqlite.DB, dir string) (int, error) {
 		}
 	}
 
-	// Dependency edges, now that all nodes exist.
+	// Dependency edges, now that all nodes exist. AddDependency is idempotent on a
+	// duplicate edge (re-import), so the only benign error is a missing endpoint
+	// (a depends_on target absent from the export set) — skip that edge. Every
+	// other error (cycle, self-edge, or a real store failure) is a genuine import
+	// problem and must fail loudly rather than silently drop edges.
 	for _, e := range entries {
 		for _, dep := range e.deps {
 			if err := db.AddDependency(e.t.ID, dep, ownerActor); err != nil {
-				if errors.Is(err, sqlite.ErrDependencyCycle) || errors.Is(err, sqlite.ErrSelfDependency) {
-					return inserted, err
+				if errors.Is(err, sqlite.ErrNotFound) {
+					continue // missing endpoint: tolerate, edge skipped
 				}
-				// Missing endpoint or already present: tolerate.
+				return inserted, fmt.Errorf("add dependency %s -> %s: %w", e.t.ID, dep, err)
 			}
 		}
 	}

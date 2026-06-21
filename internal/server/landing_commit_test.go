@@ -157,3 +157,138 @@ func TestLandWithoutGitStillRecords(t *testing.T) {
 		t.Fatalf("status = %s, want done", got.Status)
 	}
 }
+
+// landToPending opens a landing and returns the pending approval id. Fails if the
+// landing did not produce a human gate.
+func landToPending(t *testing.T, srv *Server, id string) string {
+	t.Helper()
+	var pending landResponse
+	if code := req(t, srv, "POST", "/api/v1/tickets/"+id+"/land", map[string]bool{}, &pending); code != http.StatusOK {
+		t.Fatalf("land code = %d", code)
+	}
+	if pending.Approval == nil {
+		t.Fatalf("expected a pending approval, got %+v", pending)
+	}
+	return pending.Approval.ID
+}
+
+// TestLandCommitFailureIsRecoverable asserts that when the git commit fails, the
+// node is recorded done-but-uncommitted with a clear error, and re-running land
+// finishes the commit (ADR 0034 / CR#1).
+func TestLandCommitFailureIsRecoverable(t *testing.T) {
+	srv, db, root := newGitServer(t)
+	tk := &ticket.Ticket{Title: "doc", Status: ticket.StatusReview, WorkType: "documentation"}
+	if err := db.CreateTicket(tk, "tester"); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(root, "docs"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "docs", "note.md"), []byte("# Note\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	runGit(t, root, "add", "docs/note.md")
+
+	// A pre-commit hook that rejects every commit.
+	hook := filepath.Join(root, ".git", "hooks", "pre-commit")
+	if err := os.WriteFile(hook, []byte("#!/bin/sh\nexit 1\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	before := runGit(t, root, "rev-parse", "HEAD")
+	appr := landToPending(t, srv, tk.ID)
+
+	var env errorEnvelope
+	if code := req(t, srv, "POST", "/api/v1/approvals/"+appr+"/approve", nil, &env); code != http.StatusInternalServerError {
+		t.Fatalf("approve code = %d, want 500", code)
+	}
+	if env.Error.Code != "land_commit_failed" || !strings.Contains(env.Error.Message, "gw ticket land "+tk.ID) {
+		t.Errorf("error = %+v, want land_commit_failed naming the recovery command", env.Error)
+	}
+	// Node is recorded done; nothing committed yet.
+	if got, _ := db.GetTicket(tk.ID); got.Status != ticket.StatusDone {
+		t.Fatalf("status = %s, want done (recorded landed)", got.Status)
+	}
+	if runGit(t, root, "rev-parse", "HEAD") != before {
+		t.Fatal("HEAD advanced despite the failed commit")
+	}
+
+	// Fix the environment and re-run land: the already-done node finishes the commit.
+	if err := os.Remove(hook); err != nil {
+		t.Fatal(err)
+	}
+	var landed landResponse
+	if code := req(t, srv, "POST", "/api/v1/tickets/"+tk.ID+"/land", map[string]bool{}, &landed); code != http.StatusOK {
+		t.Fatalf("recovery land code = %d, want 200", code)
+	}
+	after := runGit(t, root, "rev-parse", "HEAD")
+	if after == before {
+		t.Fatal("recovery did not produce a commit")
+	}
+	files := runGit(t, root, "show", "--name-only", "--pretty=format:", after)
+	for _, want := range []string{"docs/note.md", filepath.Join(config.GroundworkDir, "tickets", tk.ID, "ticket.md")} {
+		if !strings.Contains(files, want) {
+			t.Errorf("recovery commit missing %s; files:\n%s", want, files)
+		}
+	}
+}
+
+// TestLandRefusesDetachedHead asserts a landing on a detached HEAD is refused
+// rather than producing an orphan commit (CR#8).
+func TestLandRefusesDetachedHead(t *testing.T) {
+	srv, db, root := newGitServer(t)
+	runGit(t, root, "checkout", "--detach")
+
+	tk := &ticket.Ticket{Title: "doc", Status: ticket.StatusReview, WorkType: "documentation"}
+	if err := db.CreateTicket(tk, "tester"); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "a.md"), []byte("a\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	runGit(t, root, "add", "a.md")
+
+	before := runGit(t, root, "rev-parse", "HEAD")
+	appr := landToPending(t, srv, tk.ID)
+	var env errorEnvelope
+	if code := req(t, srv, "POST", "/api/v1/approvals/"+appr+"/approve", nil, &env); code != http.StatusInternalServerError {
+		t.Fatalf("approve code = %d, want 500", code)
+	}
+	if !strings.Contains(env.Error.Message, "detached") {
+		t.Errorf("error = %q, want a detached-HEAD message", env.Error.Message)
+	}
+	if runGit(t, root, "rev-parse", "HEAD") != before {
+		t.Fatal("a commit was made on a detached HEAD")
+	}
+}
+
+// TestLandCommitsMultipleFiles asserts the ticket-scoped pathspec can be more than
+// one staged file (CR test gap).
+func TestLandCommitsMultipleFiles(t *testing.T) {
+	srv, db, root := newGitServer(t)
+	tk := &ticket.Ticket{Title: "doc", Status: ticket.StatusReview, WorkType: "documentation"}
+	if err := db.CreateTicket(tk, "tester"); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(root, "docs"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for _, f := range []string{"a.md", "b.md"} {
+		if err := os.WriteFile(filepath.Join(root, "docs", f), []byte("x\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	runGit(t, root, "add", "docs/a.md", "docs/b.md")
+
+	appr := landToPending(t, srv, tk.ID)
+	if code := req(t, srv, "POST", "/api/v1/approvals/"+appr+"/approve", nil, nil); code != http.StatusOK {
+		t.Fatalf("approve code = %d", code)
+	}
+	head := runGit(t, root, "rev-parse", "HEAD")
+	files := runGit(t, root, "show", "--name-only", "--pretty=format:", head)
+	for _, want := range []string{"docs/a.md", "docs/b.md", filepath.Join(config.GroundworkDir, "tickets", tk.ID, "ticket.md")} {
+		if !strings.Contains(files, want) {
+			t.Errorf("commit missing %s; files:\n%s", want, files)
+		}
+	}
+}

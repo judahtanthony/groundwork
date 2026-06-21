@@ -2,26 +2,40 @@ package server
 
 import (
 	"fmt"
+	"net/http"
 	"strings"
 
 	"groundwork/internal/exporter"
 )
 
-// commitLanding makes the durable git commit for a landed node (ADR 0034). The
-// store-side land has already transitioned the node to done; this regenerates
-// the node's Markdown export (now status=done), stages it alongside whatever the
-// human staged for this ticket, and commits on the current branch. The git index
-// is the ticket-scoped pathspec: it is the human's explicit selection of what
-// belongs to this landing, so unrelated unstaged edits are never captured.
-//
-// It is best-effort by environment: when the project root is not a git work tree
-// (s.repo == nil) the landing is still recorded in the store and this is a no-op.
-// A genuine git failure is returned so the caller can surface it; the commit SHA
-// is recorded on the audit trail (T-1004).
-func (s *Server) commitLanding(ticketID string) error {
-	if s.repo == nil {
-		return nil
+// completeLanding finishes a landing whose store transition to done has already
+// happened: it records the ratification and makes the durable git commit
+// (ADR 0034). On git failure it writes a 500 envelope and returns false — the
+// node is recorded done but uncommitted, and re-running `gw ticket land <id>`
+// finishes the commit idempotently (handleTicketLand routes an already-done node
+// straight back here). Returns true when the landing is fully recorded: commit
+// made, nothing to commit, or no git work tree.
+func (s *Server) completeLanding(w http.ResponseWriter, id, reason string) bool {
+	s.ratify(id, "land", reason)
+	if err := s.commitLanding(id); err != nil {
+		writeError(w, http.StatusInternalServerError, "land_commit_failed", fmt.Sprintf(
+			"%s is recorded landed but the git commit failed: %v; resolve the git issue and "+
+				"run \"gw ticket land %s\" to finish the commit", id, err, id))
+		return false
 	}
+	return true
+}
+
+// commitLanding regenerates the node's Markdown export (now status=done) and, in a
+// git work tree, commits it on the current branch alongside whatever the human
+// staged for this ticket (ADR 0034). The git index is the ticket-scoped pathspec:
+// it is the human's explicit selection of what belongs to this landing.
+//
+// The export is rewritten even when there is no git work tree (s.repo == nil), so
+// the durable export never drifts from store status in non-git projects; only the
+// commit is skipped. Commits are refused on a detached HEAD (the commit would be
+// an orphan). The commit SHA is recorded on the audit trail.
+func (s *Server) commitLanding(ticketID string) error {
 	t, err := s.db.GetTicket(ticketID)
 	if err != nil {
 		return err
@@ -33,6 +47,18 @@ func (s *Server) commitLanding(ticketID string) error {
 	path, err := exporter.WriteTo(s.proj.TicketsDir(), t, deps)
 	if err != nil {
 		return fmt.Errorf("regenerate export: %w", err)
+	}
+	if s.repo == nil {
+		return nil // no git work tree: export refreshed, nothing to commit
+	}
+	// Refuse to commit on a detached HEAD: the commit would be unreachable once
+	// HEAD moves, silently losing the landing.
+	branch, err := s.repo.CurrentBranch()
+	if err != nil {
+		return err
+	}
+	if branch == "HEAD" {
+		return fmt.Errorf("refusing to land on a detached HEAD; check out a branch and retry")
 	}
 	if err := s.repo.Add(path); err != nil {
 		return err

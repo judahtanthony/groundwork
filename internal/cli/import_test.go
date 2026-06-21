@@ -85,3 +85,36 @@ func TestImportWholeTreePreservesHierarchyStatusAndSeq(t *testing.T) {
 		t.Fatalf("next allocated id = %q, want T-1004", fresh.ID)
 	}
 }
+
+// TestImportToleratesMissingDependencyEndpoint asserts a depends_on target absent
+// from the export set is skipped (not a hard error), while the import still
+// succeeds — the only benign AddDependency error the importer swallows (CR#7).
+func TestImportToleratesMissingDependencyEndpoint(t *testing.T) {
+	dir := t.TempDir()
+	a := &ticket.Ticket{ID: "T-2001", Kind: "ticket", Title: "A", Status: ticket.StatusTodo}
+	writeExport(t, dir, a, []string{"T-9999"}) // T-9999 is not in the export set
+
+	db, err := sqlite.Open(filepath.Join(t.TempDir(), "state.sqlite"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if err := db.Migrate(); err != nil {
+		t.Fatal(err)
+	}
+
+	n, err := importExports(db, dir)
+	if err != nil {
+		t.Fatalf("import should tolerate a missing endpoint, got: %v", err)
+	}
+	if n != 1 {
+		t.Fatalf("imported %d, want 1", n)
+	}
+	deps, err := db.DependencyIDs("T-2001")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(deps) != 0 {
+		t.Errorf("deps = %v, want none (missing endpoint skipped)", deps)
+	}
+}

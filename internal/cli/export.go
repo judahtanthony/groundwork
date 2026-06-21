@@ -2,10 +2,8 @@ package cli
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 
-	"groundwork/internal/config"
 	"groundwork/internal/exporter"
 	"groundwork/internal/ticket"
 )
@@ -50,7 +48,7 @@ func runExport(ctx *Context, args []string) error {
 
 	var written []string
 	for _, t := range tickets {
-		path, err := exportTicket(p, t, depMap[t.ID])
+		path, err := exporter.WriteTo(p.TicketsDir(), t, depMap[t.ID])
 		if err != nil {
 			return &Error{Code: "export_failed", Message: err.Error()}
 		}
@@ -72,22 +70,4 @@ func runExport(ctx *Context, args []string) error {
 		fmt.Fprintf(ctx.Stdout, "exported %s\n", w)
 	}
 	return nil
-}
-
-// exportTicket renders t with the given dependency ids and writes
-// .groundwork/tickets/<id>/ticket.md.
-func exportTicket(p *config.Project, t *ticket.Ticket, dependsOn []string) (string, error) {
-	data, err := exporter.Render(t, dependsOn)
-	if err != nil {
-		return "", err
-	}
-	dir := filepath.Join(p.TicketsDir(), t.ID)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return "", err
-	}
-	path := filepath.Join(dir, "ticket.md")
-	if err := os.WriteFile(path, data, 0o644); err != nil {
-		return "", err
-	}
-	return path, nil
 }

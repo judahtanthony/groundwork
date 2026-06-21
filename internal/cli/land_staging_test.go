@@ -29,7 +29,7 @@ func TestResolveLandStaging(t *testing.T) {
 		{name: "clean tree: nothing to stage", wantAddAll: 0},
 		{name: "empty index, prompt yes", uncommitted: true, input: "y\n", wantAddAll: 1},
 		{name: "empty index, prompt default (enter)", uncommitted: true, input: "\n", wantAddAll: 1},
-		{name: "empty index, prompt EOF defaults yes", uncommitted: true, input: "", wantAddAll: 1},
+		{name: "empty index, EOF/non-interactive defaults no", uncommitted: true, input: "", wantAddAll: 0},
 		{name: "empty index, prompt no", uncommitted: true, input: "n\n", wantAddAll: 0},
 	}
 	for _, tc := range tests {

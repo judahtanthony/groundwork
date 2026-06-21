@@ -45,16 +45,20 @@ the records-only runtime stub and the localhost, single-user server.
   [0028](../adr/0028-gate-evaluation-engine.md) landing gate,
   [0027](../adr/0027-run-lifecycle-and-checkpoint-records.md) boundary).
 - **Dep:** none.
-- **Acceptance:** new `internal/git` with a single capability — stage a ticket-scoped
-  pathspec + the regenerated ticket export and `git commit` on the **current branch**
-  with a ticket-referencing message, returning the SHA (recorded on the
-  approval/audit trail). `gw ticket land <id>`, after the `land_to_main` approval
-  passes, performs this commit and moves the ticket to `done` atomically (gw `done` ⇔
-  git commit). Warns/refuses if the working tree carries changes outside the ticket
-  pathspec. **No worktrees, branches, checkpoints, squash, or resume.**
+- **Acceptance:** new `internal/git` with a single capability — stage the regenerated
+  ticket export and `git commit` on the **current branch** with a ticket-referencing
+  message, returning the SHA (recorded on the audit trail as `ticket.committed`). The
+  git index is the ticket-scoped pathspec: the human stages what belongs to the
+  landing (or `--all`), and the coordinator commits that index plus the export when
+  the `land_to_main` gate completes, moving the ticket to `done`. Store-land and
+  commit are not one transaction — a commit failure leaves the node `done` but
+  uncommitted and is recoverable by re-running `gw ticket land` (ADR 0034). Refuses to
+  commit on a detached HEAD; regenerates the export even in non-git mode. **No
+  worktrees, branches, checkpoints, squash, or resume.**
 - **Gate:** `go test ./internal/git/...` and the store landing tests; integration —
-  approving a landing yields the working-tree change + updated export in one commit
-  on the branch; `gw ticket show` reports `done`; dirty-tree guard test.
+  approving a landing yields the staged change(s) + updated export in one commit on
+  the branch; `gw ticket show` reports `done`; commit-failure recovery and
+  detached-HEAD refusal are tested.
 
 ### T-1006 (new) — Importer hardening for whole-tree historical import
 - **Epic:** E-0011. **ADR:** [0019](../adr/0019-uniform-ticket-ids.md),

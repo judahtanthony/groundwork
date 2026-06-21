@@ -50,15 +50,22 @@ func resolveLandStaging(repo landStager, all bool, in io.Reader, out io.Writer) 
 	return nil
 }
 
-// promptYesDefault asks a [Y/n] question, defaulting to yes on empty input or EOF
-// (so non-interactive callers get the documented default).
+// promptYesDefault asks a [Y/n] question. A present human gets default-yes (empty
+// Enter accepts). A non-interactive caller — EOF with no input (piped stdin, CI) —
+// gets the safe default of NO: in M3 landings run against the shared working tree,
+// so staging everything unattended could sweep in unrelated work. (A Phase 4
+// isolated per-ticket worktree run reverses this, since the sandbox holds only the
+// ticket's work; see ADR 0034.)
 func promptYesDefault(in io.Reader, out io.Writer, question string) bool {
 	fmt.Fprintf(out, "%s [Y/n] ", question)
-	line, _ := bufio.NewReader(in).ReadString('\n')
+	line, err := bufio.NewReader(in).ReadString('\n')
+	if err != nil && line == "" {
+		return false // EOF / non-interactive: no human to answer
+	}
 	switch strings.ToLower(strings.TrimSpace(line)) {
 	case "n", "no":
 		return false
 	default:
-		return true
+		return true // empty Enter or "y": a present human accepts the default
 	}
 }

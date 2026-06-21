@@ -89,14 +89,23 @@ func (s *Server) handleTicketLand(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Recovery: a node already landed (done) whose git commit did not complete on
+	// a prior attempt. Finish the commit idempotently instead of erroring on the
+	// illegal re-land (ADR 0034).
+	if node.Status == ticket.StatusDone {
+		if !s.completeLanding(w, id, "landing commit completed on retry") {
+			return
+		}
+		s.landed(w, id)
+		return
+	}
+
 	if body.Override {
 		if _, err := s.db.Land(id, nil, true, ownerActor); err != nil {
 			s.writeMutationError(w, err)
 			return
 		}
-		s.ratify(id, "land", "node landed (override)")
-		if err := s.commitLanding(id); err != nil {
-			writeError(w, http.StatusInternalServerError, "land_commit_failed", err.Error())
+		if !s.completeLanding(w, id, "node landed (override)") {
 			return
 		}
 		s.landed(w, id)
@@ -113,9 +122,7 @@ func (s *Server) handleTicketLand(w http.ResponseWriter, r *http.Request) {
 			s.writeMutationError(w, err)
 			return
 		}
-		s.ratify(id, "land", "node landed (auto-approved by policy)")
-		if err := s.commitLanding(id); err != nil {
-			writeError(w, http.StatusInternalServerError, "land_commit_failed", err.Error())
+		if !s.completeLanding(w, id, "node landed (auto-approved by policy)") {
 			return
 		}
 		s.landed(w, id)
