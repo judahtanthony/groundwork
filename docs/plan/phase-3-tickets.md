@@ -1,8 +1,12 @@
 # Phase 3 (M3 — Self-Host Low-Risk Work) Ticket Breakdown
 
-> **Status: planned — not yet implemented.** Dependency-ordered breakdown for
-> **M3: Self-Hosting Preparation** (see `docs/product/roadmap.md`,
-> `docs/plan/milestones.md`, `docs/architecture/dogfooding.md`). New ADRs: 0032–0035.
+> **Status: implemented.** M3 (T-1001, T-1002, T-1004, T-1006, T-1007, T-1008) is
+> built, tested (unit + `-race` + `scripts/smoke.sh`), and dogfooded: the work tree is
+> imported and a real docs ticket (T-1002) was driven through Groundwork's own gates,
+> with gw making the landing commit. T-1003 (first Codex-assisted ticket) remains
+> deferred to Phase 4. Dependency-ordered breakdown for **M3: Self-Hosting
+> Preparation** (see `docs/product/roadmap.md`, `docs/plan/milestones.md`,
+> `docs/architecture/dogfooding.md`). New ADRs: 0032–0035.
 
 Ticket ids continue the `work-tree.yaml` convention; new tickets fill gaps within
 epic **E-0011**'s `10xx` range after the planning-defined T-1001/1002/1003 and are
