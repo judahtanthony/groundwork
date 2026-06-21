@@ -7,12 +7,12 @@ title: Align configuration with 12-factor app principles
 status: backlog
 assignee: null
 requested_actor: null
-priority: null
+priority: 0.2
 labels: []
 parent: G-0001
 depends_on: []
 created_at: "2026-06-21T12:51:31Z"
-updated_at: "2026-06-21T12:51:31Z"
+updated_at: "2026-06-21T22:35:55Z"
 ---
 
 ## Problem

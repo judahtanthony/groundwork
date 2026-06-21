@@ -4,15 +4,15 @@ kind: epic
 node_type: composite
 work_type: technical_design
 title: Value & prioritization substrate (Layer 1)
-status: todo
+status: done
 assignee: null
 requested_actor: null
-priority: null
+priority: 0.9
 labels: []
 parent: G-0001
 depends_on: []
 created_at: "2026-06-21T20:08:26Z"
-updated_at: "2026-06-21T20:08:26Z"
+updated_at: "2026-06-21T22:35:55Z"
 ---
 
 ## Problem

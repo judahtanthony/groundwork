@@ -7,12 +7,12 @@ title: Update README with current runtime and development instructions
 status: todo
 assignee: null
 requested_actor: null
-priority: null
+priority: 0.4
 labels: []
 parent: G-0001
 depends_on: []
 created_at: "2026-06-21T12:51:31Z"
-updated_at: "2026-06-21T12:51:31Z"
+updated_at: "2026-06-21T22:35:55Z"
 ---
 
 ## Problem

@@ -7,12 +7,12 @@ title: Implement Codex runtime adapter
 status: in_progress
 assignee: null
 requested_actor: null
-priority: null
+priority: 0.8
 labels: []
 parent: G-0001
 depends_on: []
-created_at: ""
-updated_at: ""
+created_at: "2026-06-21T22:33:34Z"
+updated_at: "2026-06-21T22:35:55Z"
 ---
 
 ## Problem

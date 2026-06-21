@@ -4,7 +4,7 @@ kind: ticket
 node_type: leaf
 work_type: technical_implementation
 title: Add settable node priority field ([0,1], default 0)
-status: todo
+status: done
 assignee: null
 requested_actor: null
 priority: null
@@ -12,7 +12,7 @@ labels: []
 parent: T-1006
 depends_on: []
 created_at: "2026-06-21T20:08:26Z"
-updated_at: "2026-06-21T20:08:26Z"
+updated_at: "2026-06-21T22:35:55Z"
 ---
 
 ## Problem

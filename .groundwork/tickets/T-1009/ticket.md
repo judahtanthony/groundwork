@@ -7,12 +7,12 @@ title: Authority as a uniform loosenable gate (ADR 0038)
 status: backlog
 assignee: null
 requested_actor: null
-priority: null
+priority: 0.3
 labels: []
 parent: G-0001
 depends_on: []
 created_at: "2026-06-21T20:08:43Z"
-updated_at: "2026-06-21T20:08:43Z"
+updated_at: "2026-06-21T22:35:55Z"
 ---
 
 ## Problem

@@ -4,7 +4,7 @@ kind: ticket
 node_type: leaf
 work_type: technical_implementation
 title: Order the eligible set by value, not FIFO
-status: backlog
+status: done
 assignee: null
 requested_actor: null
 priority: null
@@ -13,7 +13,7 @@ parent: T-1006
 depends_on:
     - T-1007
 created_at: "2026-06-21T20:08:26Z"
-updated_at: "2026-06-21T20:08:26Z"
+updated_at: "2026-06-21T22:35:55Z"
 ---
 
 ## Problem
