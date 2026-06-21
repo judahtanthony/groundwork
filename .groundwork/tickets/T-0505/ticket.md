@@ -4,7 +4,7 @@ kind: ticket
 node_type: leaf
 work_type: technical_implementation
 title: Record actor snapshots on runs
-status: backlog
+status: done
 assignee: null
 requested_actor: null
 priority: null

@@ -10,9 +10,10 @@ requested_actor: null
 priority: null
 labels: []
 parent: E-0011
-depends_on: []
-created_at: "2026-06-21T01:47:40Z"
-updated_at: "2026-06-21T01:48:40Z"
+depends_on:
+    - T-1001
+created_at: ""
+updated_at: ""
 ---
 
 ## Problem

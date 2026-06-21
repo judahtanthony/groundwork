@@ -10,7 +10,10 @@ requested_actor: null
 priority: null
 labels: []
 parent: E-0011
-depends_on: []
+depends_on:
+    - T-1002
+    - T-0503
+    - T-0504
 created_at: ""
 updated_at: ""
 ---
