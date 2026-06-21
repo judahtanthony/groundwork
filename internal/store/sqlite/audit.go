@@ -36,6 +36,14 @@ func appendAudit(tx *sql.Tx, actor, eventType, objectType, objectID string, payl
 	return err
 }
 
+// AppendAuditEvent records an audit event in its own transaction, for callers
+// outside a store mutation (e.g. the server recording a landing commit SHA).
+func (db *DB) AppendAuditEvent(actor, eventType, objectType, objectID string, payload any) error {
+	return db.withTx(func(tx *sql.Tx) error {
+		return appendAudit(tx, actor, eventType, objectType, objectID, payload)
+	})
+}
+
 // AuditEventsFor returns audit events for an object, oldest first.
 func (db *DB) AuditEventsFor(objectType, objectID string) ([]AuditEvent, error) {
 	rows, err := db.Query(

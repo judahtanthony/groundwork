@@ -4,6 +4,8 @@
 package exporter
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -91,6 +93,25 @@ func Render(t *ticket.Ticket, dependsOn []string) ([]byte, error) {
 	}
 
 	return []byte(b.String()), nil
+}
+
+// WriteTo renders t and writes ticketsDir/<id>/ticket.md, returning the path.
+// It is the shared writer for `gw ticket export` and the server's landing
+// commit, so both produce byte-identical exports.
+func WriteTo(ticketsDir string, t *ticket.Ticket, dependsOn []string) (string, error) {
+	data, err := Render(t, dependsOn)
+	if err != nil {
+		return "", err
+	}
+	dir := filepath.Join(ticketsDir, t.ID)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return "", err
+	}
+	path := filepath.Join(dir, "ticket.md")
+	if err := os.WriteFile(path, data, 0o644); err != nil {
+		return "", err
+	}
+	return path, nil
 }
 
 func bodyText(s, fallback string) string {

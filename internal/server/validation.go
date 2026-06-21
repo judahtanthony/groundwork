@@ -95,6 +95,10 @@ func (s *Server) handleTicketLand(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		s.ratify(id, "land", "node landed (override)")
+		if err := s.commitLanding(id); err != nil {
+			writeError(w, http.StatusInternalServerError, "land_commit_failed", err.Error())
+			return
+		}
 		s.landed(w, id)
 		return
 	}
@@ -110,6 +114,10 @@ func (s *Server) handleTicketLand(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		s.ratify(id, "land", "node landed (auto-approved by policy)")
+		if err := s.commitLanding(id); err != nil {
+			writeError(w, http.StatusInternalServerError, "land_commit_failed", err.Error())
+			return
+		}
 		s.landed(w, id)
 		return
 	}

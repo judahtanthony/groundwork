@@ -19,6 +19,7 @@ import (
 	"groundwork/internal/config"
 	"groundwork/internal/contextbrief"
 	"groundwork/internal/eventbus"
+	"groundwork/internal/git"
 	runpkg "groundwork/internal/run"
 	"groundwork/internal/store/sqlite"
 	"groundwork/internal/ticket"
@@ -36,10 +37,13 @@ type Server struct {
 	sched     Dispatcher
 	bus       *eventbus.Hub
 	approvals *ApprovalService
+	repo      *git.Repo // nil when the project root is not a git work tree
 }
 
 // New builds a coordinator server over the given store and project. version is
-// reported by the state endpoint for diagnostics.
+// reported by the state endpoint for diagnostics. When the project root is a git
+// work tree, landings are committed there (ADR 0034); otherwise the server still
+// records landings in the store and skips the commit.
 func New(db *sqlite.DB, proj *config.Project, version string) *Server {
 	s := &Server{
 		db:      db,
@@ -47,6 +51,9 @@ func New(db *sqlite.DB, proj *config.Project, version string) *Server {
 		version: version,
 		started: time.Now(),
 		mux:     http.NewServeMux(),
+	}
+	if repo, err := git.Open(proj.Root); err == nil {
+		s.repo = repo
 	}
 	s.routes()
 	return s

@@ -19,19 +19,27 @@ drift from the durable truth, and a human is relied on to remember `git commit`.
 
 ## Decision
 
-**gw owns the landing commit, via a minimal `internal/git`.** After the
-`land_to_main` approval passes, `gw ticket land <id>` stages a ticket-scoped pathspec
-plus the regenerated ticket export (now `status: done`) and commits on the **current
-branch** with a ticket-referencing message, returning the commit SHA (recorded on the
-approval/audit trail). The ticket moves to `done` and the commit happens atomically:
-gw `done` ⇔ git commit, with the human's change and the updated export in one commit.
+**gw owns the landing commit, via a minimal `internal/git`.** When the
+`land_to_main` gate completes (auto-approval, override, or an approved human gate),
+the coordinator regenerates the ticket export (now `status: done`), stages it, and
+commits on the **current branch** with a ticket-referencing message, returning the
+commit SHA (recorded on the audit trail as a `ticket.committed` event). The commit
+bundles the human's change and the updated export so gw `done` ⇔ git commit.
+
+**The git index is the ticket-scoped pathspec.** The human stages the files they
+changed for the ticket (ordinary `git add`); gw stages the regenerated export and
+commits the index. The staging area is thus the human's explicit declaration of what
+belongs to this landing, so unrelated *unstaged* edits in the working tree are never
+captured. If nothing is staged and the export is already current, gw records the
+landing without forcing an empty commit.
 
 The capability is deliberately minimal — **stage + commit on the current branch
 only**. It excludes isolated worktrees, branch creation, WIP checkpoints, squash, and
 resume, all of which remain Phase 4
 ([ADR 0027](0027-run-lifecycle-and-checkpoint-records.md)) because they serve
-autonomous agent execution, not landing. Guard: if the working tree carries changes
-outside the ticket pathspec, gw warns/refuses rather than committing unrelated work.
+autonomous agent execution, not landing. When the project root is not a git work
+tree, gw degrades gracefully: the landing is still recorded in the store and the
+commit is skipped, so Groundwork runs in non-git directories and tests.
 
 ## Consequences
 

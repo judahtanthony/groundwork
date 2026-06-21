@@ -63,6 +63,15 @@ func (s *Server) decideApproval(w http.ResponseWriter, r *http.Request, to appro
 	if to == approval.StatusApproved && approval.Type(a.Type) == approval.TypeDecompose {
 		s.ratify(a.TicketID, "decompose", "decomposition accepted; parent contract promoted")
 	}
+	// Approving a land_to_main gate performs the land in Decide; complete it with
+	// the durable git commit so the node is committed, not just recorded (ADR 0034).
+	if to == approval.StatusApproved && approval.Type(a.Type) == approval.TypeLandToMain {
+		s.ratify(a.TicketID, "land", "node landed (human-approved)")
+		if err := s.commitLanding(a.TicketID); err != nil {
+			writeError(w, http.StatusInternalServerError, "land_commit_failed", err.Error())
+			return
+		}
+	}
 	writeJSON(w, http.StatusOK, a)
 }
 
