@@ -26,7 +26,7 @@ func TestCreateAllocatesSequentialIDs(t *testing.T) {
 
 func TestCreateAppliesDefaultsAndRoundTrips(t *testing.T) {
 	db := openTestDB(t)
-	p := 2
+	p := 0.5
 	in := &ticket.Ticket{
 		Title:      "Build the thing",
 		Labels:     []string{"store", "sqlite"},
@@ -56,8 +56,8 @@ func TestCreateAppliesDefaultsAndRoundTrips(t *testing.T) {
 	if len(got.Acceptance) != 2 || got.Acceptance[1] != "re-run safe" {
 		t.Errorf("acceptance = %v", got.Acceptance)
 	}
-	if got.Priority == nil || *got.Priority != 2 {
-		t.Errorf("priority = %v, want 2", got.Priority)
+	if got.Priority == nil || *got.Priority != 0.5 {
+		t.Errorf("priority = %v, want 0.5", got.Priority)
 	}
 	if got.CreatedAt == "" || got.UpdatedAt == "" {
 		t.Error("timestamps not set")

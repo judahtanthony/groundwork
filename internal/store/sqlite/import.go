@@ -38,7 +38,7 @@ func (db *DB) ImportTicket(t *ticket.Ticket) error {
 			VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
 			t.ID, nullStr(t.ParentID), t.Kind, nullStr(string(t.NodeType)), nullStr(t.WorkType),
 			t.Title, t.Description, t.Contract, string(t.Status), nullStr(t.Assignee),
-			nullStr(t.RequestedActor), nullInt(t.Priority), labels, acceptance,
+			nullStr(t.RequestedActor), nullFloat(t.Priority), labels, acceptance,
 			nullInt(t.RiskScore), t.CreatedAt, t.UpdatedAt)
 		if err != nil {
 			return err

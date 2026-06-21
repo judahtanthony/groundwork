@@ -17,7 +17,7 @@ func runTicketCreate(ctx *Context, args []string) error {
 	var (
 		title, kind, parent, status, desc, assignee string
 		workType, requestedActor                    string
-		priority                                    int
+		priority                                    float64
 		labels, acceptance                          stringSlice
 	)
 	fs.StringVar(&title, "title", "", "node title (required)")
@@ -28,7 +28,7 @@ func runTicketCreate(ctx *Context, args []string) error {
 	fs.StringVar(&assignee, "assignee", "", "assignee (display-only ownership label)")
 	fs.StringVar(&workType, "work-type", "", "operational work type (e.g. technical_implementation)")
 	fs.StringVar(&requestedActor, "requested-actor", "", "preferred actor id (routing hint, still policy-checked)")
-	fs.IntVar(&priority, "priority", 0, "priority")
+	fs.Float64Var(&priority, "priority", 0, "value priority in [0,1]; higher runs first (ADR 0039)")
 	fs.Var(&labels, "label", "label (repeatable)")
 	fs.Var(&acceptance, "acceptance", "acceptance criterion (repeatable)")
 	if err := fs.Parse(args); err != nil {
@@ -41,6 +41,11 @@ func runTicketCreate(ctx *Context, args []string) error {
 	}
 	if status != "" && !ticket.Status(status).Valid() {
 		return &Error{Code: "invalid_args", Message: fmt.Sprintf("invalid status %q", status)}
+	}
+	if set["priority"] {
+		if err := validatePriority(priority); err != nil {
+			return err
+		}
 	}
 
 	t := &ticket.Ticket{
@@ -166,7 +171,7 @@ func runTicketEdit(ctx *Context, args []string) error {
 	var (
 		title, kind, desc, assignee string
 		workType, requestedActor    string
-		priority                    int
+		priority                    float64
 		labels, acceptance          stringSlice
 	)
 	fs.StringVar(&title, "title", "", "new title")
@@ -175,7 +180,7 @@ func runTicketEdit(ctx *Context, args []string) error {
 	fs.StringVar(&assignee, "assignee", "", "new assignee (display-only label)")
 	fs.StringVar(&workType, "work-type", "", "new work type")
 	fs.StringVar(&requestedActor, "requested-actor", "", "new requested actor (routing hint)")
-	fs.IntVar(&priority, "priority", 0, "new priority")
+	fs.Float64Var(&priority, "priority", 0, "new value priority in [0,1]; higher runs first")
 	fs.Var(&labels, "label", "replace labels (repeatable)")
 	fs.Var(&acceptance, "acceptance", "replace acceptance (repeatable)")
 	pos, err := parseFlags(fs, args)
@@ -217,6 +222,9 @@ func runTicketEdit(ctx *Context, args []string) error {
 		t.RequestedActor = requestedActor
 	}
 	if set["priority"] {
+		if err := validatePriority(priority); err != nil {
+			return err
+		}
 		t.Priority = &priority
 	}
 	if set["label"] {
@@ -256,7 +264,7 @@ func renderTicket(ctx *Context, t *ticket.Ticket, dependsOn []string) {
 		fmt.Fprintf(w, "  depends_on: %s\n", strings.Join(dependsOn, ", "))
 	}
 	if t.Priority != nil {
-		fmt.Fprintf(w, "  priority:   %d\n", *t.Priority)
+		fmt.Fprintf(w, "  priority:   %g\n", *t.Priority)
 	}
 	if len(t.Labels) > 0 {
 		fmt.Fprintf(w, "  labels:     %s\n", strings.Join(t.Labels, ", "))
@@ -291,6 +299,14 @@ func orDash(s, dash string) string {
 		return dash
 	}
 	return s
+}
+
+// validatePriority enforces the [0,1] value range (ADR 0039).
+func validatePriority(p float64) error {
+	if p < 0 || p > 1 {
+		return &Error{Code: "invalid_args", Message: fmt.Sprintf("priority %g out of range; must be in [0,1]", p)}
+	}
+	return nil
 }
 
 // ticketError maps a store error to a CLI error, distinguishing not-found.

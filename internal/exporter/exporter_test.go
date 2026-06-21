@@ -9,7 +9,7 @@ import (
 )
 
 func sampleLeaf() *ticket.Ticket {
-	p := 2
+	p := 0.5
 	return &ticket.Ticket{
 		ID:          "T-0001",
 		Kind:        "ticket",

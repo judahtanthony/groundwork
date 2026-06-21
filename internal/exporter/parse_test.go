@@ -8,7 +8,7 @@ import (
 )
 
 func TestRenderParseRoundTrip(t *testing.T) {
-	prio := 2
+	prio := 0.5
 	orig := &ticket.Ticket{
 		ID:             "T-0007",
 		Kind:           "epic",
@@ -56,7 +56,7 @@ func TestRenderParseRoundTrip(t *testing.T) {
 		t.Errorf("contract = %q, want %q", got.Contract, orig.Contract)
 	}
 	if got.Priority == nil || *got.Priority != prio {
-		t.Errorf("priority = %v, want %d", got.Priority, prio)
+		t.Errorf("priority = %v, want %g", got.Priority, prio)
 	}
 	if !reflect.DeepEqual(gotDeps, deps) {
 		t.Errorf("deps = %v, want %v", gotDeps, deps)

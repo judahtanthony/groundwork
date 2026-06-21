@@ -24,7 +24,7 @@ type frontMatter struct {
 	Status         string   `yaml:"status"`
 	Assignee       *string  `yaml:"assignee"`
 	RequestedActor *string  `yaml:"requested_actor"`
-	Priority       *int     `yaml:"priority"`
+	Priority       *float64 `yaml:"priority"`
 	Labels         []string `yaml:"labels"`
 	Parent         *string  `yaml:"parent"`
 	DependsOn      []string `yaml:"depends_on"`

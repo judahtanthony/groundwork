@@ -44,11 +44,23 @@ type Ticket struct {
 	// RequestedActor is an optional routing hint naming a preferred actor; policy
 	// must still authorize the claim (ADR 0023). Distinct from Assignee, which is
 	// a display-only ownership label.
-	RequestedActor string   `json:"requested_actor,omitempty"`
-	Priority       *int     `json:"priority,omitempty"`
-	Labels         []string `json:"labels"`
-	Acceptance     []string `json:"acceptance"`
-	RiskScore      *int     `json:"risk_score,omitempty"`
-	CreatedAt      string   `json:"created_at"`
-	UpdatedAt      string   `json:"updated_at"`
+	RequestedActor string `json:"requested_actor,omitempty"`
+	// Priority is the value/prioritization input in [0,1] (ADR 0039). It orders the
+	// eligible set (higher runs first), never authorizes. Unset (nil) is treated as
+	// 0; see EffectivePriority. It is sibling-scoped: the scheduler compares it down
+	// the ancestor path, so it only discriminates a node from its siblings.
+	Priority   *float64 `json:"priority,omitempty"`
+	Labels     []string `json:"labels"`
+	Acceptance []string `json:"acceptance"`
+	RiskScore  *int     `json:"risk_score,omitempty"`
+	CreatedAt  string   `json:"created_at"`
+	UpdatedAt  string   `json:"updated_at"`
+}
+
+// EffectivePriority returns the node's own priority, treating unset as 0 (ADR 0039).
+func (t *Ticket) EffectivePriority() float64 {
+	if t.Priority != nil {
+		return *t.Priority
+	}
+	return 0
 }

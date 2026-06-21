@@ -117,7 +117,7 @@ func (db *DB) CreateTicket(t *ticket.Ticket, actor string) error {
 			VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
 			t.ID, nullStr(t.ParentID), t.Kind, nullStr(string(t.NodeType)), nullStr(t.WorkType),
 			t.Title, t.Description, t.Contract, string(t.Status), nullStr(t.Assignee),
-			nullStr(t.RequestedActor), nullInt(t.Priority), labels, acceptance,
+			nullStr(t.RequestedActor), nullFloat(t.Priority), labels, acceptance,
 			nullInt(t.RiskScore), t.CreatedAt, t.UpdatedAt)
 		if err != nil {
 			return err
@@ -179,7 +179,7 @@ func (db *DB) UpdateTicket(t *ticket.Ticket, actor string) error {
 			risk_score=?, updated_at=? WHERE id=?`,
 			t.Kind, nullStr(string(t.NodeType)), nullStr(t.WorkType), t.Title,
 			t.Description, t.Contract, nullStr(t.Assignee), nullStr(t.RequestedActor),
-			nullInt(t.Priority), labels, acceptance, nullInt(t.RiskScore),
+			nullFloat(t.Priority), labels, acceptance, nullInt(t.RiskScore),
 			t.UpdatedAt, t.ID)
 		if err != nil {
 			return err
@@ -260,7 +260,7 @@ func scanTicket(s rowScanner) (*ticket.Ticket, error) {
 		workType       sql.NullString
 		assignee       sql.NullString
 		requestedActor sql.NullString
-		priority       sql.NullInt64
+		priority       sql.NullFloat64
 		riskScore      sql.NullInt64
 		labels         string
 		acceptance     string
@@ -281,7 +281,7 @@ func scanTicket(s rowScanner) (*ticket.Ticket, error) {
 	t.Assignee = assignee.String
 	t.RequestedActor = requestedActor.String
 	if priority.Valid {
-		p := int(priority.Int64)
+		p := priority.Float64
 		t.Priority = &p
 	}
 	if riskScore.Valid {
@@ -319,6 +319,13 @@ func nullStr(s string) any {
 }
 
 func nullInt(p *int) any {
+	if p == nil {
+		return nil
+	}
+	return *p
+}
+
+func nullFloat(p *float64) any {
 	if p == nil {
 		return nil
 	}

@@ -84,6 +84,7 @@ func (s *Scheduler) Tick(ctx context.Context) (int, error) {
 	if err != nil {
 		return 0, err
 	}
+	s.orderByValue(eligible) // value order, not FIFO-by-id (ADR 0039)
 	started := 0
 	for _, tk := range eligible {
 		if !s.capacityAvailable() {
