@@ -88,8 +88,14 @@ func importExports(db *sqlite.DB, dir string) (int, error) {
 	pending := entries[:0:0]
 	maxSeq := 0
 	for _, e := range entries {
-		if n := idSeq(e.t.ID); n > maxSeq {
-			maxSeq = n
+		// Only T-NNNN ids feed the runtime allocator (ADR 0019, 0032). Goal/epic
+		// ids (G-/E-) share the numeric-suffix shape but live outside the T
+		// sequence; counting them could vault the allocator past unrelated numbers
+		// (e.g. an E-2000 epic) and waste the T-id space.
+		if strings.HasPrefix(e.t.ID, "T-") {
+			if n := idSeq(e.t.ID); n > maxSeq {
+				maxSeq = n
+			}
 		}
 		if _, err := db.GetTicket(e.t.ID); err == nil {
 			continue // already present
