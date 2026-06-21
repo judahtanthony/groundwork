@@ -6,6 +6,7 @@ package exporter
 import (
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -33,9 +34,12 @@ type frontMatter struct {
 }
 
 // Render returns the deterministic Markdown export of t, with dependsOn as the
-// node's dependency ids (already sorted by the caller). Output uses LF line
-// endings and a single trailing newline.
+// node's dependency ids. The ids are sorted here so the output is byte-stable
+// regardless of the order a caller supplies them (ADR 0021); callers need not
+// pre-sort. Output uses LF line endings and a single trailing newline.
 func Render(t *ticket.Ticket, dependsOn []string) ([]byte, error) {
+	deps := append([]string(nil), dependsOn...)
+	sort.Strings(deps)
 	fm := frontMatter{
 		ID:             t.ID,
 		Kind:           t.Kind,
@@ -48,7 +52,7 @@ func Render(t *ticket.Ticket, dependsOn []string) ([]byte, error) {
 		Priority:       t.Priority,
 		Labels:         nonNil(t.Labels),
 		Parent:         ptrOrNil(t.ParentID),
-		DependsOn:      nonNil(dependsOn),
+		DependsOn:      nonNil(deps),
 		CreatedAt:      t.CreatedAt,
 		UpdatedAt:      t.UpdatedAt,
 	}

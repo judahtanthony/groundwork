@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
 	"testing"
@@ -83,6 +84,75 @@ func TestImportWholeTreePreservesHierarchyStatusAndSeq(t *testing.T) {
 	}
 	if fresh.ID != "T-1004" {
 		t.Fatalf("next allocated id = %q, want T-1004", fresh.ID)
+	}
+}
+
+// TestImportExportRoundTripIsByteStable guards the deterministic-export contract
+// (ADR 0021): rebuilding the store from committed exports and re-exporting must
+// yield byte-identical Markdown. It exercises both churn sources: the committed
+// empty-timestamp convention (import must not stamp "now") and depends_on order
+// (export must sort), here supplied deliberately unsorted.
+func TestImportExportRoundTripIsByteStable(t *testing.T) {
+	dir := t.TempDir()
+	// Empty timestamps mirror planning-sourced committed tickets; deps are
+	// supplied out of order to prove export sorts them.
+	a := &ticket.Ticket{ID: "T-0503", Kind: "ticket", Title: "Dep A", Status: ticket.StatusTodo}
+	b := &ticket.Ticket{ID: "T-0504", Kind: "ticket", Title: "Dep B", Status: ticket.StatusTodo}
+	d := &ticket.Ticket{ID: "T-1002", Kind: "ticket", Title: "Dep C", Status: ticket.StatusTodo}
+	c := &ticket.Ticket{ID: "T-1003", Kind: "ticket", Title: "Dependent", Status: ticket.StatusBacklog}
+	writeExport(t, dir, a, nil)
+	writeExport(t, dir, b, nil)
+	writeExport(t, dir, d, nil)
+	writeExport(t, dir, c, []string{"T-1002", "T-0503", "T-0504"})
+
+	// Snapshot the committed bytes before any import touches the store.
+	want := map[string][]byte{}
+	for _, id := range []string{"T-0503", "T-0504", "T-1002", "T-1003"} {
+		data, err := os.ReadFile(filepath.Join(dir, id, "ticket.md"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		want[id] = data
+	}
+
+	db, err := sqlite.Open(filepath.Join(t.TempDir(), "state.sqlite"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if err := db.Migrate(); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := importExports(db, dir); err != nil {
+		t.Fatalf("import: %v", err)
+	}
+
+	// Empty timestamps must survive the round trip rather than being stamped.
+	got, err := db.GetTicket("T-1003")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.CreatedAt != "" || got.UpdatedAt != "" {
+		t.Fatalf("import stamped timestamps: created=%q updated=%q, want empty", got.CreatedAt, got.UpdatedAt)
+	}
+
+	// Re-export from the rebuilt store and compare byte-for-byte.
+	depMap, err := db.DependencyMap()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for id, wantData := range want {
+		tk, err := db.GetTicket(id)
+		if err != nil {
+			t.Fatal(err)
+		}
+		gotData, err := exporter.Render(tk, depMap[id])
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !bytes.Equal(gotData, wantData) {
+			t.Errorf("%s re-export differs from committed bytes:\n--- got ---\n%s\n--- want ---\n%s", id, gotData, wantData)
+		}
 	}
 }
 

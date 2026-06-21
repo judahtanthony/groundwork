@@ -4,27 +4,24 @@ import (
 	"database/sql"
 	"fmt"
 
-	"groundwork/internal/encoding"
 	"groundwork/internal/ticket"
 )
 
 // ImportTicket inserts a node from a committed export, preserving its id and
-// timestamps (recovery.md, T-0902). Unlike CreateTicket it does not allocate an
-// id or stamp "now", so a cold store rebuilt from exports matches the originals.
-// The parent (if any) must already exist (foreign key). It appends a
-// ticket.imported audit event. Runtime state (leases, runs) is never restored.
+// timestamps verbatim (recovery.md, T-0902). Unlike CreateTicket it does not
+// allocate an id or stamp "now", so a cold store rebuilt from exports matches
+// the originals byte-for-byte on re-export (ADR 0021). Timestamps are stored
+// exactly as committed, including the empty-string convention used by
+// planning-sourced tickets — stamping "now" here would make a rebuilt store
+// fail to round-trip and churn every committed export. The parent (if any) must
+// already exist (foreign key). It appends a ticket.imported audit event. Runtime
+// state (leases, runs) is never restored.
 func (db *DB) ImportTicket(t *ticket.Ticket) error {
 	if t.ID == "" {
 		return fmt.Errorf("import requires a ticket id")
 	}
 	if err := prepareTicket(t); err != nil {
 		return err
-	}
-	if t.CreatedAt == "" {
-		t.CreatedAt = encoding.Now()
-	}
-	if t.UpdatedAt == "" {
-		t.UpdatedAt = t.CreatedAt
 	}
 	return db.withTx(func(tx *sql.Tx) error {
 		labels, acceptance, err := marshalLists(t)

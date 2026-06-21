@@ -40,6 +40,47 @@ func TestRenderIsDeterministic(t *testing.T) {
 	}
 }
 
+// TestRenderSortsDependsOn guards the determinism contract (ADR 0021): the
+// rendered depends_on list must be sorted regardless of the order ids are
+// supplied, so re-exporting an unchanged store yields a byte-identical tree.
+func TestRenderSortsDependsOn(t *testing.T) {
+	unsorted, err := Render(sampleLeaf(), []string{"T-1002", "T-0503", "T-0504"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	sorted, err := Render(sampleLeaf(), []string{"T-0503", "T-0504", "T-1002"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(unsorted, sorted) {
+		t.Fatalf("depends_on order leaks into output; export is not order-independent:\n%s", unsorted)
+	}
+	want := "depends_on:\n    - T-0503\n    - T-0504\n    - T-1002\n"
+	if !strings.Contains(string(unsorted), want) {
+		t.Errorf("depends_on not sorted; want %q in:\n%s", want, unsorted)
+	}
+}
+
+// TestRenderPreservesEmptyTimestamps guards the committed empty-timestamp
+// convention used by planning-sourced tickets: an empty created_at/updated_at
+// must render as empty (not stamped), so a store rebuilt from such exports
+// round-trips without churn (ADR 0021).
+func TestRenderPreservesEmptyTimestamps(t *testing.T) {
+	tk := sampleLeaf()
+	tk.CreatedAt = ""
+	tk.UpdatedAt = ""
+	out, err := Render(tk, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := string(out)
+	for _, want := range []string{`created_at: ""`, `updated_at: ""`} {
+		if !strings.Contains(s, want) {
+			t.Errorf("expected %q in:\n%s", want, s)
+		}
+	}
+}
+
 func TestRenderContent(t *testing.T) {
 	out, err := Render(sampleLeaf(), []string{"T-0000"})
 	if err != nil {
