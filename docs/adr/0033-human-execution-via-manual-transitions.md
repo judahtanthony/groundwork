@@ -32,11 +32,17 @@ the `land_to_main` approval and enforces the validation gate
 `human.owner` already holds `approve`/`review: ["*"]` in the scaffolded
 `actors.yaml`, so the human landing-approval path needs no new policy.
 
-Because the M2 scheduler auto-claims eligible `todo` nodes and dispatches them to
-AI actors through the runtime stub, running it would race the human for any node.
-`gw server --no-scheduler` therefore runs the coordinator — API, gates, approvals,
-landing — without the scheduler, so the human owns the lifecycle. The scheduler
-remains on by default; `--no-scheduler` is the M3 human-work mode.
+The M2 scheduler would otherwise auto-claim eligible `todo` nodes and dispatch them
+to AI actors through the runtime stub, racing the human. The mechanism that prevents
+this is the **trust policy**, not a server flag: the scheduler dispatches a node only
+when an `allow_claim` rule authorizes an AI actor for it
+([ADR 0028](0028-gate-evaluation-engine.md)). The project's policy authorizes no AI
+claims in M3 (`allow_claim: []`), so the scheduler finds no actor and leaves every
+node for the human — while the gate, approval, validation, and landing machinery
+stays fully exercised. Loosening `allow_claim` (e.g. permitting Codex to claim
+low-risk documentation) is the same act that hands work to the scheduler as the
+runtime and trust mature ([ADR 0011](0011-progressive-planning-autonomy-via-sops.md)),
+so this is how normal operation tightens and loosens — not a special human-only mode.
 
 ## Consequences
 

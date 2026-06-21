@@ -9,13 +9,26 @@ auto_approve:
         - ".groundwork/**/*.md"
       change_type: documentation
       max_diff_lines: 200
-allow_claim:
-  - id: default_codex_medium_risk
-    when:
-      actor_ids: [ai.codex.default]
-      work_types: [technical_design, technical_implementation, test_implementation, documentation]
-      risk_class_at_most: medium
-    actions: [execute, decompose]
+# allow_claim authorizes an actor to claim a node; the scheduler dispatches a
+# node only when a rule here matches an AI actor. In M3, agent EXECUTION is
+# human-performed (the Codex runtime is Phase 4, ADR 0033), so this project
+# authorizes NO AI claims: the scheduler finds no actor and leaves every node for
+# the human, while the gate system stays fully exercised.
+#
+# Loosening is how work is handed to the scheduler as the runtime and trust
+# mature. For example, to let Codex claim low-risk documentation:
+#
+#   allow_claim:
+#     - id: codex_docs_low
+#       when:
+#         actor_ids: [ai.codex.default]
+#         work_types: [documentation]
+#         risk_class_at_most: low
+#       actions: [execute]
+#
+# With that rule present, eligible `todo` documentation nodes become claimable
+# and the scheduler dispatches them.
+allow_claim: []
 require_human:
   - id: secrets
     when:

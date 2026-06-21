@@ -25,12 +25,18 @@ runtime-only and git-ignored — it rebuilds from the exports on cold start.
 
 ## Run a documentation ticket (human-performed)
 
-Start the coordinator without the scheduler, so the human owns the node lifecycle
-rather than the scheduler auto-claiming eligible nodes for an AI actor (ADR 0033):
+Start the coordinator:
 
 ```sh
-gw server --no-scheduler
+gw server
 ```
+
+The scheduler runs, but it dispatches a node to an AI actor only when the trust
+policy's `allow_claim` authorizes one. In M3 the project authorizes no AI claims
+(`allow_claim: []` in `.groundwork/policies/trust.yaml`), so the scheduler leaves
+every node for the human and never races for it (ADR 0033). Handing work to the
+scheduler later is a policy change — add an `allow_claim` rule for the work type —
+not a server mode.
 
 Then, for a `work_type: documentation` node `<id>`:
 
