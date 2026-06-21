@@ -2,6 +2,9 @@
 
 Status: Accepted
 
+> The human landing gate is reclassified as a **transitional default** (loosenable, not a
+> permanent commitment) by ADR 0037.
+
 ## Context
 
 The long-term goal is high autonomy, but early trust and validation policies will be immature.

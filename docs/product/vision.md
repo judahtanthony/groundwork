@@ -6,12 +6,24 @@ The target user for v1 is a solo developer or solopreneur running the whole syst
 
 ## Long-Term Goal
 
-Groundwork aims for a Symphony-style operating model:
+Groundwork aims for a Symphony-style operating model as the near-term shape of a broader
+destination (see [ADR 0036](../adr/0036-work-as-universal-substrate.md)):
 
 - Humans manage work, constraints, trust, validation, and visibility.
 - Agents increasingly complete tasks end-to-end.
 - Human code contribution trends toward zero for well-understood, well-constrained work.
 - The system records enough context for later agents to understand what happened and why.
+
+Beyond that, Groundwork treats **work** as a scale-invariant substrate (requirements,
+procedures, definition-of-done, and value), with software as the seed domain. Over time it
+migrates not just execution but **judgment and authority** — prioritization (value),
+direction (solutions and execution), and improvement (the system enhancing itself) — from
+humans into AI agents, balancing velocity against quality. Human-in-the-loop is a
+transitional state governed by complexity and risk, not a permanent design invariant: every
+human-authority point is a configurable, retractable position on a trust gradient
+([ADR 0037](../adr/0037-transitional-defaults-vs-invariants.md),
+[ADR 0038](../adr/0038-authority-as-loosenable-gate.md)). The aim is to elevate human
+attention to ever-higher altitude through reliable, sustainable delegation.
 
 ## Local-First Motivation
 

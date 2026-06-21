@@ -2,6 +2,11 @@
 
 Status: Accepted
 
+> Amended by ADR 0038: trust elevation becomes a first-class gated action
+> (`amend_policy` / `elevate_autonomy`) rather than a human-only act — human-required by
+> default, but expressible and delegable. The human requirements here are loosenable policy
+> defaults per ADR 0037.
+
 ## Context
 
 ADR 0006 models landing as a policy gate so autonomy can be enabled later. Dynamic decomposition (ADR 0009) introduces a new high-leverage agent action — planning — that is human-gated in v1. Planning should be able to loosen over time the same way leaf execution and landing do, rather than staying permanently manual.

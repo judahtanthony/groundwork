@@ -55,7 +55,9 @@ Phase 2 decisions are recorded in ADRs 0025–0031 (HTTP/SSE transport, coordina
 concurrency, run lifecycle/checkpoint records, gate engine, actor identity, canon
 distillation, server-vs-store boundary). Phase 3 decisions are recorded in ADRs
 0032–0035 (bootstrap import via authored Markdown, human execution via manual
-transitions, minimal git-landing, context-miss capture).
+transitions, minimal git-landing, context-miss capture). ADRs 0036–0038 record the
+long-term direction: work as a universal substrate (0036), transitional defaults vs.
+architectural invariants (0037), and authority as a uniform loosenable gate (0038).
 
 ## Design Commitments To Preserve
 
@@ -68,13 +70,23 @@ transitions, minimal git-landing, context-miss capture).
 - SQLite is ignored by default.
 - Durable committed state: docs, workflow, policies, ticket exports, and code.
 - Runtime ignored state: SQLite, WAL/SHM, worktrees, run transcripts, raw command logs, generated views.
-- Server is localhost-only and single-user in v1.
 - Leaf nodes represent one verifiable change.
 - Work is a uniform tree of nodes; kind is advisory, structure is leaf vs composite decided by triage at claim time.
 - Composite nodes decompose just-in-time into children; decomposition is a reviewable proposal.
 - Dependency edges form a DAG overlay; nodes are eligible only when dependencies are satisfied.
-- Revisions propagate upward via escalation; re-plan is human-gated in v1.
-- Human approval is required in v1 for both landing and decomposition, but both are policy gates that loosen via SOPs/context/validation to permit future autonomy.
+- Revisions propagate upward via escalation.
+- Auditability, default-deny authorization, reversibility-as-a-tracked-input, canon-as-memory, deterministic export, and the single serialized coordinator are architectural invariants (ADR 0037): autonomy may remove the human but never these.
+
+### Transitional Defaults (loosenable, not commitments)
+
+These are conservative *current settings* that loosen as SOPs, validation, context, and
+trust mature — not permanent guarantees (see [ADR 0037](docs/adr/0037-transitional-defaults-vs-invariants.md)
+and [ADR 0038](docs/adr/0038-authority-as-loosenable-gate.md)):
+
+- Server is localhost-only and single-user in v1.
+- Human approval is required for landing and decomposition; both are policy gates.
+- Re-plan / escalation acceptance is human-gated.
+- Irreversible actions and autonomy elevation are human-gated; under ADR 0038 both are loosenable policy defaults, not structural floors.
 
 ## Planning Source
 

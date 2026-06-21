@@ -2,6 +2,11 @@
 
 Status: Accepted
 
+> Amended by ADR 0038: reversibility stops being a pre-policy *floor* and becomes a
+> highest-bar gate condition routed through the rule engine. Reversibility is still always
+> evaluated and surfaced (an invariant, ADR 0037); only its *consequence* — "irreversible →
+> human" — is reclassified as a loosenable default rather than an absolute.
+
 ## Context
 
 The trust model (ADR 0006, `trust-and-approvals.md`) gates actions with a hand-maintained list of human-required cases and an opaque 0–100 risk score. The variable that actually makes an action safe to auto-approve is whether it is **cheaply reversible**: a docs edit or an added test can be `git revert`-ed; a non-reversible migration, a production-credential touch, or a destructive command cannot. The approvals design already leans on this implicitly ("non-reversible migration +22, no tested rollback +22"), but it is not a first-class input.
