@@ -1,0 +1,29 @@
+schema: groundwork_actors/v1
+
+actors:
+  - id: human.owner
+    type: human
+    display_name: Owner
+    roles: [owner]
+    capabilities:
+      work_types: ["*"]
+      approve: ["*"]
+      review: ["*"]
+
+  - id: ai.codex.default
+    type: ai_agent
+    display_name: Codex Default
+    runtime: codex
+    model: default
+    roles: [implementer]
+    capabilities:
+      work_types:
+        - technical_design
+        - technical_implementation
+        - test_implementation
+        - documentation
+      review:
+        - documentation
+    limits:
+      max_risk_class: medium
+    sandbox: workspace-write

@@ -1,0 +1,25 @@
+---
+id: T-0001
+kind: ticket
+node_type: leaf
+work_type: documentation
+title: Create root README and AGENTS guidance
+status: done
+assignee: null
+requested_actor: null
+priority: null
+labels: []
+parent: E-0001
+depends_on: []
+created_at: ""
+updated_at: ""
+---
+
+## Problem
+
+_No description recorded._
+
+## Acceptance Criteria
+
+- README explains project status and reading order.
+- AGENTS explains future agent boundaries.

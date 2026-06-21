@@ -1,0 +1,30 @@
+schema: groundwork_trust_policy/v1
+auto_approve:
+  - id: internal_docs
+    description: Allow documentation-only changes to internal agent guidance.
+    when:
+      files:
+        - AGENTS.md
+        - MEMORY.md
+        - ".groundwork/**/*.md"
+      change_type: documentation
+      max_diff_lines: 200
+allow_claim:
+  - id: default_codex_medium_risk
+    when:
+      actor_ids: [ai.codex.default]
+      work_types: [technical_design, technical_implementation, test_implementation, documentation]
+      risk_class_at_most: medium
+    actions: [execute, decompose]
+require_human:
+  - id: secrets
+    when:
+      files:
+        - "**/.env*"
+        - "**/*secret*"
+  - id: landing_to_main_v1
+    when:
+      action_types: [land_to_main]
+  - id: decomposition_v1
+    when:
+      action_types: [decompose]

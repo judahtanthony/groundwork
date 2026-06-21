@@ -1,0 +1,8 @@
+schema: groundwork_autonomy_policy/v1
+actions:
+  execute:
+    default: require_human
+  land_to_main:
+    default: require_human
+  decompose:
+    default: require_human

@@ -1,0 +1,9 @@
+schema: groundwork_config/v1
+runtime: codex
+server:
+    addr: 127.0.0.1:4500
+max_concurrency: 4
+lease:
+    ttl: 1m30s
+    heartbeat: 30s
+sandbox: workspace-write

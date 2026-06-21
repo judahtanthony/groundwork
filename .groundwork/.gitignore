@@ -1,0 +1,8 @@
+# Groundwork runtime state — ignored by default (ADR 0007, ADR 0012).
+state.sqlite
+state.sqlite-wal
+state.sqlite-shm
+runs/
+approvals/
+views/
+worktrees/

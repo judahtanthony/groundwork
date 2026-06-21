@@ -1,0 +1,13 @@
+schema: groundwork_validation_policy/v1
+templates:
+  documentation:
+    match:
+      files: ["**/*.md", "AGENTS.md", "MEMORY.md"]
+    required: []
+    landing_risk_floor: low
+  go:
+    match:
+      files: ["**/*.go"]
+    required:
+      - name: go_tests
+        command: "go test ./..."
