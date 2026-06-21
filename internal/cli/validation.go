@@ -2,8 +2,10 @@ package cli
 
 import (
 	"fmt"
+	"os"
 	"os/exec"
 
+	"groundwork/internal/git"
 	"groundwork/internal/policy"
 	"groundwork/internal/store/sqlite"
 )
@@ -119,15 +121,30 @@ func runValidationRun(ctx *Context, args []string) error {
 // (coordinator-required, ADR 0031).
 func runTicketLand(ctx *Context, args []string) error {
 	fs := ctx.NewFlagSet("gw ticket land")
-	var override bool
+	var override, all bool
 	fs.BoolVar(&override, "override", false, "land despite failing/missing validation (audited)")
+	fs.BoolVar(&all, "all", false, "stage all changes before committing (like git commit -a)")
 	pos, err := parseFlags(fs, args)
 	if err != nil {
 		return err
 	}
 	if len(pos) < 1 {
-		return &Error{Code: "invalid_args", Message: "usage: gw ticket land <id> [--override]"}
+		return &Error{Code: "invalid_args", Message: "usage: gw ticket land <id> [--all] [--override]"}
 	}
+
+	// Resolve what the landing commit will include before asking the coordinator
+	// to land. The coordinator commits the git index (plus the regenerated
+	// export); --all stages everything, and an empty index prompts to include all
+	// (default yes). Staging here persists until the land/approve completes the
+	// commit (ADR 0034). Skipped cleanly when the project root is not a git repo.
+	if p, perr := ctx.resolveProject(); perr == nil {
+		if repo, rerr := git.Open(p.Root); rerr == nil {
+			if err := resolveLandStaging(repo, all, os.Stdin, ctx.Stdout); err != nil {
+				return &Error{Code: "stage_failed", Message: err.Error()}
+			}
+		}
+	}
+
 	c, err := ctx.requireCoordinator()
 	if err != nil {
 		return err

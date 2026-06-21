@@ -87,21 +87,23 @@ func (r *Repo) CurrentBranch() (string, error) {
 	return strings.TrimSpace(out), nil
 }
 
-// WorkingTreeDirty reports whether tracked files have unstaged modifications.
-// Landing uses this to warn that part of the work may be unstaged.
-func (r *Repo) WorkingTreeDirty() (bool, error) {
-	// Exit 1 means the working tree differs from the index.
-	cmd := exec.Command("git", "diff", "--quiet")
-	cmd.Dir = r.root
-	err := cmd.Run()
-	if err == nil {
-		return false, nil
+// AddAll stages every change in the work tree (git add -A): modified, deleted,
+// and new files, honoring .gitignore. It is the `git commit -a`-style convenience
+// for landing (ADR 0034).
+func (r *Repo) AddAll() error {
+	_, err := r.run("add", "-A")
+	return err
+}
+
+// HasUncommitted reports whether the work tree has any uncommitted change —
+// staged, unstaged, or untracked — honoring .gitignore. Landing uses it to decide
+// whether to offer to stage everything when the index is empty.
+func (r *Repo) HasUncommitted() (bool, error) {
+	out, err := r.run("status", "--porcelain")
+	if err != nil {
+		return false, err
 	}
-	var ee *exec.ExitError
-	if errors.As(err, &ee) && ee.ExitCode() == 1 {
-		return true, nil
-	}
-	return false, fmt.Errorf("git diff: %w", err)
+	return strings.TrimSpace(out) != "", nil
 }
 
 // run executes a git subcommand in the repo root, returning combined output. On

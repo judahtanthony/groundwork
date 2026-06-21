@@ -50,6 +50,11 @@ gw ticket land <id>                # opens the land_to_main approval (human-gate
 gw approval approve <approval-id>  # gw commits the change + export, node -> done
 ```
 
+Stage just the ticket's files (above) to keep the commit ticket-scoped, or use
+`gw ticket land <id> --all` to stage every change first (the `git commit -a`
+ergonomic). If nothing is staged, the command asks whether to include all changes
+(default yes).
+
 When the landing approval is granted, Groundwork enforces the `documentation`
 validation template and then makes the durable commit itself: the human's staged
 change plus the regenerated ticket export (now `status: done`) land in one commit on

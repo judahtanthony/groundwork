@@ -33,6 +33,13 @@ belongs to this landing, so unrelated *unstaged* edits in the working tree are n
 captured. If nothing is staged and the export is already current, gw records the
 landing without forcing an empty commit.
 
+Because day-to-day development usually commits everything at once (`git commit -a`),
+`gw ticket land` also offers that ergonomic, resolved CLI-side before the coordinator
+commits: `--all` stages every change (`git add -A`, honoring `.gitignore`), and when
+nothing is staged but the work tree has changes the command asks whether to include
+them all (default yes). The decision only stages — the coordinator still performs the
+single commit — so the staging persists across the land→approve gate.
+
 The capability is deliberately minimal — **stage + commit on the current branch
 only**. It excludes isolated worktrees, branch creation, WIP checkpoints, squash, and
 resume, all of which remain Phase 4
