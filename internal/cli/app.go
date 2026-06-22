@@ -109,6 +109,7 @@ func ticketSubcommands() []*Command {
 		newTicketListCmd(),
 		newTicketShowCmd(),
 		newTicketEditCmd(),
+		newTicketClaimCmd(),
 		newTicketTransitionCmd(),
 		newTicketTriageCmd(),
 		newTicketTreeCmd(),

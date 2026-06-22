@@ -86,6 +86,61 @@ func TestListBlockedAnnotatesBlockers(t *testing.T) {
 	}
 }
 
+func TestClaimNodeEligibleSetsAssigneeAndStarts(t *testing.T) {
+	db := cliTestDB(t)
+	_, readyID, _, _ := readyBlockedFixture(t, db)
+
+	if err := claimNode(db, db, readyID, "human.owner"); err != nil {
+		t.Fatalf("claimNode: %v", err)
+	}
+	tk, err := db.GetTicket(readyID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if tk.Status != ticket.StatusInProgress {
+		t.Errorf("status = %s, want in_progress", tk.Status)
+	}
+	if tk.Assignee != "human.owner" {
+		t.Errorf("assignee = %q, want human.owner", tk.Assignee)
+	}
+}
+
+func TestClaimNodeRefusesBlocked(t *testing.T) {
+	db := cliTestDB(t)
+	_, _, blockedID, blockerID := readyBlockedFixture(t, db)
+
+	err := claimNode(db, db, blockedID, "human.owner")
+	if err == nil {
+		t.Fatal("expected claim of a blocked node to fail")
+	}
+	var ce *Error
+	if !asError(err, &ce) || ce.Code != "blocked" {
+		t.Fatalf("want blocked error, got %v", err)
+	}
+	if !strings.Contains(ce.Message, blockerID) {
+		t.Errorf("error should name the blocker %s: %q", blockerID, ce.Message)
+	}
+	// The node must remain todo (not partially mutated).
+	tk, _ := db.GetTicket(blockedID)
+	if tk.Status != ticket.StatusTodo {
+		t.Errorf("blocked node moved to %s; must stay todo", tk.Status)
+	}
+}
+
+func TestClaimNodeRefusesNonTodo(t *testing.T) {
+	db := cliTestDB(t)
+	doneID, _, _, _ := readyBlockedFixture(t, db)
+
+	err := claimNode(db, db, doneID, "human.owner")
+	if err == nil {
+		t.Fatal("expected claim of a done node to fail")
+	}
+	var ce *Error
+	if !asError(err, &ce) || ce.Code != "not_claimable" {
+		t.Fatalf("want not_claimable error, got %v", err)
+	}
+}
+
 func TestListBlockedJSONHasBlockedBy(t *testing.T) {
 	db := cliTestDB(t)
 	_, _, blockedID, blockerID := readyBlockedFixture(t, db)

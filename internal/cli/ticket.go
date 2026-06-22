@@ -1,9 +1,11 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
+	"groundwork/internal/contextbrief"
 	"groundwork/internal/store/sqlite"
 	"groundwork/internal/ticket"
 )
@@ -342,6 +344,111 @@ func runTicketEdit(ctx *Context, args []string) error {
 	}
 	fmt.Fprintf(ctx.Stdout, "Updated %s\n", t.ID)
 	return nil
+}
+
+func newTicketClaimCmd() *Command {
+	return &Command{Name: "claim", Usage: "Claim an eligible node: assign it and start work", Args: "<id>", Run: runTicketClaim}
+}
+
+// runTicketClaim is the guided "I'm taking this" verb (ADR 0041): it verifies a
+// node is eligible (todo + dependencies satisfied), sets the assignee, moves it
+// to in_progress, and prints the brief plus the next step — composing the
+// existing primitives, never a new authority.
+func runTicketClaim(ctx *Context, args []string) error {
+	fs := ctx.NewFlagSet("gw ticket claim")
+	var assignee string
+	fs.StringVar(&assignee, "actor", ownerActor, "assignee for the node (default: human.owner)")
+	pos, err := parseFlags(fs, args)
+	if err != nil {
+		return err
+	}
+	if len(pos) < 1 {
+		return &Error{Code: "invalid_args", Message: "usage: gw ticket claim <id> [--actor <id>]"}
+	}
+	id := pos[0]
+
+	// Reads (eligibility guard + brief) go direct; a running coordinator and the
+	// CLI reader share the WAL store, so the direct read stays coherent (ADR 0031).
+	p, db, err := ctx.openStore()
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+
+	// The mutation prefers the coordinator when one is running (ADR 0031).
+	store, closeStore, err := ctx.openTicketStore()
+	if err != nil {
+		return err
+	}
+	defer closeStore()
+	if err := claimNode(db, store, id, assignee); err != nil {
+		return err
+	}
+
+	if ctx.JSON {
+		return ctx.PrintJSON(map[string]string{
+			"id": id, "status": string(ticket.StatusInProgress), "assignee": assignee})
+	}
+	fmt.Fprintf(ctx.Stdout, "Claimed %s -> in_progress (assignee: %s)\n\n", id, assignee)
+	if brief, err := contextbrief.Build(db, p, id, false); err == nil {
+		renderBrief(ctx, brief)
+	}
+	fmt.Fprintf(ctx.Stdout,
+		"\nNext: make your change and stage it, then: gw ticket transition %s review && gw ticket land %s\n", id, id)
+	return nil
+}
+
+// claimNode performs the eligibility-guarded claim: it verifies id is eligible
+// (todo + dependencies satisfied), sets the assignee, and transitions it to
+// in_progress. db is the read store for the eligibility guard; store is the
+// mutation transport (direct or coordinator). Both are satisfied by *sqlite.DB.
+func claimNode(db *sqlite.DB, store ticketStore, id, assignee string) error {
+	tk, err := db.GetTicket(id)
+	if err != nil {
+		return ticketError(err, id)
+	}
+	if tk.Status != ticket.StatusTodo {
+		return &Error{Code: "not_claimable",
+			Message: fmt.Sprintf("%s is %s; only todo nodes can be claimed", id, tk.Status)}
+	}
+	if blockers, err := unmetDeps(db, id); err != nil {
+		return err
+	} else if len(blockers) > 0 {
+		return &Error{Code: "blocked",
+			Message: fmt.Sprintf("%s is blocked by: %s", id, strings.Join(blockers, ", "))}
+	}
+	// Set the assignee first (UpdateTicket leaves status untouched), then transition.
+	tk.Assignee = assignee
+	if err := store.UpdateTicket(tk, ownerActor); err != nil {
+		return &Error{Code: "claim_failed", Message: err.Error()}
+	}
+	if err := store.TransitionTicket(id, ticket.StatusInProgress, ownerActor); err != nil {
+		if errors.Is(err, sqlite.ErrIllegalTransition) {
+			return &Error{Code: "illegal_transition", Message: err.Error()}
+		}
+		return &Error{Code: "claim_failed", Message: err.Error()}
+	}
+	return nil
+}
+
+// unmetDeps returns the "id (status)" descriptors of id's dependencies that are
+// not yet done — the reason a todo node is not eligible (ADR 0024/0041).
+func unmetDeps(db *sqlite.DB, id string) ([]string, error) {
+	depIDs, err := db.DependencyIDs(id)
+	if err != nil {
+		return nil, &Error{Code: "store_error", Message: err.Error()}
+	}
+	var blockers []string
+	for _, depID := range depIDs {
+		dep, err := db.GetTicket(depID)
+		if err != nil {
+			return nil, &Error{Code: "store_error", Message: err.Error()}
+		}
+		if !ticket.DependencyMet(dep.Status) {
+			blockers = append(blockers, fmt.Sprintf("%s (%s)", dep.ID, dep.Status))
+		}
+	}
+	return blockers, nil
 }
 
 // --- rendering ---
