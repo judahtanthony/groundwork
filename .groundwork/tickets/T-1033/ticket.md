@@ -14,7 +14,7 @@ labels:
 parent: T-1022
 depends_on: []
 created_at: "2026-06-22T19:33:45Z"
-updated_at: "2026-06-22T19:33:45Z"
+updated_at: "2026-06-22T20:53:56Z"
 ---
 
 ## Problem
@@ -23,4 +23,6 @@ gw ticket mutations (create/transition/etc.) auto-route to a coordinator on the 
 
 ## Acceptance Criteria
 
-_None recorded._
+- openTicketStore only routes to a coordinator whose project root matches the CLI's discovered root (e.g. /healthz reports the root); otherwise falls back to store-direct or errors clearly
+- Test/ephemeral apps are isolated: scaffolded/temp configs use a non-:4500 port (or 127.0.0.1:0) so pre-server CLI steps in make smoke go store-direct and never hit a running coordinator
+- Per-project Unix-domain socket under .groundwork/ is recorded as the preferred long-term design (collision-proof, no port management), even if (a) lands first
