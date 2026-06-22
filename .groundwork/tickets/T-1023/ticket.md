@@ -4,7 +4,7 @@ kind: ticket
 node_type: leaf
 work_type: documentation
 title: Record the human-CLI operating model (ADR 0041)
-status: todo
+status: done
 assignee: null
 requested_actor: null
 priority: 0.95
@@ -13,7 +13,7 @@ labels:
 parent: T-1022
 depends_on: []
 created_at: "2026-06-22T15:39:30Z"
-updated_at: "2026-06-22T15:39:47Z"
+updated_at: "2026-06-22T20:22:04Z"
 ---
 
 ## Problem
@@ -22,4 +22,6 @@ Write ADR 0041 capturing the human-CLI operating model and new command surface: 
 
 ## Acceptance Criteria
 
-_None recorded._
+- ADR 0041 exists under docs/adr/ recording the human-CLI operating model and the new command surface
+- ADR references/relates ADR 0011, 0016, 0028, 0034, 0036, 0039 as appropriate
+- ADR is Accepted and the four dimensions (visibility, assignment, execution, review/landing) are covered
