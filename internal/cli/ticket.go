@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"groundwork/internal/config"
 	"groundwork/internal/contextbrief"
 	"groundwork/internal/store/sqlite"
 	"groundwork/internal/ticket"
@@ -386,16 +387,29 @@ func runTicketClaim(ctx *Context, args []string) error {
 	}
 
 	if ctx.JSON {
-		return ctx.PrintJSON(map[string]string{
-			"id": id, "status": string(ticket.StatusInProgress), "assignee": assignee})
+		return ctx.PrintJSON(claimedJSON(id, assignee))
 	}
+	printClaimed(ctx, p, db, id, assignee)
+	return nil
+}
+
+// claimedJSON is the machine-readable result of a claim, shared by
+// `gw ticket claim` and `gw next --claim`.
+func claimedJSON(id, assignee string) map[string]string {
+	return map[string]string{
+		"id": id, "status": string(ticket.StatusInProgress), "assignee": assignee}
+}
+
+// printClaimed renders the human-readable post-claim output — the confirmation,
+// the context brief, and the next-step hint — shared by `gw ticket claim` and
+// `gw next --claim`.
+func printClaimed(ctx *Context, p *config.Project, db *sqlite.DB, id, assignee string) {
 	fmt.Fprintf(ctx.Stdout, "Claimed %s -> in_progress (assignee: %s)\n\n", id, assignee)
 	if brief, err := contextbrief.Build(db, p, id, false); err == nil {
 		renderBrief(ctx, brief)
 	}
 	fmt.Fprintf(ctx.Stdout,
 		"\nNext: make your change and stage it, then: gw ticket transition %s review && gw ticket land %s\n", id, id)
-	return nil
 }
 
 // claimNode performs the eligibility-guarded claim: it verifies id is eligible
