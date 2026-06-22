@@ -1,9 +1,8 @@
-package scheduler
+package sqlite
 
 import (
 	"testing"
 
-	"groundwork/internal/runtime"
 	"groundwork/internal/ticket"
 )
 
@@ -49,9 +48,8 @@ func TestComparePath(t *testing.T) {
 	}
 }
 
-func TestOrderByValueOrdersEligible(t *testing.T) {
-	db := newDB(t)
-	s := New(db, allowCodexPolicy(), testRegistry(), runtime.Stub{}, nil, testConfig())
+func TestListEligibleOrderedByValue(t *testing.T) {
+	db := openTestDB(t)
 
 	mk := func(parent string, prio float64) *ticket.Ticket {
 		tk := &ticket.Ticket{Title: "n", Status: ticket.StatusTodo, ParentID: parent, WorkType: "technical_implementation"}
@@ -69,11 +67,10 @@ func TestOrderByValueOrdersEligible(t *testing.T) {
 	lo := mk(root.ID, 0.2)
 	hi := mk(root.ID, 0.8)
 
-	eligible, err := db.ListEligible()
+	eligible, err := db.ListEligibleOrdered()
 	if err != nil {
 		t.Fatal(err)
 	}
-	s.orderByValue(eligible)
 
 	pos := map[string]int{}
 	for i, n := range eligible {

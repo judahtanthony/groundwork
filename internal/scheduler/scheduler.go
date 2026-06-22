@@ -80,11 +80,13 @@ func (s *Scheduler) Wait() { s.wg.Wait() }
 // Tick performs one scheduling pass: claim and dispatch eligible nodes up to the
 // concurrency limit. It returns the number of runs started.
 func (s *Scheduler) Tick(ctx context.Context) (int, error) {
-	eligible, err := s.db.ListEligible()
+	// Eligible nodes in value order (ADR 0039), not FIFO-by-id. The ordering is
+	// the store's shared surface, so the scheduler and the human CLI reads agree
+	// on "ready, in priority order" (ADR 0041).
+	eligible, err := s.db.ListEligibleOrdered()
 	if err != nil {
 		return 0, err
 	}
-	s.orderByValue(eligible) // value order, not FIFO-by-id (ADR 0039)
 	started := 0
 	for _, tk := range eligible {
 		if !s.capacityAvailable() {

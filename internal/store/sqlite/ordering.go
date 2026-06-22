@@ -1,4 +1,4 @@
-package scheduler
+package sqlite
 
 import (
 	"sort"
@@ -6,14 +6,28 @@ import (
 	"groundwork/internal/ticket"
 )
 
-// orderByValue sorts the eligible set by value (ADR 0039), replacing FIFO-by-id.
-// It is the single `score` seam: today the score is the priority path computed
-// below; the future multi-signal value model (value/effort/risk/confidence/depth)
-// replaces this function without touching the scheduler loop.
-func (s *Scheduler) orderByValue(nodes []*ticket.Ticket) {
+// ListEligibleOrdered returns the eligible set (todo + dependencies satisfied)
+// ordered by value (ADR 0039), not FIFO-by-id. It is the single source of the
+// "ready, in priority order" answer: the scheduler dispatches in this order and
+// the human CLI reads (gw next, gw ticket list --ready) present the same order,
+// so neither re-implements the ADR 0039 ordering (ADR 0041).
+func (db *DB) ListEligibleOrdered() ([]*ticket.Ticket, error) {
+	eligible, err := db.ListEligible()
+	if err != nil {
+		return nil, err
+	}
+	db.orderByValue(eligible)
+	return eligible, nil
+}
+
+// orderByValue sorts nodes by value (ADR 0039), replacing FIFO-by-id. It is the
+// single `score` seam: today the score is the priority path computed below; the
+// future multi-signal value model (value/effort/risk/confidence/depth) replaces
+// this method without touching its callers.
+func (db *DB) orderByValue(nodes []*ticket.Ticket) {
 	key := make(map[string][]levelKey, len(nodes))
 	for _, n := range nodes {
-		key[n.ID] = s.priorityPath(n)
+		key[n.ID] = db.priorityPath(n)
 	}
 	sort.SliceStable(nodes, func(i, j int) bool {
 		return comparePath(key[nodes[i].ID], key[nodes[j].ID]) < 0
@@ -32,8 +46,8 @@ type levelKey struct {
 // node's own priority only discriminates it from its siblings, and cross-subtree
 // order is resolved at the ancestor divergence point (ADR 0039). On a lookup
 // error the path degrades to the node alone, so ordering falls back to id.
-func (s *Scheduler) priorityPath(n *ticket.Ticket) []levelKey {
-	ancestors, err := s.db.Ancestors(n.ID)
+func (db *DB) priorityPath(n *ticket.Ticket) []levelKey {
+	ancestors, err := db.Ancestors(n.ID)
 	if err != nil {
 		ancestors = nil
 	}
