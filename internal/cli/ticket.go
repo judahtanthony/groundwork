@@ -126,9 +126,21 @@ func newTicketListCmd() *Command {
 func runTicketList(ctx *Context, args []string) error {
 	fs := ctx.NewFlagSet("gw ticket list")
 	var status string
+	var ready, blocked bool
 	fs.StringVar(&status, "status", "", "filter by status")
+	fs.BoolVar(&ready, "ready", false, "show only eligible nodes (todo + deps satisfied), value-ordered")
+	fs.BoolVar(&blocked, "blocked", false, "show only todo nodes blocked by unsatisfied dependencies")
 	if err := fs.Parse(args); err != nil {
 		return err
+	}
+	modes := 0
+	for _, on := range []bool{status != "", ready, blocked} {
+		if on {
+			modes++
+		}
+	}
+	if modes > 1 {
+		return &Error{Code: "invalid_args", Message: "--status, --ready, and --blocked are mutually exclusive"}
 	}
 	if status != "" && !ticket.Status(status).Valid() {
 		return &Error{Code: "invalid_args", Message: fmt.Sprintf("invalid status %q", status)}
@@ -139,6 +151,13 @@ func runTicketList(ctx *Context, args []string) error {
 		return err
 	}
 	defer db.Close()
+
+	switch {
+	case ready:
+		return listReady(ctx, db)
+	case blocked:
+		return listBlocked(ctx, db)
+	}
 
 	all, err := db.ListTickets()
 	if err != nil {
@@ -158,7 +177,88 @@ func runTicketList(ctx *Context, args []string) error {
 		}
 		return ctx.PrintJSON(tickets)
 	}
-	renderTicketList(ctx, tickets)
+	renderTicketList(ctx, tickets, "No tickets.")
+	return nil
+}
+
+// listReady prints the eligible set (todo + dependencies satisfied) in ADR 0039
+// value order — the human-facing read of the same surface the scheduler
+// dispatches from (ADR 0041).
+func listReady(ctx *Context, db *sqlite.DB) error {
+	tickets, err := db.ListEligibleOrdered()
+	if err != nil {
+		return &Error{Code: "list_failed", Message: err.Error()}
+	}
+	if ctx.JSON {
+		if tickets == nil {
+			tickets = []*ticket.Ticket{}
+		}
+		return ctx.PrintJSON(tickets)
+	}
+	renderTicketList(ctx, tickets, "No ready nodes.")
+	return nil
+}
+
+// blocker names a dependency that is keeping a node out of the eligible set.
+type blocker struct {
+	ID     string `json:"id"`
+	Status string `json:"status"`
+}
+
+// blockedNode is a todo node plus the unsatisfied dependencies blocking it.
+type blockedNode struct {
+	*ticket.Ticket
+	BlockedBy []blocker `json:"blocked_by"`
+}
+
+// listBlocked prints todo nodes that are not eligible because one or more
+// dependencies are not yet done, annotated with the blocking deps (ADR 0041).
+func listBlocked(ctx *Context, db *sqlite.DB) error {
+	all, err := db.ListTickets()
+	if err != nil {
+		return &Error{Code: "list_failed", Message: err.Error()}
+	}
+	nodes := []blockedNode{}
+	for _, t := range all {
+		if t.Status != ticket.StatusTodo {
+			continue
+		}
+		depIDs, err := db.DependencyIDs(t.ID)
+		if err != nil {
+			return &Error{Code: "store_error", Message: err.Error()}
+		}
+		var blockers []blocker
+		for _, depID := range depIDs {
+			dep, err := db.GetTicket(depID)
+			if err != nil {
+				return &Error{Code: "store_error", Message: err.Error()}
+			}
+			if !ticket.DependencyMet(dep.Status) {
+				blockers = append(blockers, blocker{ID: dep.ID, Status: string(dep.Status)})
+			}
+		}
+		if len(blockers) > 0 {
+			nodes = append(nodes, blockedNode{Ticket: t, BlockedBy: blockers})
+		}
+	}
+
+	if ctx.JSON {
+		return ctx.PrintJSON(nodes)
+	}
+	if len(nodes) == 0 {
+		fmt.Fprintln(ctx.Stdout, "No blocked nodes.")
+		return nil
+	}
+	fmt.Fprintf(ctx.Stdout, "%-8s  %-9s  %s\n", "ID", "TYPE", "TITLE")
+	for _, n := range nodes {
+		fmt.Fprintf(ctx.Stdout, "%-8s  %-9s  %s\n",
+			n.ID, orDash(string(n.NodeType), "-"), n.Title)
+		parts := make([]string, len(n.BlockedBy))
+		for i, b := range n.BlockedBy {
+			parts[i] = fmt.Sprintf("%s (%s)", b.ID, b.Status)
+		}
+		fmt.Fprintf(ctx.Stdout, "%-8s  blocked by: %s\n", "", strings.Join(parts, ", "))
+	}
 	return nil
 }
 
@@ -282,9 +382,9 @@ func renderTicket(ctx *Context, t *ticket.Ticket, dependsOn []string) {
 	fmt.Fprintf(w, "  updated:    %s\n", t.UpdatedAt)
 }
 
-func renderTicketList(ctx *Context, tickets []*ticket.Ticket) {
+func renderTicketList(ctx *Context, tickets []*ticket.Ticket, emptyMsg string) {
 	if len(tickets) == 0 {
-		fmt.Fprintln(ctx.Stdout, "No tickets.")
+		fmt.Fprintln(ctx.Stdout, emptyMsg)
 		return
 	}
 	fmt.Fprintf(ctx.Stdout, "%-8s  %-11s  %-9s  %s\n", "ID", "STATUS", "TYPE", "TITLE")
