@@ -33,6 +33,50 @@ Groundwork aims to make agent-managed software work transparent, local, low-cost
 
 The v1 trust boundary is conservative. Human approval is required before landing code to `main`. That approval is modeled as a policy gate so the system can later support autonomous landing for low-risk, well-validated work.
 
+## Build And Run
+
+Groundwork is a single Go binary with no cgo dependency for normal use. The `Makefile`
+wraps the canonical commands:
+
+```sh
+make build            # CGO_ENABLED=0 go build -o bin/gw ./cmd/gw  ->  ./bin/gw
+make install          # CGO_ENABLED=0 go install ./cmd/gw          ->  gw on $PATH
+```
+
+Then drive a project with the `gw` CLI:
+
+```sh
+gw init               # scaffold .groundwork/ in the current repo
+gw ticket import      # rebuild the runtime store from committed exports (cold start)
+gw ticket tree        # inspect the work tree (the planning source of truth)
+gw status             # node counts by status, plus root rollups
+gw server             # run the localhost coordinator: HTTP API + SSE, approvals, runs, landing
+```
+
+`state.sqlite` is runtime-only and git-ignored; on a fresh checkout `gw ticket import`
+rebuilds it byte-for-byte from the committed Markdown exports under `.groundwork/tickets/`
+([ADR 0020](docs/adr/0020-canonical-encoding-deterministic-export.md)). The CLI is self-documenting — run
+`gw help`, or `gw <command> -h` for any command.
+
+## Development
+
+Every change must pass the same gates `scripts/smoke.sh` and CI enforce. Each has a
+`Makefile` target:
+
+```sh
+make fmt     # gofmt -l .                       (must print nothing)
+make vet     # CGO_ENABLED=0 go vet ./...
+make test    # CGO_ENABLED=0 go test ./...
+make race    # CGO_ENABLED=1 go test -race ./... (the race detector requires cgo)
+make smoke   # bash scripts/smoke.sh            (end-to-end CLI smoke test)
+```
+
+Groundwork manages its own development: the work tree is the planning source of truth
+([ADR 0040](docs/adr/0040-groundwork-is-planning-source-of-truth.md)) and low-risk work is
+taken through Groundwork itself, with a human landing gate. See the
+[self-hosting runbook](docs/reference/self-hosting.md) and
+[.groundwork/WORKFLOW.md](.groundwork/WORKFLOW.md) for the operating loop.
+
 ## How To Read This Repo
 
 Start here:

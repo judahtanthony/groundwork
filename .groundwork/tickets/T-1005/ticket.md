@@ -4,7 +4,7 @@ kind: ticket
 node_type: leaf
 work_type: documentation
 title: Update README with current runtime and development instructions
-status: todo
+status: done
 assignee: null
 requested_actor: null
 priority: 0.4
@@ -12,7 +12,7 @@ labels: []
 parent: G-0001
 depends_on: []
 created_at: "2026-06-21T12:51:31Z"
-updated_at: "2026-06-21T22:35:55Z"
+updated_at: "2026-06-22T12:44:20Z"
 ---
 
 ## Problem
