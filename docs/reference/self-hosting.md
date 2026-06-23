@@ -41,14 +41,17 @@ not a server mode.
 Then, for a `work_type: documentation` node `<id>`:
 
 ```sh
-gw ticket context <id>             # read the brief (spine, contract, acceptance, SOP)
-gw ticket transition <id> in_progress
+gw ticket claim <id>               # guided start: verify eligible, assign, -> in_progress, print brief
 #   ... edit the docs in the working tree ...
 git add <changed-docs>             # stage the ticket-scoped pathspec
+gw ticket land <id> --preview      # (optional) show the staged diff the gate would commit
 gw ticket transition <id> review
 gw ticket land <id>                # opens the land_to_main approval (human-gated)
 gw approval approve <approval-id>  # gw commits the change + export, node -> done
 ```
+
+`gw ticket claim <id>` is the guided one-step start (`gw ticket context <id>` +
+`gw ticket transition <id> in_progress`); the raw commands still work if you prefer.
 
 Stage just the ticket's files (above) to keep the commit ticket-scoped, or use
 `gw ticket land <id> --all` to stage every change first (the `git commit -a`

@@ -8,9 +8,10 @@ The CLI name is `gw`.
 gw init
 gw init --update-agents-md
 gw ticket create
-gw ticket list
+gw ticket list [--status <s> | --ready | --blocked]
 gw ticket show <id>
-gw ticket edit <id>
+gw ticket edit <id> [--parent <id>]
+gw ticket claim <id> [--actor <id>]
 gw ticket assign <id> <assignee>
 gw actor list
 gw actor show <id>
@@ -21,9 +22,10 @@ gw ticket context <id>
 gw ticket decompose <id>
 gw ticket link <id> --depends-on <id>
 gw ticket escalate <id>
-gw ticket land <id> [--all] [--override]
+gw ticket land <id> [--all] [--override] [--preview]
 gw ticket export [id]
 gw ticket import [path]
+gw next [--claim] [--actor <id>]
 gw status
 gw board
 gw run once <ticket-id>
@@ -49,6 +51,16 @@ gw sync
 ## Context Brief
 
 `gw ticket context <id>` returns the bounded, node-specific brief an agent receives at claim time: ancestor spine, parent contract, direct dependencies, relevant SOPs, actor constraints, and open escalations. It reads canon resolved through the SQLite graph; broader queries (for example `--siblings`) are explicit. See [ADR 0013](../adr/0013-canon-as-memory.md).
+
+## Eligibility And The Next Node
+
+`gw next` is the **human** picker: it names the top node of the eligible set (todo +
+dependencies satisfied, value-ordered per [ADR 0039](../adr/0039-value-prioritization-v1.md)),
+prints its brief, and with `--claim` takes it. `gw ticket list --ready` shows the whole
+eligible set in the same order; `gw ticket list --blocked` shows todo nodes held back by
+unsatisfied dependencies. These read the same surface the scheduler dispatches from
+([ADR 0041](../adr/0041-human-cli-operating-model.md)). Distinct from `gw run next`, which
+is **machine** dispatch to an AI actor through the policy gate.
 
 ## Actors
 

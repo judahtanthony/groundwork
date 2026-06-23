@@ -18,21 +18,28 @@ cold start.
 ## The loop
 
 1. **Orient.** Read AGENTS.md (boundary + invariants/defaults), then `gw ticket tree`
-   for the live plan and `gw ticket list --status todo` for what is ready.
+   for the live plan and `gw next` (top recommended node) or `gw ticket list --ready`
+   (the whole eligible set) for what is workable now. Prefer these over
+   `gw ticket list --status todo`, which ignores dependencies and so lists blocked
+   nodes; `gw ticket list --blocked` shows what is waiting and on what.
 2. **Pick the next node.** The eligible set (todo + dependencies satisfied) is ordered
-   by value — priority down the ancestor path, then DFS/FIFO (ADR 0039). Take the top.
+   by value — priority down the ancestor path, then DFS/FIFO (ADR 0039). `gw next` names
+   the top node and prints its brief; take it.
 3. **Read the brief.** `gw ticket context <id>` — ancestor spine, parent contract,
    acceptance, dependencies, and the relevant SOP.
 4. **Triage.** A leaf is one verifiable change → execute it. A composite →
    `gw ticket decompose` into a reviewable child proposal (children land in backlog
    until accepted).
-5. **Execute.** Human-performed via manual transitions
-   (`gw ticket transition <id> in_progress` → … → `review`) in the current phase; an
-   AI actor is dispatched only when the trust policy `allow_claim` authorizes one
+5. **Execute.** Human-performed via transitions: `gw ticket claim <id>` is the guided
+   one-step start (verifies eligibility, assigns, moves to `in_progress`, prints the
+   brief); `gw next --claim` claims the top node directly. From there continue with
+   `gw ticket transition <id> review` (the raw `gw ticket transition` remains available).
+   An AI actor is dispatched only when the trust policy `allow_claim` authorizes one
    (ADR 0033) — handing work to agents is a policy change, not a mode.
-6. **Validate + land.** `gw ticket land <id>` opens the `land_to_main` gate (human
-   approval in v1); approving it enforces the validation template and the coordinator
-   makes the durable git commit — "landed" means "committed" (ADR 0034).
+6. **Validate + land.** Stage the ticket's files, optionally preview the change set with
+   `gw ticket land <id> --preview`, then `gw ticket land <id>` opens the `land_to_main`
+   gate (human approval in v1); approving it enforces the validation template and the
+   coordinator makes the durable git commit — "landed" means "committed" (ADR 0034).
 7. **Distill + feed back.** When a change names a canonical home (an ADR, doc, policy,
    or SOP), edit that document in place. Record anything the brief lacked with
    `gw ticket context <id> --miss "…"` so canon and the briefs improve (ADR 0013/0035).

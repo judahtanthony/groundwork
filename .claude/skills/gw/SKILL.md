@@ -35,8 +35,9 @@ Parse the JSON; don't scrape the human table format.
 
 | Group | What it does |
 |---|---|
-| `gw status` / `gw board` | Work-tree summary; tickets grouped by status |
-| `gw ticket` | create, list, show, edit, transition, triage, tree, link, context, decompose, escalate, land, export, import |
+| `gw status` / `gw board` | Work-tree summary (with ready/blocked/pending-approval counts); tickets grouped by status |
+| `gw next` | the top eligible node to work on (`--claim` to take it) |
+| `gw ticket` | create, list (`--ready`/`--blocked`), show, edit (`--parent` to reparent), claim, transition, triage, tree, link, context, decompose, escalate, land (`--preview`), export, import |
 | `gw approval` | list, show, approve, reject, clarify |
 | `gw run` | inspect and control runs |
 | `gw validation` | list and run validation checks |
@@ -62,11 +63,13 @@ When the user says "me" / "my", they mean `human.owner`.
 - **"What needs my approval?"** → `gw approval list --json` (needs coordinator), then
   `gw approval show <id>` for details.
 - **"What's on the board / status?"** → `gw board --json` or `gw status --json`.
-- **"Claim the next ticket available to me."** → there is no single `claim` command.
-  Find an eligible leaf (status `todo`, dependencies satisfied, allowed for the actor)
-  via `gw board --json` / `gw ticket tree --json`, confirm the choice with the user,
-  then `gw ticket transition <id> in_progress`. Check valid statuses with
-  `gw ticket transition -h`.
+- **"What should I work on / what's ready?"** → `gw next --json` for the top
+  recommendation (with its brief), or `gw ticket list --ready --json` for the whole
+  eligible set. `gw ticket list --blocked --json` shows what is waiting and on what.
+- **"Claim the next ticket available to me."** → `gw next --claim` claims the top
+  eligible node; or claim a specific one with `gw ticket claim <id>` (verifies
+  eligibility, assigns, moves to `in_progress`, prints the brief). Confirm the target
+  with the user first when ambiguous.
 - **"Show ticket X."** → `gw ticket show <id> --json`.
 - **"Add a ticket."** → `gw ticket create -h` for flags, then create it.
 
