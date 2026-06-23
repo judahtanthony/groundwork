@@ -7,14 +7,14 @@ title: Add gw command to install the gw skill into a repo
 status: backlog
 assignee: null
 requested_actor: null
-priority: null
+priority: 0.1
 labels:
     - tooling
     - agent-integration
-parent: T-1022
+parent: G-0001
 depends_on: []
 created_at: ""
-updated_at: "2026-06-23T20:02:03Z"
+updated_at: "2026-06-23T20:44:08Z"
 ---
 
 ## Problem
