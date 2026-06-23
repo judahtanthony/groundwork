@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"sort"
 
+	"groundwork/internal/approval"
+	"groundwork/internal/store/sqlite"
 	"groundwork/internal/ticket"
 )
 
@@ -78,6 +80,10 @@ func runStatus(ctx *Context, args []string) error {
 	for _, t := range all {
 		counts[t.Status]++
 	}
+	eligible, blocked, pending, err := readinessCounts(db, all)
+	if err != nil {
+		return &Error{Code: "store_error", Message: err.Error()}
+	}
 	_, children, rollup := rollupTree(all)
 
 	type rootView struct {
@@ -99,10 +105,13 @@ func runStatus(ctx *Context, args []string) error {
 			countsOut[string(s)] = n
 		}
 		return ctx.PrintJSON(map[string]any{
-			"root":   p.Root,
-			"total":  len(all),
-			"counts": countsOut,
-			"roots":  roots,
+			"root":              p.Root,
+			"total":             len(all),
+			"counts":            countsOut,
+			"eligible":          eligible,
+			"blocked":           blocked,
+			"pending_approvals": pending,
+			"roots":             roots,
 		})
 	}
 
@@ -113,6 +122,7 @@ func runStatus(ctx *Context, args []string) error {
 			fmt.Fprintf(ctx.Stdout, "  %-12s %d\n", string(s)+":", counts[s])
 		}
 	}
+	fmt.Fprintf(ctx.Stdout, "\nReady: %d   Blocked: %d   Pending approvals: %d\n", eligible, blocked, pending)
 	if len(roots) > 0 {
 		fmt.Fprintln(ctx.Stdout, "\nRoots (derived state):")
 		for _, r := range roots {
@@ -166,6 +176,31 @@ func runBoard(ctx *Context, args []string) error {
 		}
 	}
 	return nil
+}
+
+// readinessCounts summarizes what needs attention (ADR 0041): eligible (todo +
+// dependencies satisfied), blocked (todo + a dependency unmet), and pending
+// approvals — the "what can I do / what needs me" answer for gw status.
+func readinessCounts(db *sqlite.DB, all []*ticket.Ticket) (eligible, blocked, pending int, err error) {
+	for _, t := range all {
+		if t.Status != ticket.StatusTodo {
+			continue
+		}
+		ok, derr := db.DependenciesSatisfied(t.ID)
+		if derr != nil {
+			return 0, 0, 0, derr
+		}
+		if ok {
+			eligible++
+		} else {
+			blocked++
+		}
+	}
+	appr, aerr := db.ListApprovals(string(approval.StatusPending))
+	if aerr != nil {
+		return 0, 0, 0, aerr
+	}
+	return eligible, blocked, len(appr), nil
 }
 
 func flags(hasBlocked, hasActive bool) string {

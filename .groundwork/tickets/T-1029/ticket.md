@@ -4,7 +4,7 @@ kind: ticket
 node_type: leaf
 work_type: technical_implementation
 title: Enrich gw status with eligible/blocked/pending-approval counts
-status: backlog
+status: done
 assignee: null
 requested_actor: null
 priority: 0.7
@@ -14,7 +14,7 @@ parent: T-1022
 depends_on:
     - T-1024
 created_at: "2026-06-22T15:39:30Z"
-updated_at: "2026-06-22T15:39:47Z"
+updated_at: "2026-06-23T19:40:47Z"
 ---
 
 ## Problem
@@ -23,4 +23,5 @@ Add eligible (ready) count, blocked count, and pending-approval count to gw stat
 
 ## Acceptance Criteria
 
-_None recorded._
+- gw status shows eligible (ready), blocked, and pending-approval counts in text and --json
+- Counts match the eligibility engine (todo+deps satisfied = ready; todo+unmet dep = blocked)
