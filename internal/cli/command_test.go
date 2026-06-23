@@ -65,6 +65,35 @@ func TestHelpArgPrintsHelp(t *testing.T) {
 	}
 }
 
+func TestLeafHelpRendersFlags(t *testing.T) {
+	_, out, _ := newTestCtx()
+	cmd := &Command{
+		Name: "demo", Usage: "Demo", Args: "<id>",
+		Run:   func(*Context, []string) error { return nil },
+		Flags: []FlagDoc{{"--status <status>", "filter by status"}},
+	}
+	cmd.printHelp(out, []string{"gw"})
+	got := out.String()
+	for _, want := range []string{"Flags:", "--status <status>", "filter by status", "--json", "<id>"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("help missing %q:\n%s", want, got)
+		}
+	}
+}
+
+func TestLeafHelpWithoutFlagsIsTerse(t *testing.T) {
+	_, out, _ := newTestCtx()
+	cmd := &Command{Name: "demo", Usage: "Demo", Run: func(*Context, []string) error { return nil }}
+	cmd.printHelp(out, []string{"gw"})
+	got := out.String()
+	if strings.Contains(got, "Flags:") {
+		t.Errorf("a flagless command should not print a Flags section:\n%s", got)
+	}
+	if !strings.Contains(got, "[--json]") {
+		t.Errorf("flagless help should keep the terse [--json] form:\n%s", got)
+	}
+}
+
 // asError is a tiny errors.As shim kept local to avoid importing errors in the
 // test for a single call.
 func asError(err error, target **Error) bool {

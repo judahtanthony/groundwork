@@ -118,7 +118,11 @@ func ticketSubcommands() []*Command {
 		newTicketLinkCmd(),
 		{Name: "decompose", Usage: "Propose a decomposition (requires the coordinator)", Args: "<id>", Run: runTicketDecompose},
 		{Name: "escalate", Usage: "Escalate for re-plan (requires the coordinator)", Args: "<id>", Run: runTicketEscalate},
-		{Name: "land", Usage: "Land an approved node through the validation gate (requires the coordinator)", Args: "<id>", Run: runTicketLand},
+		{Name: "land", Usage: "Land an approved node through the validation gate (requires the coordinator)", Args: "<id>", Run: runTicketLand, Flags: []FlagDoc{
+			{"--all", "stage all changes before committing (like git commit -a)"},
+			{"--override", "land despite failing/missing validation (audited)"},
+			{"--preview", "show the staged diff that would be landed, without opening the approval"},
+		}},
 		newExportCmd(),
 		newTicketImportCmd(),
 	}

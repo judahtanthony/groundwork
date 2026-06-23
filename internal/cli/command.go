@@ -23,6 +23,17 @@ type Command struct {
 	Run func(ctx *Context, args []string) error
 	// Sub holds child commands, in display order.
 	Sub []*Command
+	// Flags documents a leaf command's flags for help output. It is descriptive
+	// only — the values are still parsed in Run — mirroring how Usage and Args
+	// are doc-only fields. The universal --json flag is rendered automatically.
+	Flags []FlagDoc
+}
+
+// FlagDoc is one flag's help entry: the left-column spelling (e.g.
+// "--status <status>") and its description.
+type FlagDoc struct {
+	Name string
+	Desc string
 }
 
 // lookup returns the named subcommand, or nil.
@@ -95,7 +106,23 @@ func (c *Command) printHelp(w io.Writer, parents []string) {
 	if c.Args != "" {
 		synopsis += " " + c.Args
 	}
-	fmt.Fprintf(w, "Usage:\n  %s [--json]\n", synopsis)
+	if len(c.Flags) == 0 {
+		fmt.Fprintf(w, "Usage:\n  %s [--json]\n", synopsis)
+		return
+	}
+	// A leaf with documented flags prints them in an aligned Flags section, plus
+	// the universal --json flag every command accepts (ADR 0041).
+	fmt.Fprintf(w, "Usage:\n  %s [flags]\n\nFlags:\n", synopsis)
+	width := len("--json")
+	for _, f := range c.Flags {
+		if len(f.Name) > width {
+			width = len(f.Name)
+		}
+	}
+	for _, f := range c.Flags {
+		fmt.Fprintf(w, "  %-*s  %s\n", width, f.Name, f.Desc)
+	}
+	fmt.Fprintf(w, "  %-*s  %s\n", width, "--json", "output machine-readable JSON")
 }
 
 // isHelpArg reports whether arg is a help request token.

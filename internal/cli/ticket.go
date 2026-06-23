@@ -12,7 +12,19 @@ import (
 )
 
 func newTicketCreateCmd() *Command {
-	return &Command{Name: "create", Usage: "Create a work node", Run: runTicketCreate}
+	return &Command{Name: "create", Usage: "Create a work node", Run: runTicketCreate, Flags: []FlagDoc{
+		{"--title <title>", "node title (required)"},
+		{"--kind <kind>", "advisory kind label (default: ticket)"},
+		{"--parent <id>", "parent node id"},
+		{"--status <status>", "initial status (default: backlog)"},
+		{"--description <text>", "description"},
+		{"--assignee <id>", "assignee (display-only ownership label)"},
+		{"--work-type <type>", "operational work type (e.g. technical_implementation)"},
+		{"--requested-actor <id>", "preferred actor id (routing hint, still policy-checked)"},
+		{"--priority <0..1>", "value priority in [0,1]; higher runs first (ADR 0039)"},
+		{"--label <label>", "label (repeatable)"},
+		{"--acceptance <text>", "acceptance criterion (repeatable)"},
+	}}
 }
 
 func runTicketCreate(ctx *Context, args []string) error {
@@ -123,7 +135,11 @@ func runTicketShow(ctx *Context, args []string) error {
 }
 
 func newTicketListCmd() *Command {
-	return &Command{Name: "list", Usage: "List work nodes", Run: runTicketList}
+	return &Command{Name: "list", Usage: "List work nodes", Run: runTicketList, Flags: []FlagDoc{
+		{"--status <status>", "filter by status (backlog|todo|in_progress|review|done|...)"},
+		{"--ready", "show only eligible nodes (todo + deps satisfied), value-ordered"},
+		{"--blocked", "show only todo nodes blocked by unsatisfied dependencies"},
+	}}
 }
 
 func runTicketList(ctx *Context, args []string) error {
@@ -266,7 +282,17 @@ func listBlocked(ctx *Context, db *sqlite.DB) error {
 }
 
 func newTicketEditCmd() *Command {
-	return &Command{Name: "edit", Usage: "Edit a work node", Args: "<id>", Run: runTicketEdit}
+	return &Command{Name: "edit", Usage: "Edit a work node", Args: "<id>", Run: runTicketEdit, Flags: []FlagDoc{
+		{"--title <title>", "new title"},
+		{"--kind <kind>", "new advisory kind"},
+		{"--description <text>", "new description"},
+		{"--assignee <id>", "new assignee (display-only label)"},
+		{"--work-type <type>", "new work type"},
+		{"--requested-actor <id>", "new requested actor (routing hint)"},
+		{"--priority <0..1>", "new value priority in [0,1]; higher runs first"},
+		{"--label <label>", "replace labels (repeatable)"},
+		{"--acceptance <text>", "replace acceptance (repeatable)"},
+	}}
 }
 
 func runTicketEdit(ctx *Context, args []string) error {
@@ -348,7 +374,9 @@ func runTicketEdit(ctx *Context, args []string) error {
 }
 
 func newTicketClaimCmd() *Command {
-	return &Command{Name: "claim", Usage: "Claim an eligible node: assign it and start work", Args: "<id>", Run: runTicketClaim}
+	return &Command{Name: "claim", Usage: "Claim an eligible node: assign it and start work", Args: "<id>", Run: runTicketClaim, Flags: []FlagDoc{
+		{"--actor <id>", "assignee for the node (default: human.owner)"},
+	}}
 }
 
 // runTicketClaim is the guided "I'm taking this" verb (ADR 0041): it verifies a

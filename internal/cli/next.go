@@ -25,7 +25,10 @@ func nextNode(db *sqlite.DB) (*ticket.Ticket, error) {
 // set the scheduler dispatches from (ADR 0039/0041). It recommends the top node
 // and, with --claim, takes it.
 func newNextCmd() *Command {
-	return &Command{Name: "next", Usage: "Show the next eligible node to work on (top of the ready set)", Run: runNext}
+	return &Command{Name: "next", Usage: "Show the next eligible node to work on (top of the ready set)", Run: runNext, Flags: []FlagDoc{
+		{"--claim", "claim the top node: assign it and start work"},
+		{"--actor <id>", "assignee when --claim is set (default: human.owner)"},
+	}}
 }
 
 func runNext(ctx *Context, args []string) error {

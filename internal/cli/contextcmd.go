@@ -11,7 +11,10 @@ import (
 // newContextCmd is the `gw context <id>` command (also reused as
 // `gw ticket context <id>`).
 func newContextCmd() *Command {
-	return &Command{Name: "context", Usage: "Show the bounded context brief for a node", Args: "<id>", Run: runContext}
+	return &Command{Name: "context", Usage: "Show the bounded context brief for a node", Args: "<id>", Run: runContext, Flags: []FlagDoc{
+		{"--siblings", "include sibling nodes (off by default)"},
+		{"--miss <note>", "record a context-miss: something the brief lacked (ADR 0035)"},
+	}}
 }
 
 func runContext(ctx *Context, args []string) error {
