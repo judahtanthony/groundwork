@@ -50,6 +50,41 @@ func resolveLandStaging(repo landStager, all bool, in io.Reader, out io.Writer) 
 	return nil
 }
 
+// previewStager is the read surface `gw ticket land --preview` needs, so the
+// preview is unit-testable without a real repo.
+type previewStager interface {
+	HasStagedChanges() (bool, error)
+	StagedDiff() (string, error)
+}
+
+// previewLanding shows the staged change set a landing of id would commit,
+// without mutating the index or contacting the coordinator (ADR 0041). The
+// ticket's regenerated export is added by the coordinator at commit time, so it
+// is noted rather than shown here.
+func previewLanding(ctx *Context, id string, repo previewStager) error {
+	staged, err := repo.HasStagedChanges()
+	if err != nil {
+		return &Error{Code: "git_error", Message: err.Error()}
+	}
+	if !staged {
+		if ctx.JSON {
+			return ctx.PrintJSON(map[string]any{"id": id, "staged": false, "diff": ""})
+		}
+		fmt.Fprintf(ctx.Stdout, "No staged changes for %s. Stage files (git add …) or land with --all.\n", id)
+		return nil
+	}
+	diff, err := repo.StagedDiff()
+	if err != nil {
+		return &Error{Code: "git_error", Message: err.Error()}
+	}
+	if ctx.JSON {
+		return ctx.PrintJSON(map[string]any{"id": id, "staged": true, "diff": diff})
+	}
+	fmt.Fprintf(ctx.Stdout, "Staged changes landing %s would commit (plus its regenerated export):\n\n", id)
+	fmt.Fprint(ctx.Stdout, diff)
+	return nil
+}
+
 // promptYesDefault asks a [Y/n] question. A present human gets default-yes (empty
 // Enter accepts). A non-interactive caller — EOF with no input (piped stdin, CI) —
 // gets the safe default of NO: in M3 landings run against the shared working tree,

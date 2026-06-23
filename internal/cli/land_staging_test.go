@@ -15,6 +15,37 @@ func (f *fakeStager) HasStagedChanges() (bool, error) { return f.staged, nil }
 func (f *fakeStager) HasUncommitted() (bool, error)   { return f.uncommitted, nil }
 func (f *fakeStager) AddAll() error                   { f.addAllCalls++; return nil }
 
+type fakePreview struct {
+	staged bool
+	diff   string
+}
+
+func (f *fakePreview) HasStagedChanges() (bool, error) { return f.staged, nil }
+func (f *fakePreview) StagedDiff() (string, error)     { return f.diff, nil }
+
+func TestPreviewLandingShowsStagedDiff(t *testing.T) {
+	ctx, out, _ := newTestCtx()
+	repo := &fakePreview{staged: true, diff: "diff --git a/x b/x\n+added line\n"}
+	if err := previewLanding(ctx, "T-0001", repo); err != nil {
+		t.Fatalf("previewLanding: %v", err)
+	}
+	got := out.String()
+	if !strings.Contains(got, "T-0001") || !strings.Contains(got, "+added line") {
+		t.Errorf("preview missing id or diff:\n%s", got)
+	}
+}
+
+func TestPreviewLandingNothingStaged(t *testing.T) {
+	ctx, out, _ := newTestCtx()
+	repo := &fakePreview{staged: false}
+	if err := previewLanding(ctx, "T-0001", repo); err != nil {
+		t.Fatalf("previewLanding: %v", err)
+	}
+	if !strings.Contains(out.String(), "No staged changes") {
+		t.Errorf("expected no-staged-changes hint, got:\n%s", out.String())
+	}
+}
+
 func TestResolveLandStaging(t *testing.T) {
 	tests := []struct {
 		name        string

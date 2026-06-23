@@ -65,6 +65,12 @@ func (r *Repo) HasStagedChanges() (bool, error) {
 	return false, fmt.Errorf("git diff --cached: %w", err)
 }
 
+// StagedDiff returns the staged diff (index vs HEAD) — the change set a landing
+// commit would record. Empty when nothing is staged.
+func (r *Repo) StagedDiff() (string, error) {
+	return r.run("diff", "--cached")
+}
+
 // Commit records the staged changes with message and returns the new commit SHA.
 // It does not stage anything itself; callers stage first via Add.
 func (r *Repo) Commit(message string) (string, error) {

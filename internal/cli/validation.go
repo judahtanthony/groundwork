@@ -121,15 +121,31 @@ func runValidationRun(ctx *Context, args []string) error {
 // (coordinator-required, ADR 0031).
 func runTicketLand(ctx *Context, args []string) error {
 	fs := ctx.NewFlagSet("gw ticket land")
-	var override, all bool
+	var override, all, preview bool
 	fs.BoolVar(&override, "override", false, "land despite failing/missing validation (audited)")
 	fs.BoolVar(&all, "all", false, "stage all changes before committing (like git commit -a)")
+	fs.BoolVar(&preview, "preview", false, "show the staged diff that would be landed, without opening the approval")
 	pos, err := parseFlags(fs, args)
 	if err != nil {
 		return err
 	}
 	if len(pos) < 1 {
-		return &Error{Code: "invalid_args", Message: "usage: gw ticket land <id> [--all] [--override]"}
+		return &Error{Code: "invalid_args", Message: "usage: gw ticket land <id> [--all] [--override] [--preview]"}
+	}
+
+	// --preview is a read-only inspection of what the gate would commit: it shows
+	// the staged diff (plus the ticket's regenerated export, added at commit time)
+	// and opens no approval and contacts no coordinator (ADR 0041).
+	if preview {
+		p, perr := ctx.resolveProject()
+		if perr != nil {
+			return perr
+		}
+		repo, rerr := git.Open(p.Root)
+		if rerr != nil {
+			return &Error{Code: "not_a_repo", Message: "preview requires a git repository"}
+		}
+		return previewLanding(ctx, pos[0], repo)
 	}
 
 	// Resolve what the landing commit will include before asking the coordinator
