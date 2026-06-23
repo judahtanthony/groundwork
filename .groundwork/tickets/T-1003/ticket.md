@@ -11,9 +11,9 @@ priority: null
 labels: []
 parent: E-0011
 depends_on:
-    - T-1002
     - T-0503
     - T-0504
+    - T-1002
 created_at: ""
 updated_at: ""
 ---
