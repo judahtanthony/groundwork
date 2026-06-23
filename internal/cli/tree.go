@@ -56,19 +56,27 @@ func runTicketTree(ctx *Context, args []string) error {
 	return nil
 }
 
-// treeNode is the JSON shape for `gw ticket tree --json`.
+// treeNode is the JSON shape for `gw ticket tree --json`. It carries the same
+// core fields as `gw ticket show --json` (parent, work_type, priority) so callers
+// need not fall back to per-node show calls (ADR 0041).
 type treeNode struct {
 	ID       string     `json:"id"`
 	Title    string     `json:"title"`
 	Status   string     `json:"status"`
 	NodeType string     `json:"node_type,omitempty"`
+	ParentID string     `json:"parent_id,omitempty"`
+	WorkType string     `json:"work_type,omitempty"`
+	Priority *float64   `json:"priority,omitempty"`
 	Children []treeNode `json:"children"`
 }
 
 func buildTreeNodes(roots []*ticket.Ticket, children map[string][]*ticket.Ticket) []treeNode {
 	out := []treeNode{}
 	for _, r := range roots {
-		n := treeNode{ID: r.ID, Title: r.Title, Status: string(r.Status), NodeType: string(r.NodeType)}
+		n := treeNode{
+			ID: r.ID, Title: r.Title, Status: string(r.Status), NodeType: string(r.NodeType),
+			ParentID: r.ParentID, WorkType: r.WorkType, Priority: r.Priority,
+		}
 		n.Children = buildTreeNodes(children[r.ID], children)
 		out = append(out, n)
 	}

@@ -4,7 +4,7 @@ kind: ticket
 node_type: leaf
 work_type: technical_implementation
 title: Make gw ticket tree --json include priority (and parent/work_type)
-status: backlog
+status: done
 assignee: null
 requested_actor: null
 priority: 0.6
@@ -14,7 +14,7 @@ parent: T-1022
 depends_on:
     - T-1023
 created_at: "2026-06-22T15:39:30Z"
-updated_at: "2026-06-22T15:39:47Z"
+updated_at: "2026-06-23T19:42:08Z"
 ---
 
 ## Problem
@@ -23,4 +23,5 @@ tree --json currently omits priority, parent, and work_type that show --json inc
 
 ## Acceptance Criteria
 
-_None recorded._
+- gw ticket tree --json includes parent_id, work_type, and priority, matching show --json
+- Nested children structure preserved
