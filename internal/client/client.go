@@ -80,6 +80,12 @@ func (c *Client) RemoveDependency(fromID, toID, actor string) error {
 	return c.do(http.MethodDelete, "/api/v1/tickets/"+fromID+"/dependencies/"+toID, nil, nil)
 }
 
+// Reparent moves id under newParentID.
+func (c *Client) Reparent(id, newParentID, actor string) error {
+	return c.do(http.MethodPost, "/api/v1/tickets/"+id+"/reparent",
+		map[string]string{"parent": newParentID}, nil)
+}
+
 // ListRuns returns runs newest-first.
 func (c *Client) ListRuns() ([]*sqlite.Run, error) {
 	var runs []*sqlite.Run
@@ -301,6 +307,10 @@ func decodeError(resp *http.Response) error {
 		return sqlite.ErrSelfDependency
 	case "dependency_cycle":
 		return fmt.Errorf("%w: %s", sqlite.ErrDependencyCycle, env.Error.Message)
+	case "self_parent":
+		return sqlite.ErrSelfParent
+	case "parent_cycle":
+		return fmt.Errorf("%w: %s", sqlite.ErrParentCycle, env.Error.Message)
 	case "empty_title":
 		return sqlite.ErrEmptyTitle
 	default:

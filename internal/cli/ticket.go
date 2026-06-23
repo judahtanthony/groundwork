@@ -289,6 +289,7 @@ func newTicketEditCmd() *Command {
 		{"--assignee <id>", "new assignee (display-only label)"},
 		{"--work-type <type>", "new work type"},
 		{"--requested-actor <id>", "new requested actor (routing hint)"},
+		{"--parent <id>", "reparent under a new parent node id"},
 		{"--priority <0..1>", "new value priority in [0,1]; higher runs first"},
 		{"--label <label>", "replace labels (repeatable)"},
 		{"--acceptance <text>", "replace acceptance (repeatable)"},
@@ -300,6 +301,7 @@ func runTicketEdit(ctx *Context, args []string) error {
 	var (
 		title, kind, desc, assignee string
 		workType, requestedActor    string
+		parent                      string
 		priority                    float64
 		labels, acceptance          stringSlice
 	)
@@ -309,6 +311,7 @@ func runTicketEdit(ctx *Context, args []string) error {
 	fs.StringVar(&assignee, "assignee", "", "new assignee (display-only label)")
 	fs.StringVar(&workType, "work-type", "", "new work type")
 	fs.StringVar(&requestedActor, "requested-actor", "", "new requested actor (routing hint)")
+	fs.StringVar(&parent, "parent", "", "reparent under a new parent node id")
 	fs.Float64Var(&priority, "priority", 0, "new value priority in [0,1]; higher runs first")
 	fs.Var(&labels, "label", "replace labels (repeatable)")
 	fs.Var(&acceptance, "acceptance", "replace acceptance (repeatable)")
@@ -365,6 +368,21 @@ func runTicketEdit(ctx *Context, args []string) error {
 
 	if err := store.UpdateTicket(t, ownerActor); err != nil {
 		return &Error{Code: "edit_failed", Message: err.Error()}
+	}
+	// Parentage moves through Reparent, not UpdateTicket (ADR 0022): it guards
+	// against cycles and records a distinct ticket.reparented audit event.
+	if set["parent"] {
+		if err := store.Reparent(t.ID, parent, ownerActor); err != nil {
+			switch {
+			case errors.Is(err, sqlite.ErrSelfParent), errors.Is(err, sqlite.ErrParentCycle):
+				return &Error{Code: "invalid_parent", Message: err.Error()}
+			case errors.Is(err, sqlite.ErrNotFound):
+				return &Error{Code: "not_found", Message: err.Error()}
+			default:
+				return &Error{Code: "reparent_failed", Message: err.Error()}
+			}
+		}
+		t.ParentID = parent
 	}
 	if ctx.JSON {
 		return ctx.PrintJSON(t)

@@ -22,6 +22,7 @@ type ticketStore interface {
 	TransitionTicket(id string, to ticket.Status, actor string) error
 	AddDependency(fromID, toID, actor string) error
 	RemoveDependency(fromID, toID, actor string) error
+	Reparent(id, newParentID, actor string) error
 }
 
 // resolveProject discovers the project root and loads its config without opening

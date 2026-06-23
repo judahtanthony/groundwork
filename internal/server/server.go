@@ -74,6 +74,7 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /api/v1/tickets/{id}/dependencies", s.handleTicketDependencies)
 	s.mux.HandleFunc("POST /api/v1/tickets/{id}/dependencies", s.handleTicketAddDependency)
 	s.mux.HandleFunc("DELETE /api/v1/tickets/{id}/dependencies/{depId}", s.handleTicketRemoveDependency)
+	s.mux.HandleFunc("POST /api/v1/tickets/{id}/reparent", s.handleTicketReparent)
 	s.mux.HandleFunc("GET /api/v1/actors", s.handleActorList)
 	s.mux.HandleFunc("GET /api/v1/actors/{id}", s.handleActorGet)
 	s.mux.HandleFunc("GET /api/v1/runs", s.handleRunList)
@@ -285,6 +286,22 @@ func (s *Server) handleTicketRemoveDependency(w http.ResponseWriter, r *http.Req
 	writeJSON(w, http.StatusOK, map[string]any{"id": id, "depends_on": depID, "added": false})
 }
 
+// handleTicketReparent moves the path node under body.parent.
+func (s *Server) handleTicketReparent(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		Parent string `json:"parent"`
+	}
+	if !decodeJSON(w, r, &body) {
+		return
+	}
+	id := r.PathValue("id")
+	if err := s.db.Reparent(id, body.Parent, ownerActor); err != nil {
+		s.writeMutationError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"id": id, "parent": body.Parent, "reparented": true})
+}
+
 // handleTicketChildren returns the direct children of a node.
 func (s *Server) handleTicketChildren(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
@@ -415,6 +432,10 @@ func (s *Server) writeMutationError(w http.ResponseWriter, err error) {
 		writeError(w, http.StatusBadRequest, "self_dependency", err.Error())
 	case errors.Is(err, sqlite.ErrDependencyCycle):
 		writeError(w, http.StatusConflict, "dependency_cycle", err.Error())
+	case errors.Is(err, sqlite.ErrSelfParent):
+		writeError(w, http.StatusBadRequest, "self_parent", err.Error())
+	case errors.Is(err, sqlite.ErrParentCycle):
+		writeError(w, http.StatusConflict, "parent_cycle", err.Error())
 	case errors.Is(err, sqlite.ErrValidationGate):
 		writeError(w, http.StatusConflict, "validation_gate", err.Error())
 	case errors.Is(err, sqlite.ErrNotApproved):
