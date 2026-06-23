@@ -4,7 +4,7 @@ kind: ticket
 node_type: leaf
 work_type: technical_implementation
 title: Scope CLI->coordinator routing to the project root (cross-project mutation footgun)
-status: backlog
+status: done
 assignee: null
 requested_actor: null
 priority: 0.7
@@ -14,7 +14,7 @@ labels:
 parent: T-1022
 depends_on: []
 created_at: "2026-06-22T19:33:45Z"
-updated_at: "2026-06-22T20:53:56Z"
+updated_at: "2026-06-23T20:11:12Z"
 ---
 
 ## Problem

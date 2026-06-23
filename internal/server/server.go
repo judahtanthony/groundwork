@@ -148,7 +148,9 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusServiceUnavailable, "store_unavailable", err.Error())
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]string{"status": "ok", "store": "available"})
+	// root lets a CLI verify the coordinator serves the same project before
+	// routing a mutation to it (T-1033).
+	writeJSON(w, http.StatusOK, map[string]string{"status": "ok", "store": "available", "root": s.proj.Root})
 }
 
 // stateResponse is the GET /api/v1/state payload: a coordinator snapshot of

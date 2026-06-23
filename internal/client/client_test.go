@@ -47,13 +47,17 @@ func newClient(t *testing.T) (*Client, *sqlite.DB) {
 	return New(ts.Listener.Addr().String()), db
 }
 
-func TestHealthy(t *testing.T) {
+func TestCoordinatorRoot(t *testing.T) {
 	c, _ := newClient(t)
-	if !c.Healthy() {
-		t.Error("Healthy() = false, want true")
+	root, ok := c.CoordinatorRoot()
+	if !ok {
+		t.Error("CoordinatorRoot ok = false, want true")
 	}
-	if New("127.0.0.1:1").Healthy() {
-		t.Error("Healthy() against a closed port = true, want false")
+	if root == "" {
+		t.Error("CoordinatorRoot root = empty, want the served project root")
+	}
+	if _, ok := New("127.0.0.1:1").CoordinatorRoot(); ok {
+		t.Error("CoordinatorRoot against a closed port ok = true, want false")
 	}
 }
 

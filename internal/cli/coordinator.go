@@ -2,7 +2,9 @@ package cli
 
 import (
 	"errors"
+	"fmt"
 	"os"
+	"path/filepath"
 
 	"groundwork/internal/client"
 	"groundwork/internal/config"
@@ -56,7 +58,11 @@ func (ctx *Context) openTicketStore() (ticketStore, func(), error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	if c := client.New(p.Config.Server.Addr); c.Healthy() {
+	// Route to the coordinator only when it serves THIS project root. A coordinator
+	// running for another project (or a stale one on the default port) must not
+	// silently capture our mutations; on mismatch we fall back to the direct store
+	// (T-1033).
+	if c := client.New(p.Config.Server.Addr); coordinatorServes(c, p.Root) {
 		return c, func() {}, nil
 	}
 	db, err := openDB(p)
@@ -64,6 +70,19 @@ func (ctx *Context) openTicketStore() (ticketStore, func(), error) {
 		return nil, nil, err
 	}
 	return db, func() { db.Close() }, nil
+}
+
+// coordinatorServes reports whether a reachable coordinator at c is serving the
+// given project root (T-1033).
+func coordinatorServes(c *client.Client, root string) bool {
+	served, ok := c.CoordinatorRoot()
+	return ok && sameRoot(served, root)
+}
+
+// sameRoot compares two project roots for equality, tolerating path formatting
+// differences. Both come from config discovery, so a cleaned compare suffices.
+func sameRoot(a, b string) bool {
+	return filepath.Clean(a) == filepath.Clean(b)
 }
 
 // requireCoordinator returns a client only when the coordinator is reachable.
@@ -76,10 +95,19 @@ func (ctx *Context) requireCoordinator() (*client.Client, error) {
 		return nil, err
 	}
 	c := client.New(p.Config.Server.Addr)
-	if !c.Healthy() {
+	served, ok := c.CoordinatorRoot()
+	if !ok {
 		return nil, &Error{
 			Code:    "coordinator_required",
 			Message: "this command requires a running coordinator; start it with \"gw server\"",
+		}
+	}
+	// A coordinator serving a different project must not land or decide approvals
+	// for this one (T-1033).
+	if !sameRoot(served, p.Root) {
+		return nil, &Error{
+			Code:    "coordinator_mismatch",
+			Message: fmt.Sprintf("the coordinator on %s serves a different project (%s); start gw server in this project", p.Config.Server.Addr, served),
 		}
 	}
 	return c, nil

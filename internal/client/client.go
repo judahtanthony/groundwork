@@ -32,13 +32,25 @@ func New(addr string) *Client {
 
 // Healthy reports whether the coordinator answers its health endpoint. A
 // connection refusal (no server running) returns false quickly.
-func (c *Client) Healthy() bool {
+// CoordinatorRoot returns the project root the coordinator is serving and whether
+// it is reachable and healthy. The CLI uses it to avoid routing a mutation (or a
+// landing commit) to a coordinator that serves a different project (T-1033).
+func (c *Client) CoordinatorRoot() (root string, ok bool) {
 	resp, err := c.http.Get(c.base + "/healthz")
 	if err != nil {
-		return false
+		return "", false
 	}
 	defer resp.Body.Close()
-	return resp.StatusCode == http.StatusOK
+	if resp.StatusCode != http.StatusOK {
+		return "", false
+	}
+	var body struct {
+		Root string `json:"root"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		return "", false
+	}
+	return body.Root, true
 }
 
 // GetTicket fetches one ticket.
