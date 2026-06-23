@@ -4,7 +4,7 @@ kind: epic
 node_type: composite
 work_type: null
 title: Human CLI workflow & observability
-status: todo
+status: done
 assignee: null
 requested_actor: null
 priority: 0.95
@@ -14,7 +14,7 @@ labels:
 parent: G-0001
 depends_on: []
 created_at: "2026-06-22T15:39:08Z"
-updated_at: "2026-06-22T15:39:47Z"
+updated_at: "2026-06-23T21:27:29Z"
 ---
 
 ## Problem
