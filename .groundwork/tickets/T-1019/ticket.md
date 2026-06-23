@@ -11,10 +11,10 @@ priority: null
 labels:
     - tooling
     - agent-integration
-parent: E-0011
+parent: T-1022
 depends_on: []
 created_at: ""
-updated_at: ""
+updated_at: "2026-06-23T20:02:03Z"
 ---
 
 ## Problem
