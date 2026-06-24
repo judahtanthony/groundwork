@@ -3,6 +3,11 @@
 Status: Accepted
 Implemented: Partial
 
+> Implemented today: `gw context`, per-node journals, context-miss capture,
+> ratification hooks, parent-contract promotion, and a basic reconciliation helper.
+> Still partial: substantive agent-authored distillation and semantic parent
+> reconciliation await the real runtime.
+
 ## Context
 
 Groundwork must "record enough context for later agents to understand what happened and why," but the rich causal record (reasoning, rejected alternatives, escalation causes) is produced inside runs whose transcripts are ephemeral and ignored (ADR 0007, ADR 0012). Committing that record verbatim would bloat the repo with low-value history and create merge conflicts across parallel worktrees. We need durable "why" without an exhaustive archive.

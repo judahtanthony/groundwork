@@ -7,8 +7,8 @@ First concrete slice of the value/prioritization layer ([ADR 0036](0036-work-as-
 
 ## Context
 
-[ADR 0036](0036-work-as-universal-substrate.md) names the value/prioritization layer
-(Layer 1) as having **no substrate today**: the scheduler picks among eligible nodes
+[ADR 0036](0036-work-as-universal-substrate.md) named the value/prioritization layer
+(Layer 1) as having **no substrate at the time**: the scheduler picked among eligible nodes
 FIFO-by-id, and `priority`/`risk_score` are inert display fields. We need a minimal
 value signal that orders the eligible set, is human-settable now, and is a clean seam
 for the eventual multi-signal model (value, effort, complexity, risk, confidence,

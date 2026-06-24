@@ -3,6 +3,11 @@
 Status: Accepted
 Implemented: Partial
 
+> Implemented today: coordinator-required commands and project-root-aware API
+> routing exist for the live orchestration paths. Still partial: not every
+> store-safe command has a complete server-backed equivalent, so direct-store
+> fallback remains part of the current CLI surface.
+
 ## Context
 
 `cli.md` states that if `gw server` is running, mutating commands should call the

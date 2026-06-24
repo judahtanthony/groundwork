@@ -3,6 +3,10 @@
 Status: Accepted
 Implemented: Implemented
 
+> Operationally superseded by ADR 0040: the bootstrap planning files were imported
+> into the gw work tree and then retired from the working tree. The committed
+> ticket exports are now the durable plan.
+
 ## Context
 
 `docs/plan/work-tree.yaml` is the bootstrap planning tree
@@ -15,10 +19,10 @@ hierarchy."
 The M2 cold-start importer (T-0902) rebuilds node rows and dependency edges from
 committed Markdown exports under `.groundwork/tickets/**/ticket.md`
 (`ticket-export.md`) — it does not read the planning YAML. [ADR 0019](0019-uniform-ticket-ids.md)
-already states that the planning ids "do not bind the runtime scheme; they
-normalize when that tree is imported (Phase 3)." So Phase 3 must decide (a) the
-ingest mechanism, (b) id reconciliation, and (c) how already-completed work
-(Phases 0–2) is represented.
+defines the `T-NNNN` allocator for newly created nodes; Phase 3 had to decide
+whether the one-time bootstrap import would normalize or preserve the historical
+planning ids, along with (a) the ingest mechanism and (b) how already-completed
+work (Phases 0–2) is represented.
 
 ## Decision
 

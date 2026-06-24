@@ -8,9 +8,8 @@ Implemented: Implemented
 M3 imported the bootstrap work tree into Groundwork ([ADR 0032](0032-bootstrap-import-via-authored-markdown.md)),
 so the live plan now lives in the gw work tree (`.groundwork/tickets/**` exports,
 rebuilt into `state.sqlite`). The static planning files — `docs/plan/work-tree.yaml`
-and `docs/plan/phase-2-tickets.md` / `phase-3-tickets.md` — are now **redundant** with
-that tree and risk confusing future sessions (AGENTS.md "Required Reading" still points
-at `work-tree.yaml`). [ADR 0036](0036-work-as-universal-substrate.md) frames planning
+and `docs/plan/phase-2-tickets.md` / `phase-3-tickets.md` in git history — became
+**redundant** with that tree and risked confusing future sessions. [ADR 0036](0036-work-as-universal-substrate.md) frames planning
 itself as work ("update a doc so future planners understand a decision" is a work
 node), so the breakdown belongs in the tree, not in parallel static files.
 
@@ -29,9 +28,9 @@ breakdown files.
   the tree + dependencies if ever needed (milestone gate-nodes), and is deferred.
 - **Retire the redundant breakdown files** — `work-tree.yaml`, `phase-2-tickets.md`,
   `phase-3-tickets.md`, and `milestones.md` — once their unique content (ADR
-  cross-refs, per-ticket gate notes) is ported into gw nodes. **Archive, not delete**
-  (move under `docs/plan/archive/` with a pointer): git history plus a breadcrumb, not
-  a hole. Keep `roadmap.md` and `vision.md` as canon.
+  cross-refs, per-ticket gate notes) is ported into gw nodes. Git history is the
+  historical archive; the working tree keeps the live gw exports rather than a parallel
+  `docs/plan/archive/` copy. Keep `roadmap.md` and `vision.md` as canon.
 - **Record the operational workflow** in `.groundwork/WORKFLOW.md` (the committed agent
   operating contract): the loop is *orient via the gw tree → pick the next eligible
   node → read its context brief → execute → validate + land → distill into canon +
@@ -45,8 +44,7 @@ No invariant changes.
 ## Consequences
 
 Future sessions orient from AGENTS.md → the gw tree → the eligible set, rather than
-reading static breakdown files that drift from reality. The transition is itself tracked
-as an initiative in gw (dogfooding the claim). Until the retirement ticket runs, the
-historical `phase-N-tickets.md` ids (planning labels, [ADR 0019](0019-uniform-ticket-ids.md))
-overlap the runtime allocator's freshly minted ids; the archive step resolves the
-overlap, and the runtime tree is authoritative in the meantime.
+reading static breakdown files that drift from reality. The transition was tracked as an
+initiative in gw (dogfooding the claim). The historical `phase-N-tickets.md` ids
+(planning labels, [ADR 0019](0019-uniform-ticket-ids.md)) remain in git history; the
+runtime tree is authoritative.

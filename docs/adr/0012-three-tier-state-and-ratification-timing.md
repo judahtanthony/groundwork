@@ -3,6 +3,11 @@
 Status: Accepted
 Implemented: Partial
 
+> Implemented today: SQLite/file tiering, deterministic exports/import, git-backed
+> landing, and ratification hooks. Still partial: automated promotion of rich
+> distilled design into canonical documents depends on the real runtime/journal
+> authoring path.
+
 ## Context
 
 ADR 0002 made SQLite the operational store and ADR 0007 said runtime state is not committed. The shorthand "SQLite = runtime, files = durable" is the consequence, not the rule, and it left a real question unanswered: where does *distilled design knowledge* produced during a run belong? It is produced by machinery (a run) but, once settled, it is project intent. Treating "where it was produced" as the deciding factor leads to either stranding design rationale in the disposable store or scribbling every in-progress thought into git.

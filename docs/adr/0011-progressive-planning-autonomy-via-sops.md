@@ -3,6 +3,10 @@
 Status: Accepted
 Implemented: Partial
 
+> Implemented today: SOP files, action-level autonomy defaults, `decompose` gates,
+> and policy-based claim authorization. Not implemented: earned autonomy,
+> trust-tier evaluation, or self/elevated policy changes.
+>
 > Amended by ADR 0038: trust elevation becomes a first-class gated action
 > (`amend_policy` / `elevate_autonomy`) rather than a human-only act — human-required by
 > default, but expressible and delegable. The human requirements here are loosenable policy

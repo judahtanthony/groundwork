@@ -3,6 +3,10 @@
 Status: Accepted
 Implemented: Partial
 
+> Implemented today: checkpoint and squash events can be recorded on runs. Not
+> implemented: real WIP git checkpoint commits, resume from checkpoint refs, and
+> squash of a run branch into landing; those remain Phase 4 runtime work.
+
 ## Context
 
 Worktree contents are tier-1 runtime state, ignored by default (ADR 0007, ADR 0012), and `recovery.md` admits active runs "may lose model-internal context." But the uncommitted *code* in the worktree is also unprotected, so a crash mid-run can silently lose substantial agent work. The `checkpoints/` directory in `run-logs.md` was listed but never defined. The fix must not clutter `main` or complicate parallel-worktree integration.
