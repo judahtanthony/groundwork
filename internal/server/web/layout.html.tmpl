@@ -1,0 +1,74 @@
+{{define "layout"}}<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Groundwork — {{.Title}}</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="/static/groundwork.css">
+</head>
+<body>
+<div class="gw-app">
+
+  <aside class="gw-side">
+    <div class="gw-brand">
+      <b>Groundwork</b>
+      <div class="repo">{{.Shell.Repo}} · <span class="branch">{{.Shell.Branch}}</span></div>
+    </div>
+    <nav class="gw-nav">
+      <div class="group">Operate</div>
+      <a {{if eq .Nav "dashboard"}}class="active"{{end}} href="/"><span class="dot"></span> Dashboard</a>
+      <a class="soon"><span class="dot"></span> Board <span class="pill">soon</span></a>
+      <a {{if eq .Nav "tickets"}}class="active"{{end}} href="/tickets"><span class="dot"></span> Tickets</a>
+      <a class="soon"><span class="dot"></span> Runs <span class="pill">soon</span></a>
+      <a {{if eq .Nav "approvals"}}class="active"{{end}} href="/approvals"><span class="dot"></span> Approvals{{if .Shell.PendingApprovals}} <span class="pill">{{.Shell.PendingApprovals}}</span>{{end}}</a>
+      <div class="group">Configure</div>
+      <a class="soon"><span class="dot"></span> Policies <span class="pill">soon</span></a>
+      <a class="soon"><span class="dot"></span> Settings <span class="pill">soon</span></a>
+    </nav>
+    <div class="gw-side-foot">
+      <div class="row"><span>server</span><b>{{.Shell.ServerAddr}}</b></div>
+      <div class="row"><span>state.sqlite</span><b>{{.Shell.DBSize}}</b></div>
+      <div class="row"><span>gw</span><b>{{.Shell.Version}}</b></div>
+    </div>
+  </aside>
+
+  <main class="gw-main">
+    <header class="gw-top">
+      <div class="gw-crumb">{{.Crumb}} / <b>{{.Title}}</b></div>
+      <div class="gw-spacer"></div>
+      <div class="gw-live" id="live"><span class="bdot"></span> <span id="live-label">connecting…</span></div>
+    </header>
+
+    <div class="gw-content">
+{{block "content" .}}{{end}}
+    </div>
+  </main>
+</div>
+
+<script>
+// Realtime: a lightweight live/heartbeat indicator over SSE, plus a soft refresh
+// so the server-rendered pages stay current without a client framework (v1).
+(function () {
+  var live = document.getElementById("live");
+  var label = document.getElementById("live-label");
+  var reloadTimer = null;
+  function softReload() {
+    if (reloadTimer) return;
+    reloadTimer = setTimeout(function () { location.reload(); }, 1200);
+  }
+  try {
+    var es = new EventSource("/api/v1/events");
+    es.onopen = function () { live.classList.add("on"); label.textContent = "live"; };
+    es.onerror = function () { live.classList.remove("on"); label.textContent = "reconnecting…"; };
+    es.onmessage = function (e) { if (e.data && e.data.indexOf("heartbeat") === -1) softReload(); };
+  } catch (err) {
+    label.textContent = "offline";
+  }
+  // Fallback periodic refresh (operational monitor) when the tab is visible.
+  setInterval(function () { if (!document.hidden) location.reload(); }, 20000);
+})();
+</script>
+</body>
+</html>
+{{end}}
