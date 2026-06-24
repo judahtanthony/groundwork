@@ -63,6 +63,8 @@ func New(db *sqlite.DB, proj *config.Project, version string) *Server {
 // Go 1.22+ ServeMux (ADR 0025).
 func (s *Server) routes() {
 	s.mux.HandleFunc("GET /healthz", s.handleHealth)
+	s.mux.HandleFunc("GET /{$}", s.handleDashboard)
+	s.mux.HandleFunc("GET /static/groundwork.css", s.handleDashboardCSS)
 	s.mux.HandleFunc("GET /api/v1/state", s.handleState)
 	s.mux.HandleFunc("GET /api/v1/tickets", s.handleTicketList)
 	s.mux.HandleFunc("POST /api/v1/tickets", s.handleTicketCreate)

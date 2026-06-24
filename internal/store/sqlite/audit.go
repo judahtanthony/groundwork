@@ -44,6 +44,32 @@ func (db *DB) AppendAuditEvent(actor, eventType, objectType, objectID string, pa
 	})
 }
 
+// RecentAuditEvents returns the newest audit events across all objects, most
+// recent first, capped at limit. It powers the dashboard's recent-event timeline
+// (T-0801); the audit log is the durable record the in-memory event bus does not
+// buffer for replay.
+func (db *DB) RecentAuditEvents(limit int) ([]AuditEvent, error) {
+	if limit <= 0 {
+		limit = 20
+	}
+	rows, err := db.Query(
+		`SELECT id, actor, type, object_type, object_id, payload_json, created_at
+		 FROM audit_events ORDER BY id DESC LIMIT ?`, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []AuditEvent{}
+	for rows.Next() {
+		var e AuditEvent
+		if err := rows.Scan(&e.ID, &e.Actor, &e.Type, &e.ObjectType, &e.ObjectID, &e.Payload, &e.CreatedAt); err != nil {
+			return nil, err
+		}
+		out = append(out, e)
+	}
+	return out, rows.Err()
+}
+
 // AuditEventsFor returns audit events for an object, oldest first.
 func (db *DB) AuditEventsFor(objectType, objectID string) ([]AuditEvent, error) {
 	rows, err := db.Query(
