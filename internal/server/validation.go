@@ -72,6 +72,40 @@ type landResponse struct {
 // decide (approving it lands). The `override` escape hatch lets the owner land
 // immediately, bypassing both the approval gate and the validation gate. A
 // successful landing records a ratification in the journal (ADR 0013).
+// handleTicketLandPreview exposes the staged change set a landing of id would
+// commit, so the operator UI (and any API client) can inspect a landing before
+// approving it — the same read as `gw ticket land --preview` (ADR 0034/0041),
+// but server-mediated since the server is the source of truth. It is read-only:
+// it never stages, commits, or opens an approval. The staged diff is the git
+// index (the human's explicit selection), so the response echoes id rather than
+// scoping the diff to it, matching the CLI.
+func (s *Server) handleTicketLandPreview(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	if _, err := s.db.GetTicket(id); err != nil {
+		s.writeStoreError(w, err)
+		return
+	}
+	if s.repo == nil {
+		writeError(w, http.StatusBadRequest, "not_a_repo", "preview requires a git repository")
+		return
+	}
+	staged, err := s.repo.HasStagedChanges()
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "git_error", err.Error())
+		return
+	}
+	if !staged {
+		writeJSON(w, http.StatusOK, map[string]any{"id": id, "staged": false, "diff": ""})
+		return
+	}
+	diff, err := s.repo.StagedDiff()
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "git_error", err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"id": id, "staged": true, "diff": diff})
+}
+
 func (s *Server) handleTicketLand(w http.ResponseWriter, r *http.Request) {
 	if s.approvals == nil {
 		writeError(w, http.StatusServiceUnavailable, "approvals_unavailable", "approval service is not configured")
