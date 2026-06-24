@@ -1,6 +1,8 @@
 # SQLite Schema Contract
 
-SQLite is the v1 operational store. Use WAL mode and foreign keys.
+SQLite is the v1 live projection and runtime coordination store. Durable project state
+is filesystem-authoritative and must be rebuildable from committed/exported files plus
+git (ADR 0053). Use WAL mode and foreign keys.
 
 Recommended pragmas:
 
@@ -82,6 +84,7 @@ run_events(
 
 approvals(
   id TEXT PRIMARY KEY,
+  durable_request_id TEXT,        -- stable id from ticket decisions.ndjson when durable
   run_id TEXT REFERENCES runs(id) ON DELETE SET NULL,  -- null for human/system-initiated gates (decompose, replan)
   ticket_id TEXT NOT NULL REFERENCES tickets(id) ON DELETE CASCADE,
   type TEXT NOT NULL,             -- e.g. execute | land_to_main | decompose | replan
@@ -98,6 +101,24 @@ approvals(
   decision_reason TEXT,
   created_at TEXT NOT NULL,
   decided_at TEXT
+);
+
+decision_records(
+  id TEXT NOT NULL,               -- stable durable request/decision id
+  sequence INTEGER NOT NULL,
+  ticket_id TEXT NOT NULL REFERENCES tickets(id) ON DELETE CASCADE,
+  run_id TEXT REFERENCES runs(id) ON DELETE SET NULL,
+  event_type TEXT NOT NULL,       -- decision_requested | input_requested | approval_requested | ...
+  request_type TEXT,
+  work_type TEXT,
+  status TEXT NOT NULL,           -- pending | answered | accepted | rejected | superseded | recovered
+  requested_by_actor TEXT,
+  requested_at TEXT,
+  decided_by_actor TEXT,
+  decided_at TEXT,
+  payload_json TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  PRIMARY KEY (ticket_id, id, sequence)
 );
 
 validation_results(
@@ -123,6 +144,8 @@ audit_events(
 );
 ```
 
-Actor definitions are file-based under `.groundwork/actors.yaml`, not database rows. Runs store an actor snapshot because actor files may change after a run completes. Decomposition proposals (`decompose`) and re-plan decisions (`replan`) reuse `approvals` with the corresponding `type`; escalation / upward-revision events are recorded in `audit_events` (and the node timeline). A decomposition creates child nodes in `backlog` (non-dispatchable) until the proposal is approved, after which they move to `todo` as dependencies allow. SOPs and work-type context are file-based under `.groundwork/sops/`, not database rows; autonomy levels live in the policy YAML.
+Actor definitions are file-based under `.groundwork/actors.yaml`, not database rows. Runs store an actor snapshot because actor files may change after a run completes. Decomposition proposals (`decompose`) and re-plan decisions (`replan`) create durable decision records when their payload must survive rebuild; `approvals` is then the live coordinator queue/projection over those records. Escalation / upward-revision events are recorded in `audit_events` and the node timeline, with durable blockers mirrored in `decision_records`. A decomposition creates child nodes in `backlog` (non-dispatchable) until the proposal is approved, after which they move to `todo` as dependencies allow. SOPs and work-type context are file-based under `.groundwork/sops/`, not database rows; autonomy levels live in the policy YAML.
 
-All state-changing operations must run in transactions and append an audit event.
+All state-changing operations must run in transactions and append an audit event. If the
+operation mutates durable project state, it must also update the filesystem source of
+truth or an explicit durable replay record before reporting durable success.

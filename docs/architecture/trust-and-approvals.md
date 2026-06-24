@@ -2,6 +2,10 @@
 
 Approvals are capability gates. They unlock specific actions and must be auditable. Policy evaluates both the action and the actor: a human owner, a Codex implementer, an AI judge, and a future domain reviewer can have different authority over the same node.
 
+For gates that must survive rebuild, the durable ticket-attached decision/gate record is
+the source of truth and the approval row is a live coordinator projection (ADR 0051).
+Approval ids are runtime handles; the stable durable request id remains with the ticket.
+
 ## Risk Classes
 
 - `low`: auto-approval allowed by policy.

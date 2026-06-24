@@ -38,3 +38,9 @@ Implemented: Not started
 Use ADRs for both exploration and accepted decisions. Move a draft to `Pending Review`
 when it is ready to be reviewed as proposed canon; move it to `Accepted` only when the
 decision is binding.
+
+Recent accepted ADRs:
+
+- ADR 0051 records async agent handoff and durable ticket-attached decision records.
+- ADR 0052 records consequential decisions as ordinary policy-routed work nodes.
+- ADR 0053 records filesystem-authoritative durable state with SQLite as projection.

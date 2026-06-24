@@ -10,6 +10,7 @@ gw server
   -> actor registry (local humans and AI actors, capabilities, runtime config)
   -> run supervisor (planning and implementation runs, checkpoints)
   -> context assembler (gw context briefs)
+  -> durable decision/input/gate records + live approval/input projections
   -> approval router (actor + risk + reversibility gates)
   -> validation engine
   -> canon distiller (ratification-time promotion, parent reconciliation)
@@ -20,7 +21,8 @@ agent runtime
   -> Codex adapter first
   -> isolated worktree
   -> event sink
-  -> approval requests
+  -> durable blocker/handoff records
+  -> approval/input requests
 ```
 
 ## Core Directories
@@ -55,6 +57,12 @@ internal/approval      # approval domain; service lives in internal/server (ADR 
 internal/sop           # work-type SOP loading from .groundwork/sops/ (ADR 0011)
 internal/canon         # journal + ratification hooks + parent reconciliation (ADR 0013/0030)
 ```
+
+Ticket-attached decision records (ADR 0051) are the durable source for blockers,
+input requests, rebuildable approval gates, rework requests, and recovery-needed
+states; live approval/input queues are coordinator projections over those records.
+Consequential decisions that need routing or canon output are normal work nodes
+with decision-oriented `work_type`s (ADR 0052).
 
 Validation has no package of its own: template matching lives in `internal/policy`
 (`RequiredChecks`/`LandingRiskFloor`) and result records + the landing gate live in

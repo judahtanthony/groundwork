@@ -12,6 +12,8 @@ The Codex adapter should follow the responsibilities described conceptually by O
 - stream updates,
 - triage the node and, for composite nodes, produce a decomposition proposal (children, parent contract, dependency edges) rather than code,
 - handle approvals and input-required events, including the `decompose` gate and escalation/upward-revision,
+- write durable ticket-attached request/decision records before exiting on any blocker
+  that must survive rebuild,
 - record observability data,
 - retry or pause according to coordinator policy.
 
@@ -25,10 +27,22 @@ Agents must run only inside the run worktree under `.groundwork/worktrees/`. The
 
 Runtime events should stream to SQLite and to `.groundwork/runs/<run-id>/events.ndjson`. A human-readable `transcript.md` should be generated locally but ignored by default.
 
-## Pause And Resume
+## Pause, Block, And Resume
 
-Pause should stop at a safe boundary where possible. Resume starts a new turn with summarized prior context, current ticket state, current diff, validation state, unresolved tasks, and relevant transcript excerpts.
+Pause should stop at a safe boundary where possible. A blocked autonomous run should not
+remain alive waiting for human input. It checkpoints work when applicable, writes events
+and runtime evidence, exports the durable blocker/request record, optionally creates a
+dependent decision ticket, moves the original ticket to an explainable blocked state,
+releases its lease, and exits.
+
+Resume starts a new turn from a structured packet assembled from durable ticket/run/canon
+state: current ticket context, ancestor contract, acceptance criteria, dependencies,
+resolved decision/input records, rework notes, handoff summary, checkpoint/diff refs,
+validation state, artifacts, and relevant transcript excerpts only.
 
 ## Approvals
 
-When Codex requests a dangerous action, operator input, or a policy-gated capability, Groundwork should create an approval record and pause the gated action until a decision is made.
+When Codex requests a dangerous action, operator input, or a policy-gated capability,
+Groundwork should create a durable ticket-attached request record when the wait must
+survive rebuild, then project it into the live approval/input queue until a decision is
+made.

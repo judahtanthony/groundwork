@@ -13,6 +13,8 @@ PATCH /api/v1/tickets/:id
 POST /api/v1/tickets/:id/transition
 GET  /api/v1/tickets/:id/children
 GET  /api/v1/tickets/:id/context
+GET  /api/v1/tickets/:id/decisions
+POST /api/v1/tickets/:id/decisions
 POST /api/v1/tickets/:id/decompose
 POST /api/v1/tickets/:id/escalate
 GET  /api/v1/tickets/:id/dependencies
@@ -45,6 +47,11 @@ GET  /api/v1/events
 ```
 
 `POST /api/v1/tickets/:id/decompose` opens a planning run; the resulting decomposition proposal is decided through the approvals endpoints (`approve` accepts the proposal, `clarify` asks the agent for more detail). `approve`/`reject` cover the `decompose`, landing, and tactical gates uniformly.
+
+`GET/POST /api/v1/tickets/:id/decisions` reads and appends durable ticket-attached
+decision records (`decision-records.md`). Pending durable `approval_requested` and
+`input_requested` records are projected into live coordinator queues; approval ids may
+change after rebuild, but the durable request id remains stable.
 
 `GET /api/v1/tickets/:id/validations` lists recorded validation results and
 `POST /api/v1/tickets/:id/validations` records one (the coordinator-mediated path

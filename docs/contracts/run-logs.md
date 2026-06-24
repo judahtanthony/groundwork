@@ -21,7 +21,9 @@ Expected directory:
 
 ## Transcript
 
-`transcript.md` is a human-readable projection for inspection and resume context. It may contain sensitive data and is not committed by default.
+`transcript.md` is a human-readable projection for inspection and possible excerpting
+into a resume packet. It may contain sensitive data and is not committed by default.
+It is evidence, not authoritative memory.
 
 ## Checkpoints
 
@@ -30,6 +32,21 @@ Expected directory:
 ## Journal And Distillation
 
 A per-node **journal** of in-progress decision notes is ephemeral (ignored by default), one file per node so parallel runs never conflict. At the ratification gate, durable design is distilled from the journal into canon (committed docs/ADRs/policy/SOPs); the journal itself is not committed (see [ADR 0013](../adr/0013-canon-as-memory.md)).
+
+Blocked-run handoff summaries and request payloads that must survive rebuild do not
+belong only in the run log. They are exported as ticket-attached decision records under
+`.groundwork/tickets/<id>/decisions.ndjson` (see [decision-records.md](decision-records.md)).
+
+## Summaries
+
+Runs should produce compact summaries for normal execution context:
+
+- `completion_summary` before review/landing when a node produces a result,
+- `handoff_summary` before a blocked run exits,
+- validation and checkpoint/diff refs needed by a later run.
+
+Full transcripts remain available for audit; context assembly should prefer summaries,
+contracts, dependency outputs, and canon.
 
 ## Artifacts
 

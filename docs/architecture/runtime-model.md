@@ -22,14 +22,15 @@ A run is one of two modes:
 2. Coordinator selects an eligible actor by matching node `work_type`, requested actor/capabilities, risk, file scope, and action policy.
 3. Coordinator claims the node transactionally in SQLite.
 4. Coordinator creates a run and lease, recording the actor id and an actor configuration snapshot.
-5. The agent receives a bounded context brief (`gw context`): ancestor spine, parent contract, direct dependencies, relevant SOPs, actor constraints, open escalations.
+5. The agent receives a bounded context brief (`gw context`): ancestor spine, parent contract, direct dependencies, relevant SOPs, actor constraints, open escalations, durable ticket-attached decision records, and prior handoff summaries relevant to the node.
 6. The claiming actor triages the node as leaf or composite.
 7. Composite -> planning run produces a decomposition proposal -> `review`.
 8. Leaf -> implementation run in an isolated worktree, checkpointing WIP as it goes.
 9. Events stream to SQLite and local JSONL logs.
-10. Approval requests pause gated actions (including `decompose`).
-11. Validation results are recorded.
-12. Landing is gated by validation and policy; WIP checkpoints are squashed into the landing commit, and ratified design is distilled into canon.
+10. Approval and input requests that must survive rebuild are written as durable ticket sidecar records, then projected into live coordinator queues.
+11. A blocked run writes a handoff summary, releases its lease, and ends rather than waiting indefinitely on a live model session.
+12. Validation results are recorded.
+13. Landing is gated by validation and policy; WIP checkpoints are squashed into the landing commit, and ratified design is distilled into canon.
 
 ## Checkpoints And Distillation
 
@@ -44,3 +45,16 @@ An implementation run periodically commits work-in-progress as a **checkpoint** 
 ## Runtime State
 
 Runtime state is local and ignored by default. It can be reconstructed enough for stable continuation, but exact model-internal state is not guaranteed after crashes.
+
+Resume usually starts a new run or turn from a structured resume packet assembled from
+durable state rather than continuing the exact old chat session. The packet should
+include the current ticket context, parent/ancestor contract, acceptance criteria,
+dependency status, relevant resolved and pending decision/input records, latest
+human feedback or rework notes, prior run handoff summary, current diff/checkpoint refs,
+validation state, artifacts/links, relevant transcript excerpts only, and an explicit
+next recommended action (ADR 0051).
+
+Consequential blockers can become dependent decision tickets. Use local input requests
+for bounded clarification, approval gates for permission on a concrete action, and
+decision tickets for routable work with scope, risk, dependency, validation, or canon
+impact (ADR 0052).

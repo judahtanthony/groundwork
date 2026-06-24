@@ -13,7 +13,10 @@ gw holds the work to evolve canon; canon files hold the result.
 
 `.groundwork/state.sqlite` is runtime-only and git-ignored; the durable plan is the
 committed Markdown exports under `.groundwork/tickets/`, which rebuild the store on
-cold start.
+cold start. Ticket sidecar decision records under each ticket directory are the durable
+home for blockers, input/approval requests, rework notes, and recovery states that must
+survive rebuild; SQLite queues are live projections. A ticket mutation is not durable
+unless the filesystem export, or a durable replay record, has been written (ADR 0053).
 
 ## The loop
 
@@ -26,7 +29,8 @@ cold start.
    by value — priority down the ancestor path, then DFS/FIFO (ADR 0039). `gw next` names
    the top node and prints its brief; take it.
 3. **Read the brief.** `gw ticket context <id>` — ancestor spine, parent contract,
-   acceptance, dependencies, and the relevant SOP.
+   acceptance, dependencies, relevant SOP, durable decision/input records, blockers,
+   validation state, checkpoint/diff refs, and prior handoff summaries.
 4. **Triage.** A leaf is one verifiable change → execute it. A composite →
    `gw ticket decompose` into a reviewable child proposal (children land in backlog
    until accepted).
@@ -46,6 +50,12 @@ cold start.
 8. **Re-plan.** If a node uncovers a mistake, `gw ticket escalate <id>` routes an
    upward revision; the plan is living state, not a static file.
 
+For autonomous/background work, do not keep an agent alive waiting on a human. If blocked,
+checkpoint if applicable, write run evidence, export a durable ticket-attached
+request/handoff record, optionally create a dependent decision ticket, move the original
+ticket to an explainable blocked state, release the lease, and let the scheduler work on
+something else.
+
 ## Conventions
 
 - Keep leaf nodes to one verifiable change.
@@ -55,5 +65,7 @@ cold start.
   eligible set, never authorizes (ADR 0039).
 - Dependency edges form a DAG; a node is eligible only when `todo` and all
   dependencies are satisfied.
+- Meaningful decisions are work when they have scope, policy routing, dependency impact,
+  validation, or canon output. Small clarifications stay as local input requests.
 - Authority (landing, decomposition, irreversible actions, elevation) is a loosenable
   policy gate, conservative by default; never self-elevate (ADR 0037/0038).

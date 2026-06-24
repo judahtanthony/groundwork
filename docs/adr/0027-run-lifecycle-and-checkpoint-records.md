@@ -27,9 +27,11 @@ execution to Phase 4.
   `sqlite-schema.md`. The actor snapshot is captured from `.groundwork/actors.yaml`
   at run start so audit survives later registry edits (`actors.md`, [ADR 0023](0023-actors-work-types-and-policy-routing.md)).
 - **Lifecycle states.** `pending → running → {paused ⇄ running} → completed`,
-  with `cancelled` and `interrupted` as the off-ramps. Pause/resume/cancel are
-  CLI/API-driven, audited, and (for cancel) release the lease. `interrupted` is
-  set only by recovery (`recovery.md`), never by a client.
+  with `blocked`, `cancelled`, and `interrupted` as the off-ramps. A blocked
+  autonomous run records durable handoff/request state when required, releases
+  the lease, and lets capacity move to other work (ADR 0051). Pause/resume/cancel
+  are CLI/API-driven, audited, and (for cancel) release the lease. `interrupted`
+  is set only by recovery (`recovery.md`), never by a client.
 - **`runtime.Interface` + records-only stub.** A minimal runtime interface is
   introduced now; its only M2 implementation is a **stub that emits synthetic
   lifecycle events and writes no code**. This exercises scheduler → run → events
@@ -57,4 +59,5 @@ leases" is fully implementable now; "resume from last checkpoint" is explicitly
 Phase 4. The records-vs-execution split keeps the durable-state boundary
 ([ADR 0012](0012-three-tier-state-and-ratification-timing.md)) intact: run
 manifests are durable operational records, worktree contents and transcripts
-stay tier-1 ephemeral.
+stay tier-1 ephemeral, and durable blockers/handoff context live with the ticket
+rather than only in the run log.

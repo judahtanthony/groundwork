@@ -19,7 +19,9 @@ You are working in the Groundwork repository. **Phases 1 (CLI & Store) and 2
 - `internal/{server,client,scheduler,eventbus,run,runtime,policy,risk,approval,sop,
   canon}` — the M2 coordinator: `gw server` (HTTP API + SSE), scheduler, run records,
   gate engine, approvals, decompose/escalate, validation + landing gate, canon journal,
-  recovery, import.
+  recovery, import. ADRs 0051/0052 now specify the Phase 4+ durable async handoff model:
+  ticket sidecar decision records are authoritative for rebuildable blockers, and
+  consequential decisions are normal routed work nodes.
 
 ## Build & Verify
 
@@ -40,7 +42,9 @@ You are working in the Groundwork repository. **Phases 1 (CLI & Store) and 2
 
 - Name: Groundwork. CLI: `gw`. Dot directory: `.groundwork/`. Language: Go.
 - Store: SQLite operational state, ignored by default; durable committed state is docs,
-  workflow, policies, ticket exports, and code.
+  workflow, policies, ticket exports, ticket sidecar decision records, and code.
+- Durable state is filesystem-authoritative; SQLite is a rebuildable projection plus
+  ephemeral runtime coordination store (ADR 0053).
 - v1 server: localhost-only, single-user. v1 runtime target: Codex first (Phase 4).
 - v1 landing and decomposition: human approval required, modeled as policy gates that
   loosen via SOPs/context/validation (Phase 5).

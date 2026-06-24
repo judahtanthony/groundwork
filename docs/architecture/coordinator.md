@@ -12,9 +12,11 @@ The coordinator is the local process started by `gw server`.
 - Record actor identity and actor configuration snapshots on runs.
 - Renew and expire leases.
 - Pause, resume, and cancel runs.
-- Route approval requests, including `decompose` proposals and escalation / re-plan decisions.
+- Route approval and input requests, including `decompose` proposals and escalation /
+  re-plan decisions, as live projections over durable ticket-attached records when the
+  request must survive rebuild.
 - Enforce actor-aware trust policy and validation gates.
-- Export ticket, run, and approval projections.
+- Export ticket records and sidecar decision records; expose run and approval projections.
 - Expose dashboard, HTTP API, and SSE stream.
 
 ## Active Runs Require Coordinator

@@ -29,6 +29,11 @@ The decision records which rule ID fired, the risk class/score, the reversibilit
 verdict, and the required approver constraints, so the surface is fully
 explainable.
 
+When a gate must survive rebuild, the policy `Decision` is recorded in a durable
+ticket-attached request/gate record and the approval row is only the live queue
+projection (ADR 0051). The engine still produces side-effect-free decisions; the
+coordinator decides how to persist and project them.
+
 Composition order (later steps cannot loosen earlier floors):
 
 1. **Classify scope.** From the action's changed files, commands, and external
@@ -76,6 +81,6 @@ Phase 4 only supplies the diff. Autonomy levels (`policies.md`) select the
 elevation stays a human act ([ADR 0011](0011-progressive-planning-autonomy-via-sops.md)).
 Chat-approval and reviewer-agent adapters are out of M2 (roadmap defers them to
 "Phase 2 product features beyond v1"); when added, they must write the same
-actor-aware approval records and cannot override `require_human` — the engine is
-where that invariant is enforced. Risk *scoring* refinement and earned/revocable
-autonomy remain Phase 5.
+actor-aware durable request records and approval projections and cannot override
+`require_human` — the engine is where that invariant is enforced. Risk *scoring*
+refinement and earned/revocable autonomy remain Phase 5.

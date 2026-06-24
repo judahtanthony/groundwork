@@ -12,6 +12,14 @@ The only structural distinction is **leaf** versus **composite**, and it is deci
 
 Nodes may optionally carry a requested actor or required actor capabilities. These are routing hints and policy inputs, not ownership facts. The scheduler still has to match the node, its risk, touched files, requested action, and available actors against policy before a claim or gated action proceeds.
 
+Consequential decisions are modeled as ordinary work nodes when they have independent
+scope, ownership, policy routing, dependency impact, validation, or canon output.
+`kind: decision` may be used for navigation, but `work_type` carries the operational
+meaning (for example `architecture_decision`, `scope_clarification`, `risk_review`,
+`policy_exception`, `dependency_resolution`, or `technical_design`). Small bounded
+clarifications stay as ticket-attached input requests, and concrete permissions stay as
+approval gates (ADR 0052).
+
 ## Triage Gate
 
 When a node is claimed, the agent triages it ("definition of ready"):
@@ -57,6 +65,11 @@ When children promote durable design into canon, the composite parent **owns rec
 ## Upward Revision
 
 Revision can propagate up the tree. If a node discovers a mistake or complication that changes the requirements, it records a typed **escalation**, transitions to `blocked`, and routes a re-plan decision to its parent. The parent may adjust its design and plan and may send affected siblings to `rework`. In v1 the re-plan and any sibling rework are human-gated; automatic cascade is deferred. See [ADR 0010](../adr/0010-dependencies-and-upward-revision.md).
+
+If the upward revision is consequential enough to route independently, the agent may
+create a dependent decision node and add a dependency edge from the blocked node to that
+decision. The request record, decision node, and dependency edge must be exported before
+the original run is considered safely blocked.
 
 ## Managing Large Work
 

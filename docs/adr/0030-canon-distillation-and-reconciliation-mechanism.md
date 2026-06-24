@@ -51,6 +51,10 @@ runtime.
   wired as a landing hook now, but produces meaningful prose only once the Codex
   runtime writes journals. M2 verifies the plumbing (hook fires, write is
   serialized, nothing is written without ratification), not authored content.
+- **Decision records as distillation inputs.** Durable ticket-attached requests and
+  responses (ADR 0051) are available to the distiller. They are not promoted wholesale:
+  repeated ambiguities, accepted architectural decisions, rejected proposals, and
+  human clarifications become candidates for targeted canon/SOP/policy updates.
 
 ## Consequences
 

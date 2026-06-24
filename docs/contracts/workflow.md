@@ -16,7 +16,11 @@ It should follow the Symphony-style shape: optional YAML front matter plus a Mar
 - how to obey actor constraints from policy,
 - how to update progress,
 - how to request approvals, including the `decompose` gate,
+- how to write durable ticket-attached input/approval/decision records for blockers
+  that must survive rebuild,
 - how to escalate revisions upward,
+- how to exit cleanly when blocked instead of waiting indefinitely on a live model
+  session,
 - how to validate work,
 - how to hand off for review,
 - how to land when policy permits.

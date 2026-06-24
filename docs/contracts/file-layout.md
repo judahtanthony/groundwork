@@ -25,6 +25,8 @@ Groundwork manages one dot directory in target repositories:
 - `.groundwork/policies/*.yaml`
 - `.groundwork/sops/<work-type>/**` (work-type SOPs and context)
 - `.groundwork/tickets/**/ticket.md`
+- `.groundwork/tickets/**/decisions.ndjson` (durable ticket-attached
+  decision/input/approval/rework/recovery records)
 - `.groundwork/tickets/**/timeline.ndjson` when configured as durable audit export
 
 ## Ignore By Default
@@ -33,7 +35,7 @@ Groundwork manages one dot directory in target repositories:
 - `.groundwork/state.sqlite-wal`
 - `.groundwork/state.sqlite-shm`
 - `.groundwork/runs/`
-- `.groundwork/approvals/`
+- `.groundwork/approvals/` (live queue projection/cache only)
 - `.groundwork/views/`
 - `.groundwork/worktrees/`
 

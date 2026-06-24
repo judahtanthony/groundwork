@@ -16,14 +16,19 @@ node), so the breakdown belongs in the tree, not in parallel static files.
 ## Decision
 
 **The gw work tree is the source of truth for the plan** — what work exists, its
-ordering, status, and acceptance. It is inspected and evolved through `gw`
+ordering, status, acceptance, and durable blockers. It is inspected and evolved through `gw`
 (`ticket tree`, `create`, `decompose`, `link`, `transition`), not by editing static
 breakdown files.
+
+The durable source of truth for that tree is the exported filesystem representation under
+`.groundwork/tickets/`, including sidecar decision records. SQLite is the live
+transactional projection of that tree, not an independent durable authority (ADR 0053).
 
 - **Canon vs. plan split.** Product / architecture / contract / ADR docs and
   SOPs/policies remain committed **canon** — the durable diff a completed subtree
   leaves behind ([ADR 0013](0013-canon-as-memory.md)): the *why/what*. gw holds the
-  *work to evolve* canon; canon files hold the *result*. Milestones stay as **roadmap
+  *work to evolve* canon, including ticket-attached decision/request records that
+  explain blocked/review/rework states; canon files hold the *result*. Milestones stay as **roadmap
   prose** (narrative altitude), not first-class in gw; phase grouping is derivable from
   the tree + dependencies if ever needed (milestone gate-nodes), and is deferred.
 - **Retire the redundant breakdown files** — `work-tree.yaml`, `phase-2-tickets.md`,

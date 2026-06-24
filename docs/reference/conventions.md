@@ -42,6 +42,11 @@
 - Prefer a complete parent contract so children run in parallel; otherwise add dependency edges to serialize.
 - Keep leaf nodes to one verifiable change.
 - Use escalation to propagate revisions up the tree.
+- Use durable ticket-attached decision records for blockers, approval/input requests,
+  rework notes, and recovery states that must survive rebuild.
+- Use decision tickets only for consequential decisions with independent scope,
+  routing, dependency, validation, or canon impact; use local input requests for small
+  bounded clarifications.
 - Capture work-type operating procedures as SOPs under `.groundwork/sops/`.
 - Capture local human and AI actors in `.groundwork/actors.yaml`; requested actors are routing hints, not authorization.
 - Link nodes to specs or ADRs where relevant.
@@ -56,5 +61,8 @@
 ## State
 
 - Do not commit runtime state by default.
-- Do commit durable docs, policies, workflow, ticket exports, and code.
+- Do commit durable docs, policies, workflow, ticket exports, ticket sidecar decision
+  records, and code.
+- Treat durable filesystem state as authoritative; SQLite is a rebuildable projection
+  plus ephemeral runtime store (ADR 0053).
 - Generated views are not source of truth.

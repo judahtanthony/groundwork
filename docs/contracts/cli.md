@@ -19,6 +19,8 @@ gw actor validate
 gw ticket transition <id> <status>
 gw ticket tree [id]
 gw ticket context <id>
+gw ticket decisions <id>
+gw ticket request <id>
 gw ticket decompose <id>
 gw ticket link <id> --depends-on <id>
 gw ticket escalate <id>
@@ -50,7 +52,12 @@ gw sync
 
 ## Context Brief
 
-`gw ticket context <id>` returns the bounded, node-specific brief an agent receives at claim time: ancestor spine, parent contract, direct dependencies, relevant SOPs, actor constraints, and open escalations. It reads canon resolved through the SQLite graph; broader queries (for example `--siblings`) are explicit. See [ADR 0013](../adr/0013-canon-as-memory.md).
+`gw ticket context <id>` returns the bounded, node-specific brief an agent receives at claim time: ancestor spine, parent contract, direct dependencies, relevant SOPs, actor constraints, open escalations, relevant durable decision/input records, latest rework notes, validation state, checkpoint/diff refs, and prior handoff summaries. It reads canon and durable ticket records resolved through the SQLite graph; broader queries (for example `--siblings`) are explicit. See [ADR 0013](../adr/0013-canon-as-memory.md) and [ADR 0051](../adr/0051-async-agent-handoff-and-durable-decision-records.md).
+
+`gw ticket decisions <id>` lists the durable ticket-attached decision/input/approval
+history. `gw ticket request <id>` is the future command surface for creating a local
+input request or durable decision request without pretending that every clarification is
+a full work node.
 
 ## Eligibility And The Next Node
 
@@ -75,3 +82,7 @@ Default output should be human-readable and script-friendly. Every data command 
 If `gw server` is running, mutating commands should call the local API by default. If it is not running, simple ticket/config commands may open SQLite directly through the shared store package. Commands requiring live run control must fail clearly without the coordinator.
 
 The scheduler only dispatches a node to an AI actor when the trust policy's `allow_claim` authorizes that actor to claim it. A project that authorizes no AI claims keeps human-performed work's lifecycle free of scheduler interference; loosening `allow_claim` is what makes work available to the scheduler ([ADR 0033](../adr/0033-human-execution-via-manual-transitions.md)).
+
+Approvals remain the CLI for live gated actions. For durable gates, the approval id is a
+runtime handle over a stable ticket decision/request id; after a cold rebuild, the
+approval id may change while `gw ticket decisions <id>` still shows the semantic record.
