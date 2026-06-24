@@ -1,0 +1,72 @@
+{{define "content"}}
+      <div class="gw-panel">
+        <div class="gw-panel-head"><h3>Ready</h3><span class="gw-id">{{len .Data.Ready}} eligible · value order</span></div>
+        {{if .Data.Ready}}
+        <table class="gw-table">
+          <thead><tr><th>ID</th><th>Title</th><th>Status</th><th>Prio</th><th>Type</th><th>Work type</th><th>Parent</th></tr></thead>
+          <tbody>
+            {{range .Data.Ready}}
+            <tr>
+              <td class="gw-id">{{.ID}}</td>
+              <td><div class="gw-cell-title">{{.Title}}</div></td>
+              <td><span class="gw-badge">{{.Status}}</span></td>
+              <td class="num">{{.Priority}}</td>
+              <td class="gw-muted">{{.NodeType}}</td>
+              <td class="gw-muted">{{.WorkType}}</td>
+              <td class="gw-muted">{{.Parent}}</td>
+            </tr>
+            {{end}}
+          </tbody>
+        </table>
+        {{else}}
+        <div class="gw-empty">No ready nodes — nothing is both todo and dependency-satisfied.</div>
+        {{end}}
+      </div>
+
+      <div class="gw-panel">
+        <div class="gw-panel-head"><h3>Blocked</h3><span class="gw-id">{{len .Data.Blocked}} waiting on dependencies</span></div>
+        {{if .Data.Blocked}}
+        <table class="gw-table">
+          <thead><tr><th>ID</th><th>Title</th><th>Type</th><th>Parent</th><th>Blocked by</th></tr></thead>
+          <tbody>
+            {{range .Data.Blocked}}
+            <tr>
+              <td class="gw-id">{{.ID}}</td>
+              <td><div class="gw-cell-title">{{.Title}}</div></td>
+              <td class="gw-muted">{{.NodeType}}</td>
+              <td class="gw-muted">{{.Parent}}</td>
+              <td class="gw-subtle">{{.BlockedBy}}</td>
+            </tr>
+            {{end}}
+          </tbody>
+        </table>
+        {{else}}
+        <div class="gw-empty">No blocked nodes — no todo work is waiting on unfinished dependencies.</div>
+        {{end}}
+      </div>
+
+      <div class="gw-panel">
+        <div class="gw-panel-head"><h3>All tickets</h3><span class="gw-id">{{len .Data.All}} nodes</span></div>
+        {{if .Data.All}}
+        <table class="gw-table">
+          <thead><tr><th>ID</th><th>Title</th><th>Status</th><th>Prio</th><th>Type</th><th>Work type</th><th>Parent</th><th>State</th></tr></thead>
+          <tbody>
+            {{range .Data.All}}
+            <tr>
+              <td class="gw-id">{{.ID}}</td>
+              <td><div class="gw-cell-title">{{.Title}}</div></td>
+              <td><span class="gw-badge">{{.Status}}</span></td>
+              <td class="num">{{.Priority}}</td>
+              <td class="gw-muted">{{.NodeType}}</td>
+              <td class="gw-muted">{{.WorkType}}</td>
+              <td class="gw-muted">{{.Parent}}</td>
+              <td>{{if eq .State "ready"}}<span class="gw-badge ok">ready</span>{{else if eq .State "blocked"}}<span class="gw-badge bad">blocked</span>{{else}}<span class="gw-muted">—</span>{{end}}</td>
+            </tr>
+            {{end}}
+          </tbody>
+        </table>
+        {{else}}
+        <div class="gw-empty">No tickets yet.</div>
+        {{end}}
+      </div>
+{{end}}
