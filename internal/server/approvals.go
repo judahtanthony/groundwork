@@ -43,20 +43,30 @@ func (s *Server) handleApprovalClarify(w http.ResponseWriter, r *http.Request) {
 	s.decideApproval(w, r, approval.StatusClarifying)
 }
 
-// decideApproval records a decision via the approval service.
+// decideApproval records a decision via the approval service (JSON API path).
 func (s *Server) decideApproval(w http.ResponseWriter, r *http.Request, to approval.Status) {
-	if s.approvals == nil {
-		writeError(w, http.StatusServiceUnavailable, "approvals_unavailable", "approval service is not configured")
-		return
-	}
 	var body struct {
 		Reason string `json:"reason"`
 	}
 	_ = json.NewDecoder(r.Body).Decode(&body)
-	a, err := s.approvals.Decide(r.PathValue("id"), to, ownerActor, body.Reason)
+	if a, ok := s.applyDecision(w, r.PathValue("id"), to, body.Reason); ok {
+		writeJSON(w, http.StatusOK, a)
+	}
+}
+
+// applyDecision records an approval decision through the ApprovalService and runs
+// the gate's side effects, shared by the JSON API and the operator UI form so
+// neither bypasses policy or self-approves (ADR 0028). On failure it writes an
+// error response and returns ok=false; the caller writes the success response.
+func (s *Server) applyDecision(w http.ResponseWriter, id string, to approval.Status, reason string) (*sqlite.Approval, bool) {
+	if s.approvals == nil {
+		writeError(w, http.StatusServiceUnavailable, "approvals_unavailable", "approval service is not configured")
+		return nil, false
+	}
+	a, err := s.approvals.Decide(id, to, ownerActor, reason)
 	if err != nil {
 		s.writeMutationError(w, err)
-		return
+		return nil, false
 	}
 	// Accepting a decomposition ratifies the parent contract into canon
 	// (ADR 0013/0030); record the ratification gate in the node's journal.
@@ -67,10 +77,10 @@ func (s *Server) decideApproval(w http.ResponseWriter, r *http.Request, to appro
 	// the durable git commit so the node is committed, not just recorded (ADR 0034).
 	if to == approval.StatusApproved && approval.Type(a.Type) == approval.TypeLandToMain {
 		if !s.completeLanding(w, a.TicketID, "node landed (human-approved)") {
-			return
+			return nil, false
 		}
 	}
-	writeJSON(w, http.StatusOK, a)
+	return a, true
 }
 
 // handleTicketDecompose records a decomposition proposal: children in backlog +

@@ -55,6 +55,40 @@ func (s *Server) handleApprovalsPage(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// handleApprovalDecideForm handles the inbox's approve/reject/clarify form posts
+// (T-1064). It routes through the same ApprovalService path as the JSON API and
+// the CLI — the UI never self-approves or bypasses the gate (ADR 0028) — then
+// redirects back to the inbox (POST-redirect-GET) so the SSE-refreshed page shows
+// the result.
+func (s *Server) handleApprovalDecideForm(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseForm(); err != nil {
+		writeError(w, http.StatusBadRequest, "bad_form", err.Error())
+		return
+	}
+	to, ok := decisionStatus(r.PostFormValue("decision"))
+	if !ok {
+		writeError(w, http.StatusBadRequest, "bad_decision", "decision must be approve, reject, or clarify")
+		return
+	}
+	if _, ok := s.applyDecision(w, r.PathValue("id"), to, r.PostFormValue("reason")); !ok {
+		return
+	}
+	http.Redirect(w, r, "/approvals", http.StatusSeeOther)
+}
+
+// decisionStatus maps an inbox button value to an approval status.
+func decisionStatus(v string) (approval.Status, bool) {
+	switch v {
+	case "approve":
+		return approval.StatusApproved, true
+	case "reject":
+		return approval.StatusRejected, true
+	case "clarify":
+		return approval.StatusClarifying, true
+	}
+	return "", false
+}
+
 func (s *Server) buildApprovals() (*approvalsData, error) {
 	pending, err := s.db.ListApprovals(string(approval.StatusPending))
 	if err != nil {

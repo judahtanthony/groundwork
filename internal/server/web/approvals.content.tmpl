@@ -20,6 +20,12 @@
               <div class="meta">{{.ID}} · {{.GateReason}} · risk {{.RiskClass}}{{if ne .RiskScore "—"}} ({{.RiskScore}}){{end}} · {{.Reversible}}</div>
               <div class="meta">ticket {{.TicketID}} — {{.TicketTitle}} [{{.TicketStatus}}{{if ne .TicketWorkType "—"}} · {{.TicketWorkType}}{{end}}]</div>
               <div class="meta">requested by {{.RequestedBy}} · required actors {{.RequiredActors}} · required roles {{.RequiredRoles}} · {{.Created}}</div>
+              <form class="gw-actions" method="post" action="/approvals/{{.ID}}/decide">
+                <input type="text" name="reason" placeholder="reason (for reject / clarify)" autocomplete="off">
+                <button type="submit" name="decision" value="approve" class="gw-btn ok">Approve</button>
+                <button type="submit" name="decision" value="reject" class="gw-btn bad">Reject</button>
+                <button type="submit" name="decision" value="clarify" class="gw-btn">Clarify</button>
+              </form>
             </div>
           </div>
           {{end}}

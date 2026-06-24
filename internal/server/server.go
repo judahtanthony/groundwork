@@ -66,6 +66,7 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /{$}", s.handleDashboard)
 	s.mux.HandleFunc("GET /tickets", s.handleTicketsPage)
 	s.mux.HandleFunc("GET /approvals", s.handleApprovalsPage)
+	s.mux.HandleFunc("POST /approvals/{id}/decide", s.handleApprovalDecideForm)
 	s.mux.HandleFunc("GET /static/groundwork.css", s.handleDashboardCSS)
 	s.mux.HandleFunc("GET /api/v1/state", s.handleState)
 	s.mux.HandleFunc("GET /api/v1/tickets", s.handleTicketList)
