@@ -4,7 +4,7 @@ kind: ticket
 node_type: leaf
 work_type: technical_implementation
 title: Add gw binary-size guardrail (warn when the binary exceeds 100 MB)
-status: backlog
+status: done
 assignee: null
 requested_actor: null
 priority: 0.85
@@ -13,7 +13,7 @@ labels:
 parent: T-1036
 depends_on: []
 created_at: "2026-06-24T15:37:14Z"
-updated_at: "2026-06-24T15:37:14Z"
+updated_at: "2026-06-24T15:58:34Z"
 ---
 
 ## Problem
@@ -22,4 +22,5 @@ The SPA will be embedded via go:embed, so the build must catch binary inflation:
 
 ## Acceptance Criteria
 
-_None recorded._
+- make build reports the gw binary size and warns (does not fail) when it exceeds the 100 MB guardrail
+- Threshold overridable via MAX_BIN_MB; warning fires when tripped and stays silent under the limit
