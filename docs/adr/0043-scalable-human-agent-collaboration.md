@@ -1,6 +1,11 @@
-# Proposal 0001: Scalable Human-Agent Collaboration
+# ADR 0043: Scalable Human-Agent Collaboration
 
 Status: Draft
+Implemented: Partial
+
+## Implementation State
+
+Groundwork already has the seed mechanics this direction builds on: uniform work nodes, dependency-aware scheduling, policy gates, approvals, validation records, canon, and the local actor model. The broader collaboration model described here remains draft future direction and does not override accepted ADRs.
 
 ## Goal
 
@@ -13,7 +18,7 @@ The ideal system lets humans approve goals, constraints, and exceptions while ag
 progressively decompose, execute, integrate, validate, and summarize work inside visible
 boundaries.
 
-See [Proposal 0008](0008-agentic-software-factory-direction.md) for the industry
+See [ADR 0050](0050-agentic-software-factory-direction.md) for the industry
 direction behind this collaboration model: background coding agents, agent harnesses,
 software-factory workflows, deterministic validation, isolated execution, and governance
 around progressively autonomous work.
@@ -92,7 +97,7 @@ Multiple root nodes may be active at once. Each root should have an integration 
 and the scheduler should consider global resource reservations before dispatching children
 from different roots in parallel.
 
-## Proposed ADR Breakdown
+## Related Draft ADRs
 
 - Hierarchical planning and approval envelopes.
 - Node branching and parent integration.

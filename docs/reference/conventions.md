@@ -15,20 +15,23 @@
 - ADR headers include both decision lifecycle and implementation state:
 
   ```text
-  Status: Pending Review | Accepted | Rejected | Superseded
+  Status: Draft | Pending Review | Accepted | Rejected | Superseded
   Implemented: Not started | Partial | Implemented | Not applicable
   ```
 
-- `Status` answers whether the decision is binding. `Pending Review` means the ADR is
-  proposed canon and must not override accepted ADRs, contracts, or project instructions
-  until accepted.
+- `Status` answers whether the decision is binding. `Draft` means exploratory design
+  material that may change freely. `Pending Review` means the ADR is proposed canon and
+  must not override accepted ADRs, contracts, or project instructions until accepted.
 - `Implemented` answers what is true of the system today. It is independent of
-  `Status`: an accepted ADR may be `Not started`, and a migrated proposal may describe
-  behavior that is already `Partial` or `Implemented`.
+  `Status`: an accepted ADR may be `Not started`, and a draft ADR may describe behavior
+  that is already `Partial` or `Implemented`.
 - Use `Not applicable` for framing or direction ADRs that intentionally change no code,
   policy, schema, or contract.
 - When `Implemented` is `Partial` or `Implemented`, include concrete references in the
   ADR body or consequences: package names, docs, tickets, commits, or phase notes.
+- Use draft ADRs, not a separate proposals directory, to explore future work without
+  committing to it. Promote `Draft` to `Pending Review` only when the decision is ready
+  for review as proposed canon.
 
 ## Planning
 

@@ -1,6 +1,11 @@
-# Proposal 0005: Hierarchical Memory And Context Compression
+# ADR 0047: Hierarchical Memory And Context Compression
 
 Status: Draft
+Implemented: Partial
+
+## Implementation State
+
+Groundwork already has canon, bounded context briefs, run records, and context-miss capture. The hierarchical summary chain, parent memory, and dependency-output compression described here remain draft future work.
 
 ## Goal
 
@@ -118,7 +123,7 @@ This supports efficient review without hiding detail.
   ticket exports?
 - How should stale summaries be invalidated after rebase or parent integration changes?
 
-## Candidate ADRs
+## Candidate Follow-Up ADRs
 
 - Completion summaries as required node outputs.
 - Parent memory as synthesized operational state.

@@ -1,6 +1,11 @@
-# Proposal 0003: Node Branching And Parent Integration
+# ADR 0045: Node Branching And Parent Integration
 
 Status: Draft
+Implemented: Not started
+
+## Implementation State
+
+Parent-owned integration targets and child-to-parent branch landing are not implemented. Current landing is the minimal coordinator commit path described by accepted ADRs; Phase 4 worktree/runtime work is separate.
 
 ## Goal
 
@@ -138,7 +143,7 @@ For each root, the web admin should show:
 - How should root branches be named and garbage-collected?
 - Should parent integration be performed by a specialized integration agent?
 
-## Candidate ADRs
+## Candidate Follow-Up ADRs
 
 - Parent integration branches for root and composite nodes.
 - Child result refs as distinct from run checkpoints.

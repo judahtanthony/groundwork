@@ -8,12 +8,14 @@ Use this header for new ADRs:
 ```text
 # ADR NNNN: Title
 
-Status: Pending Review
+Status: Draft
 Implemented: Not started
 ```
 
 ## Status
 
+- `Draft`: exploratory design material. It may change freely and does not override
+  accepted ADRs, contracts, or project instructions.
 - `Pending Review`: proposed canon. It does not override accepted ADRs, contracts, or
   project instructions.
 - `Accepted`: binding project decision.
@@ -30,5 +32,9 @@ Implemented: Not started
   code, policy, schema, or contract.
 
 `Status` and `Implemented` are independent. For example, a directional ADR can be
-`Accepted` and `Not applicable`, while a proposal migrated from `docs/proposals/` should
-usually start as `Pending Review` and `Not started` or `Partial`.
+`Accepted` and `Not applicable`, while exploratory future work should usually start as
+`Draft` and `Not started` or `Partial`.
+
+Use ADRs for both exploration and accepted decisions. Move a draft to `Pending Review`
+when it is ready to be reviewed as proposed canon; move it to `Accepted` only when the
+decision is binding.

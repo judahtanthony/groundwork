@@ -1,6 +1,11 @@
-# Proposal 0008: Agentic Software Factory Direction
+# ADR 0050: Agentic Software Factory Direction
 
 Status: Draft
+Implemented: Partial
+
+## Implementation State
+
+Groundwork already has the local-first control-plane foundation: work tree, coordinator, gates, validation records, actors, canon, and planned Codex runtime direction. The broader software-factory model remains draft future direction and does not change the current Phase 4 boundary.
 
 ## Goal
 
@@ -9,7 +14,7 @@ a system where humans define goals, contracts, policies, and review thresholds w
 agents perform structured background work in isolated environments with validation,
 audit, memory, and progressively loosenable authority.
 
-This proposal records industry direction and turns it into a product evolution path for
+This draft ADR records industry direction and turns it into a product evolution path for
 Groundwork. It is not an accepted ADR and does not override the current Phase 4 Codex
 runtime boundary.
 
@@ -299,7 +304,7 @@ Future ADRs and tickets should consider these schema and API additions:
 - Which metrics should govern earned autonomy: validation pass rate, revert rate,
   review findings, scope drift, or sampled review quality?
 
-## Candidate ADRs
+## Candidate Follow-Up ADRs
 
 - Groundwork as a local-first agentic software-factory control plane.
 - SOP blueprints as executable harness definitions.

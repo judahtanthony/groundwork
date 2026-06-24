@@ -1,6 +1,11 @@
-# Proposal 0006: Role-Aware Actors And Local Identity
+# ADR 0048: Role-Aware Actors And Local Identity
 
 Status: Draft
+Implemented: Partial
+
+## Implementation State
+
+Groundwork already has actor ids, actor registry files, roles/capabilities in policy inputs, and the accepted actor identity model. Multi-human local identity, required approval roles, and role-aware web/admin queues remain draft future work.
 
 ## Goal
 
@@ -181,7 +186,7 @@ engine should receive an actor either way.
 - Can one UI session switch actors for testing or role simulation?
 - Should specialized AI agents be separate actors or one actor with selectable profiles?
 
-## Candidate ADRs
+## Candidate Follow-Up ADRs
 
 - Actor id namespace convention.
 - Explicit actor roles and capabilities as policy inputs.

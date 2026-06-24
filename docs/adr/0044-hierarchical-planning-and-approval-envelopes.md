@@ -1,6 +1,11 @@
-# Proposal 0002: Hierarchical Planning And Approval Envelopes
+# ADR 0044: Hierarchical Planning And Approval Envelopes
 
 Status: Draft
+Implemented: Not started
+
+## Implementation State
+
+Approval envelopes are not implemented. Current decomposition and landing approval behavior remains governed by accepted ADRs and policy gates; this draft explores a future way to reduce approval load.
 
 ## Goal
 
@@ -143,7 +148,7 @@ Approval queues should group exception requests under their parent envelope.
 - What is the minimum envelope shape needed for Phase 4 without overbuilding?
 - How should envelope revocation affect active child runs?
 
-## Candidate ADRs
+## Candidate Follow-Up ADRs
 
 - Approval envelopes as a bounded delegation mechanism.
 - Planning horizons for dynamic decomposition.

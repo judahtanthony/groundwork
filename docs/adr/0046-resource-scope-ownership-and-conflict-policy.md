@@ -1,6 +1,11 @@
-# Proposal 0004: Resource Scope, Ownership, And Conflict Policy
+# ADR 0046: Resource Scope, Ownership, And Conflict Policy
 
 Status: Draft
+Implemented: Not started
+
+## Implementation State
+
+Planned resource scope, ownership reservations, and scope-aware scheduling are not implemented. Existing dependency edges, file-based validation templates, and policy matching remain the current mechanisms.
 
 ## Goal
 
@@ -146,7 +151,7 @@ This makes approval explainable instead of a generic "needs human" state.
 - How should generated files and formatting-only changes be classified?
 - Should resource scopes be stored in ticket exports, parent contracts, or both?
 
-## Candidate ADRs
+## Candidate Follow-Up ADRs
 
 - File/resource scope as a first-class node contract.
 - CODEOWNERS-style policy matching for Groundwork.

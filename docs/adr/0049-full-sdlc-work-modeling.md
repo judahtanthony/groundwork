@@ -1,6 +1,11 @@
-# Proposal 0007: Full-SDLC Work Modeling
+# ADR 0049: Full-SDLC Work Modeling
 
 Status: Draft
+Implemented: Partial
+
+## Implementation State
+
+Groundwork already uses generic work nodes, `work_type`, SOPs, policy routing, validation templates, and documentation work through the same tree. A complete SDLC taxonomy, role model, and release/design/review workflows remain draft future work.
 
 ## Goal
 
@@ -119,7 +124,7 @@ management board. Useful views:
 - Should work-type maturity be tracked as policy state or derived from SOP and validation
   history?
 
-## Candidate ADRs
+## Candidate Follow-Up ADRs
 
 - Work type as the SDLC extension point.
 - SOP maturity as an autonomy prerequisite.
