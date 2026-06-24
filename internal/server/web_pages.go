@@ -83,21 +83,3 @@ func (s *Server) pendingCount() int {
 	}
 	return len(pending)
 }
-
-// placeholderTmpl renders a titled empty-state panel. Operator pages ship as live
-// placeholders so the activated nav never 404s; each is replaced by its own ticket
-// (Tickets by T-1063, Approvals by T-1062).
-var placeholderTmpl = newPage("web/placeholder.content.tmpl")
-
-type placeholder struct{ Heading, Message string }
-
-// handleApprovalsPage serves the Approvals screen. Placeholder until T-1062.
-func (s *Server) handleApprovalsPage(w http.ResponseWriter, r *http.Request) {
-	s.renderPage(w, placeholderTmpl, &pageView{
-		Shell: s.shellState(s.pendingCount()),
-		Nav:   navApprovals,
-		Crumb: "Operate",
-		Title: "Approvals",
-		Data:  placeholder{Heading: "Approvals", Message: "The approvals inbox lands with T-1062."},
-	})
-}

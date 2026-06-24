@@ -1,0 +1,30 @@
+{{define "content"}}
+      {{if not .Data.Groups}}
+      <div class="gw-panel">
+        <div class="gw-panel-head"><h3>Approvals</h3></div>
+        <div class="gw-panel-body"><div class="gw-empty">No pending approvals — nothing is waiting on a decision.</div></div>
+      </div>
+      {{else}}
+      {{range .Data.Groups}}
+      <div class="gw-panel">
+        <div class="gw-panel-head">
+          <h3>{{.Risk}} risk</h3>
+          <span class="gw-id">{{len .Items}} pending</span>
+        </div>
+        <div class="gw-panel-body">
+          {{range .Items}}
+          <div class="gw-attn-item">
+            <span class="gw-badge tag"><i class="bdot"></i>{{.Type}}</span>
+            <div class="body">
+              <div class="title">{{.Summary}}</div>
+              <div class="meta">{{.ID}} · {{.GateReason}} · risk {{.RiskClass}}{{if ne .RiskScore "—"}} ({{.RiskScore}}){{end}} · {{.Reversible}}</div>
+              <div class="meta">ticket {{.TicketID}} — {{.TicketTitle}} [{{.TicketStatus}}{{if ne .TicketWorkType "—"}} · {{.TicketWorkType}}{{end}}]</div>
+              <div class="meta">requested by {{.RequestedBy}} · required actors {{.RequiredActors}} · required roles {{.RequiredRoles}} · {{.Created}}</div>
+            </div>
+          </div>
+          {{end}}
+        </div>
+      </div>
+      {{end}}
+      {{end}}
+{{end}}
