@@ -9,9 +9,9 @@ server-rendered v1 dashboard, and [T-0801](../../.groundwork/tickets/T-0801/tick
 shipped its shell (server-rendered Go HTML, full-page reload on SSE events). The web
 UI is expected to become the **primary human interface** for Groundwork and to grow
 well past an operational dashboard: full parity with the CLI ([ADR 0041](0041-human-cli-operating-model.md)),
-genuinely realtime-dynamic updates, and — per the agentic-factory direction in
-[docs/proposals/](../proposals/) — multiple teams, many concurrent agents, remote agent
-runners, and an **embedded coordinator/admin agent** (a conversational, streaming,
+genuinely realtime-dynamic updates, and — as the product scales — multiple teams, many
+concurrent agents, remote agent runners, and an **embedded coordinator/admin agent** (a
+conversational, streaming,
 tool-using surface inside the app).
 
 Those requirements (token-level streaming, agent chat, optimistic editors, high-frequency
@@ -52,7 +52,7 @@ complexity only as requirements demand, and is always shipped embedded in the `g
    (the npm/Vite toolchain is a developer/CI concern only). Self-host fonts/assets so there
    is no network dependency. Release prebuilt binaries; contributors build the frontend via
    a `make` target (or a committed `dist/`). This scales unchanged to remote/multi-team: the
-   same binary binds beyond localhost (with auth added then — see [proposals 0001](../proposals/0001-scalable-human-agent-collaboration.md)/[0006](../proposals/0006-role-aware-actors-and-local-identity.md)).
+   same binary binds beyond localhost (with auth added then).
 
 5. **Binary-size guardrail.** Because the SPA rides inside the binary, the build warns when
    `gw` exceeds **100 MB**, so embedded-asset or dependency inflation is caught early.

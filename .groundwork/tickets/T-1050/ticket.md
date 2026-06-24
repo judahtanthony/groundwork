@@ -13,12 +13,12 @@ labels:
 parent: T-1036
 depends_on: []
 created_at: "2026-06-24T15:37:14Z"
-updated_at: "2026-06-24T15:37:14Z"
+updated_at: "2026-06-24T15:45:59Z"
 ---
 
 ## Problem
 
-Speculative (proposals 0001/0006): authn/z, multi-team identity, non-localhost/remote serving of the same embedded binary. Out of v1 scope; tracked direction.
+Speculative future direction: authn/z, multi-team identity, and non-localhost/remote serving of the same embedded binary. Out of v1 scope; tracked direction.
 
 ## Acceptance Criteria
 

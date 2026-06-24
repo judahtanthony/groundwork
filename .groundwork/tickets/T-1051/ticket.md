@@ -13,12 +13,12 @@ labels:
 parent: T-1036
 depends_on: []
 created_at: "2026-06-24T15:37:14Z"
-updated_at: "2026-06-24T15:37:14Z"
+updated_at: "2026-06-24T15:45:59Z"
 ---
 
 ## Problem
 
-Speculative (proposals 0001/0008): an in-app conversational, streaming, tool-using agent to answer questions, review changes, update SOPs, craft agents — fits the WS-upgraded stream + SPA.
+Speculative future direction: an in-app conversational, streaming, tool-using agent to answer questions, review changes, update SOPs, and craft specialized agents — a natural fit for the WS-upgraded stream + SPA.
 
 ## Acceptance Criteria
 
