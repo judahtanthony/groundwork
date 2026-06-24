@@ -1,6 +1,7 @@
 # ADR 0041: Human-CLI Operating Model And Command Surface
 
 Status: Accepted
+Implemented: Implemented
 
 ## Context
 

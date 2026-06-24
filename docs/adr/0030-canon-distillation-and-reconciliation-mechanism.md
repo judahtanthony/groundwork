@@ -1,6 +1,7 @@
 # ADR 0030: Canon Distillation And Reconciliation Mechanism
 
 Status: Accepted
+Implemented: Partial
 
 ## Context
 

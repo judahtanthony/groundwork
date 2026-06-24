@@ -1,6 +1,7 @@
 # ADR 0018: Embedded, Ordered, Forward-Only SQL Migrations
 
 Status: Accepted
+Implemented: Implemented
 
 ## Context
 

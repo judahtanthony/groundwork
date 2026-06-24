@@ -1,6 +1,7 @@
 # ADR 0006: Human Landing Gate In V1
 
 Status: Accepted
+Implemented: Implemented
 
 > The human landing gate is reclassified as a **transitional default** (loosenable, not a
 > permanent commitment) by ADR 0037.
@@ -16,4 +17,3 @@ Require human approval before landing code to `main` in v1. Model landing as a p
 ## Consequences
 
 V1 is safer while preserving the path to Symphony-style zero-human-code operation.
-

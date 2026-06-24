@@ -1,6 +1,7 @@
 # ADR 0031: Server vs Store-Direct Boundary
 
 Status: Accepted
+Implemented: Partial
 
 ## Context
 

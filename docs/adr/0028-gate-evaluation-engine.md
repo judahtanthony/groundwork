@@ -1,6 +1,11 @@
 # ADR 0028: Gate Evaluation Engine
 
 Status: Accepted
+Implemented: Partial
+
+> Partially superseded by ADR 0038: the current implementation still uses the
+> reversibility short-circuit described here, while the accepted direction is to
+> route irreversibility through policy as a highest-bar condition.
 
 ## Context
 

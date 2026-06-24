@@ -1,6 +1,7 @@
 # ADR 0027: Run Lifecycle And Checkpoint Records
 
 Status: Accepted
+Implemented: Partial
 
 ## Context
 

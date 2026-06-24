@@ -1,6 +1,7 @@
 # ADR 0042: Web UI Architecture — Contract-First API, Embedded Static SPA, Progressive Realtime
 
 Status: Accepted
+Implemented: Partial
 
 ## Context
 
@@ -81,5 +82,6 @@ replaceable behind the contract.
   gains a frontend step.
 - The embedded coordinator/admin agent surface (speculative) has a natural home in a
   streaming-capable SPA over a WebSocket-upgraded stream.
-- Recorded as the web-UI epic in gw; the binary-size guardrail ships first as a standalone,
-  immediately-useful build check.
+- Recorded as the web-UI epic in gw. The binary-size guardrail has shipped as a
+  standalone build check; the embedded SPA and richer realtime surfaces remain future
+  web-UI work.

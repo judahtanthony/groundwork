@@ -1,6 +1,7 @@
 # ADR 0026: Coordinator Concurrency Model
 
 Status: Accepted
+Implemented: Implemented
 
 ## Context
 

@@ -1,6 +1,7 @@
 # ADR 0011: Progressive Planning Autonomy Via SOPs
 
 Status: Accepted
+Implemented: Partial
 
 > Amended by ADR 0038: trust elevation becomes a first-class gated action
 > (`amend_policy` / `elevate_autonomy`) rather than a human-only act — human-required by

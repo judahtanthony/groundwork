@@ -1,6 +1,7 @@
 # ADR 0036: Work As A Universal Substrate; Software As The Seed Domain
 
 Status: Accepted
+Implemented: Not applicable
 
 ## Context
 
@@ -48,8 +49,7 @@ This ADR is directional, not implementational. It changes no code, policy, or sc
 
 ADR 0037 operationalizes this by separating transitional defaults from true invariants;
 ADR 0038 begins removing the structural human wirings (reversibility floor, elevation
-carve-out) so authority can move along the gradient. The **value/prioritization layer
-(Layer 1) has no substrate today** (scheduling is FIFO-by-id; `priority`/`risk_score` are
-inert display fields); this ADR names that gap as acknowledged future direction and
-**defers** a dedicated value/prioritization ADR to a later phase. `vision.md` is updated
-to point here for the long-term goal.
+carve-out) so authority can move along the gradient. ADR 0039 later added the first
+value/prioritization substrate (hierarchical sibling-scoped priority); the broader
+multi-signal prioritization and automated judgment layers remain future direction.
+`vision.md` is updated to point here for the long-term goal.

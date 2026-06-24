@@ -1,6 +1,7 @@
 # ADR 0007: Runtime State Is Not Committed By Default
 
 Status: Accepted
+Implemented: Implemented
 
 ## Context
 
@@ -13,4 +14,3 @@ Ignore runtime state by default. Commit durable docs, workflow, policies, ticket
 ## Consequences
 
 Repositories stay cleaner and safer. Groundwork must export enough durable application state and recover stable operation after crashes.
-

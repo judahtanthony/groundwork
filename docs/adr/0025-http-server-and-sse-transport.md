@@ -1,6 +1,7 @@
 # ADR 0025: HTTP Server And SSE Transport
 
 Status: Accepted
+Implemented: Partial
 
 ## Context
 
@@ -27,7 +28,9 @@ The module already targets Go 1.26, so this is available.
   `internal/cli/app.go`); the two surfaces share one envelope.
 - **SSE over `GET /api/v1/events`** uses plain `http.Flusher` — `Content-Type:
   text/event-stream`, `id:`/`event:`/`data:` frames, periodic heartbeat comments
-  to keep the connection live, and a `Last-Event-ID` cursor so reconnects resume.
+  to keep the connection live, and `id:` frames compatible with a future replay
+  buffer. `Last-Event-ID` is accepted in v1 but not replayed because the hub keeps
+  no event history.
   WebSocket is not used (`dashboard.md`). The event source is the in-process hub
   defined in [ADR 0026](0026-coordinator-concurrency-model.md).
 - **Handlers are thin.** HTTP handlers decode the request, call a
@@ -43,8 +46,9 @@ server-vs-store-direct boundary (which CLI commands require a running server) is
 ## Consequences
 
 `internal/server` is added to the architecture map. No new runtime dependency is
-introduced. The SSE contract (heartbeat + `Last-Event-ID` resume) is what lets
-the dashboard reconnect cleanly; the dashboard HTML itself is deferred past M2
-(see `docs/plan/phase-2-tickets.md`). Policy-learning suggestion endpoints
-(`/api/v1/policies/suggestions/*`) remain unimplemented stubs returning empty
-sets in v1, consistent with the roadmap deferring policy learning.
+introduced. The SSE contract (heartbeat + monotonic event ids) lets the dashboard
+maintain a live connection today and leaves a replay-buffer seam for later
+`Last-Event-ID` resume. The server-rendered dashboard shell shipped after M2 as
+the interim operational UI. Policy-learning suggestion endpoints
+(`/api/v1/policies/suggestions/*`) remain future work, consistent with the roadmap
+deferring policy learning.

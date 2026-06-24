@@ -1,6 +1,7 @@
 # ADR 0022: Phase 1 Status Model Is Store-Validated; Gate Transitions Deferred
 
 Status: Accepted
+Implemented: Implemented
 
 ## Context
 

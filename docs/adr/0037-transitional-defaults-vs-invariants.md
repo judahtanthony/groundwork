@@ -1,6 +1,7 @@
 # ADR 0037: Transitional Defaults Versus Architectural Invariants
 
 Status: Accepted
+Implemented: Not applicable
 
 ## Context
 

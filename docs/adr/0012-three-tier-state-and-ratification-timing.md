@@ -1,6 +1,7 @@
 # ADR 0012: Three-Tier State And Ratification Timing
 
 Status: Accepted
+Implemented: Partial
 
 ## Context
 

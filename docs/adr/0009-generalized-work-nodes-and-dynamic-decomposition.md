@@ -1,6 +1,7 @@
 # ADR 0009: Generalized Work Nodes And Dynamic Decomposition
 
 Status: Accepted
+Implemented: Implemented
 
 ## Context
 

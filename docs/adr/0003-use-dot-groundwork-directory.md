@@ -1,6 +1,7 @@
 # ADR 0003: Use `.groundwork/`
 
 Status: Accepted
+Implemented: Implemented
 
 ## Context
 
@@ -13,4 +14,3 @@ Use `.groundwork/` as the managed-project dot directory.
 ## Consequences
 
 Adoption is low-friction and repo-local. Existing `AGENTS.md`, `.codex/`, or other agent files remain separate.
-

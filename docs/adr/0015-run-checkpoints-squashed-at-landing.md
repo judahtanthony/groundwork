@@ -1,6 +1,7 @@
 # ADR 0015: Run Checkpoints Squashed At Landing
 
 Status: Accepted
+Implemented: Partial
 
 ## Context
 

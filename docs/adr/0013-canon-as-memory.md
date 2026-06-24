@@ -1,6 +1,7 @@
 # ADR 0013: Canon As Memory
 
 Status: Accepted
+Implemented: Partial
 
 ## Context
 

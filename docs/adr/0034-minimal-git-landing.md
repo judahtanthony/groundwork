@@ -1,6 +1,7 @@
 # ADR 0034: Minimal Git-Landing — Groundwork Owns the Landing Commit
 
 Status: Accepted
+Implemented: Implemented
 
 ## Context
 

@@ -1,6 +1,7 @@
 # ADR 0016: Build The CLI On Stdlib `flag` With A Minimal Subcommand Router
 
 Status: Accepted
+Implemented: Implemented
 
 ## Context
 

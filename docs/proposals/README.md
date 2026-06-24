@@ -11,6 +11,17 @@ All documents in this directory are **Draft** unless their header says otherwise
 draft proposal records direction, goals, tradeoffs, and candidate low-level design. It
 does not override existing ADRs, contracts, or project instructions.
 
+When migrating a proposal into `docs/adr/`, preserve that non-binding status unless the
+decision has actually been reviewed:
+
+```text
+Status: Pending Review
+Implemented: Not started
+```
+
+Set `Implemented` to `Partial`, `Implemented`, or `Not applicable` only when the ADR
+body names the concrete current behavior or explains why no implementation is expected.
+
 ## Proposal Set
 
 Read in this order:
@@ -29,7 +40,8 @@ Read in this order:
 For each proposal:
 
 1. Check whether it conflicts with accepted ADRs or contracts.
-2. Split durable decisions into one or more ADRs.
+2. Split durable decisions into one or more ADRs, initially `Status: Pending Review`
+   unless review acceptance is part of the same work.
 3. Update the relevant architecture and contract docs.
 4. Create Groundwork tickets small enough to validate independently.
 5. Keep implementation behind policy gates until validation, risk, and review behavior

@@ -1,6 +1,7 @@
 # ADR 0029: Actor Identity Model
 
 Status: Accepted
+Implemented: Implemented
 
 ## Context
 

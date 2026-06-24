@@ -1,6 +1,7 @@
 # ADR 0033: Human-Performed Execution via Manual Status Transitions in M3
 
 Status: Accepted
+Implemented: Implemented
 
 ## Context
 

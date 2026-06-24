@@ -1,6 +1,7 @@
 # ADR 0038: Authority As A Uniform Loosenable Gate
 
 Status: Accepted
+Implemented: Not started
 
 Amends ADR 0011 (Progressive Planning Autonomy Via SOPs) and ADR 0014 (Reversibility As A
 Gate Input).

@@ -1,6 +1,7 @@
 # ADR 0024: Dependency Satisfaction And Rollup Terminality
 
 Status: Accepted
+Implemented: Implemented
 
 ## Context
 
@@ -41,6 +42,6 @@ delivered?", so the two predicates differ by design.
 
 `ticket.DependencyMet` is the single satisfaction rule; `ComputeRollup` is
 terminal-aware. A `cancelled` node still blocks its dependents until a human
-re-plans — intended conservative behavior in v1, and the seam where Phase 2's
-escalation/re-plan flow will surface and resolve such nodes automatically. The
+re-plans — intended conservative behavior in v1, and the seam where the
+coordinator's escalation/re-plan flow surfaces and resolves such nodes. The
 status enum is unchanged.

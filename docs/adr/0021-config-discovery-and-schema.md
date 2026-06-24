@@ -1,6 +1,7 @@
 # ADR 0021: Config Discovery And `config.yaml` Schema
 
 Status: Accepted
+Implemented: Implemented
 
 ## Context
 

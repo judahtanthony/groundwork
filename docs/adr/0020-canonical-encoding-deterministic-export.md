@@ -1,6 +1,7 @@
 # ADR 0020: Canonical Value Encoding And Deterministic Export
 
 Status: Accepted
+Implemented: Implemented
 
 ## Context
 

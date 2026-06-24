@@ -10,6 +10,26 @@
 - Put UI/visual design reference in `docs/design/` (reference only, not app code).
 - Keep `docs/reference/` concise and easy for agents to query.
 
+## ADRs
+
+- ADR headers include both decision lifecycle and implementation state:
+
+  ```text
+  Status: Pending Review | Accepted | Rejected | Superseded
+  Implemented: Not started | Partial | Implemented | Not applicable
+  ```
+
+- `Status` answers whether the decision is binding. `Pending Review` means the ADR is
+  proposed canon and must not override accepted ADRs, contracts, or project instructions
+  until accepted.
+- `Implemented` answers what is true of the system today. It is independent of
+  `Status`: an accepted ADR may be `Not started`, and a migrated proposal may describe
+  behavior that is already `Partial` or `Implemented`.
+- Use `Not applicable` for framing or direction ADRs that intentionally change no code,
+  policy, schema, or contract.
+- When `Implemented` is `Partial` or `Implemented`, include concrete references in the
+  ADR body or consequences: package names, docs, tickets, commits, or phase notes.
+
 ## Planning
 
 - The gw work tree is the planning source of truth (ADR 0040); evolve the plan through `gw`, not static files. See `.groundwork/WORKFLOW.md` for the loop.

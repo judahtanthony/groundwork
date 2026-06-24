@@ -1,6 +1,7 @@
 # ADR 0014: Reversibility As A Gate Input
 
 Status: Accepted
+Implemented: Partial
 
 > Amended by ADR 0038: reversibility stops being a pre-policy *floor* and becomes a
 > highest-bar gate condition routed through the rule engine. Reversibility is still always

@@ -1,6 +1,7 @@
 # ADR 0032: Bootstrap Work-Tree Import via Authored Markdown Exports
 
 Status: Accepted
+Implemented: Implemented
 
 ## Context
 

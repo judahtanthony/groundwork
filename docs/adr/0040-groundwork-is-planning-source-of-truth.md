@@ -1,6 +1,7 @@
 # ADR 0040: Groundwork Is The Planning Source Of Truth
 
 Status: Accepted
+Implemented: Implemented
 
 ## Context
 

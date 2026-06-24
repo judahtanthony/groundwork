@@ -1,6 +1,7 @@
 # ADR 0023: Actors, Work Types, And Policy Routing
 
 Status: Accepted
+Implemented: Implemented
 
 ## Context
 
@@ -45,4 +46,3 @@ The actor **identity** model here is intentionally minimal and **provisional**. 
 - **Tiered identity.** Identity may become a hierarchical, dotted namespace where any prefix is matchable: `human` → `human.frontend` → `human.frontend.judahtanthony`, or `agent` → `agent.backend-go` → `agent.backend-go.instance-a3fe35`. A policy can start coarse ("a `human` must approve") and tighten to a specific tier ("only `human.director.judahtanthony` may create new credit cards"). The tier depth a rule matches at is the fungibility boundary. Identity tiers (who / authority / grouping) stay **separate from capabilities** (what tools / work types an actor has): capabilities are a set, not a path.
 
 Until Phase 2 ratifies this, treat `type` as the coarsest tier, actor `id` as a free-form (already dot-segmented) string, and `requested_actor` / `assignee` as forward-compatible placeholders for the class request and the resolved instance. Nothing in v1 is hard-bound to the flat scheme except the `type`-enum validation, which can be relaxed when the tiered model is adopted.
-

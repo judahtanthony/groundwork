@@ -1,6 +1,7 @@
 # ADR 0017: Use The Pure-Go `modernc.org/sqlite` Driver
 
 Status: Accepted
+Implemented: Implemented
 
 ## Context
 

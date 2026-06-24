@@ -1,6 +1,7 @@
 # ADR 0039: Value/Prioritization v1 — Hierarchical Sibling-Scoped Priority
 
 Status: Accepted
+Implemented: Implemented
 
 First concrete slice of the value/prioritization layer ([ADR 0036](0036-work-as-universal-substrate.md) Layer 1).
 

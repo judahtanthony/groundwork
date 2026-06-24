@@ -1,6 +1,7 @@
 # ADR 0002: Use SQLite As Operational Store
 
 Status: Accepted
+Implemented: Implemented
 
 ## Context
 
@@ -13,4 +14,3 @@ Use `.groundwork/state.sqlite` as the local operational store during runtime. Ig
 ## Consequences
 
 Active coordination is simpler and transactional. Recovery must reconcile SQLite, durable exports, worktrees, and run logs.
-

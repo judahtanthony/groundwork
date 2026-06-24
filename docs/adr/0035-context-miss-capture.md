@@ -1,6 +1,7 @@
 # ADR 0035: Context-Miss Capture for the Dogfooding Feedback Loop
 
 Status: Accepted
+Implemented: Implemented
 
 ## Context
 
