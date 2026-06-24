@@ -7,13 +7,14 @@ title: Implement ticket board and detail pages
 status: todo
 assignee: null
 requested_actor: null
-priority: null
+priority: 0.72
 labels: []
-parent: E-0009
+parent: T-1036
 depends_on:
     - T-0801
+    - T-1040
 created_at: "2026-06-22T12:20:48Z"
-updated_at: "2026-06-22T15:06:06Z"
+updated_at: "2026-06-24T15:37:49Z"
 ---
 
 ## Problem

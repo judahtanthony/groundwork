@@ -4,7 +4,7 @@ kind: epic
 node_type: composite
 work_type: null
 title: Implement local dashboard and SSE
-status: in_progress
+status: done
 assignee: null
 requested_actor: null
 priority: 0.9
@@ -12,7 +12,7 @@ labels: []
 parent: G-0001
 depends_on: []
 created_at: "2026-06-22T12:20:48Z"
-updated_at: "2026-06-22T12:52:38Z"
+updated_at: "2026-06-24T15:37:49Z"
 ---
 
 ## Problem
