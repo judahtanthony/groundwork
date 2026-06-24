@@ -7,18 +7,18 @@ title: 'Web UI: full-featured, realtime, CLI parity'
 status: todo
 assignee: null
 requested_actor: null
-priority: 0.7
+priority: 0.88
 labels:
     - web-ui
-parent: G-0001
+parent: T-1060
 depends_on: []
 created_at: "2026-06-24T15:37:14Z"
-updated_at: "2026-06-24T15:37:14Z"
+updated_at: "2026-06-24T22:30:25Z"
 ---
 
 ## Problem
 
-Grow the web UI into the primary human interface at full parity with the CLI (ADR 0041), realtime-dynamic, top quality, per ADR 0042: contract-first JSON API + event stream (SSE now, WS-capable), a static-built SPA embedded in the gw binary via go:embed (single-binary, local-first preserved), progressive realtime (reload -> in-place fragment updates), all mutations routed through the same gates as the CLI. Sequenced below E-0006 (the Codex runtime is the active focus); the current server-rendered dashboard is the documented interim. Screen map from docs/architecture/dashboard.md.
+Web UI work for Phase 4 and beyond. The urgent Phase 4 slice is operator unblock: ticket visibility, ready/blocked queues, approvals inbox, approval decisions, and land preview. The broader ADR 0042 embedded SPA/design-system/realtime/full CLI-parity work remains here but must not block the urgent operator slice.
 
 ## Acceptance Criteria
 

@@ -7,19 +7,19 @@ title: Implement durable async handoff and decision routing
 status: backlog
 assignee: null
 requested_actor: null
-priority: 0.5
+priority: 0.6
 labels:
-    - phase-4
+    - phase-6
     - async-agents
-parent: G-0001
+parent: T-1071
 depends_on: []
 created_at: "2026-06-24T17:43:12Z"
-updated_at: "2026-06-24T17:43:12Z"
+updated_at: "2026-06-24T22:30:34Z"
 ---
 
 ## Problem
 
-Implement the architecture accepted in ADR 0051 and ADR 0052: ticket-attached durable decision records, rebuildable live queues, blocked-run handoff/resume packets, and consequential decisions as policy-routed work nodes.
+Phase 6 runtime/backend execution substrate. Implement ADR 0051/0052 plus ADR 0053: ticket-attached durable decision records, rebuildable live queues, blocked-run handoff/resume packets, consequential decisions as work nodes, and file-authoritative durable ticket state. This is needed before autonomous background agents can safely stop on blockers and resume later.
 
 ## Acceptance Criteria
 

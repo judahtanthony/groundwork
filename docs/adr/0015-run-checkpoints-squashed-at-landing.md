@@ -5,7 +5,7 @@ Implemented: Partial
 
 > Implemented today: checkpoint and squash events can be recorded on runs. Not
 > implemented: real WIP git checkpoint commits, resume from checkpoint refs, and
-> squash of a run branch into landing; those remain Phase 4 runtime work.
+> squash of a run branch into landing; those remain Phase 6 runtime work.
 
 ## Context
 

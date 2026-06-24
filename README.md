@@ -8,9 +8,10 @@ Phase 1 (CLI & Store) and Phase 2 (Coordinator) are implemented and committed: t
 CLI, the pure-Go SQLite store, `gw server` (localhost HTTP API + SSE), the dependency-
 and actor-aware scheduler, run records, the trust/risk/reversibility gate engine,
 approvals, decomposition and escalation/re-plan flows, the validation + landing gate,
-canon journal + ratification hooks, and recovery/import. The Codex runtime is a
-records-only stub pending Phase 4. Phases 1–3 are complete; Phase 4 (Codex runtime)
-is next. See [docs/product/roadmap.md](docs/product/roadmap.md).
+canon journal + ratification hooks, and recovery/import. Phases 1–3 are complete.
+Phase 4 is the operator UI, Phase 5 is bounded autonomy and bulk review, and
+Phase 6 replaces the records-only runtime stub with durable handoff and the real
+Codex runtime. See [docs/product/roadmap.md](docs/product/roadmap.md).
 
 ## What Groundwork Is
 
@@ -22,10 +23,14 @@ is next. See [docs/product/roadmap.md](docs/product/roadmap.md).
 - Storage model: SQLite is the local operational store during runtime.
 - Durability model: committed docs, workflow, policies, ticket exports, and code are durable project state; SQLite, worktrees, run transcripts, raw logs, generated views, and approval inbox projections are ignored by default.
 - Server model: localhost-only and single-user in v1.
-- UI model: Go server-rendered HTML with minimal JavaScript in v1; optional TypeScript frontend later only if needed.
+- UI model: localhost operator web UI in v1; start with the minimum ticket/approval
+  surfaces needed to unblock the human, then grow toward the embedded static SPA
+  described in ADR 0042.
 - Work model: a uniform tree of nodes (kind is advisory; structure is leaf vs composite, decided by triage at claim time), with a dependency-edge DAG overlay.
 - Decomposition: composite nodes decompose just-in-time into children as a reviewable proposal; revisions propagate upward via escalation.
-- Autonomy model: landing and decomposition are human-gated in v1 but modeled as policy gates that loosen as SOPs, context, and validation mature.
+- Autonomy model: landing and decomposition are human-gated by default; Phase 5
+  adds bounded approval envelopes and bulk review before Phase 6 background
+  runtime execution.
 
 ## Why It Exists
 
@@ -89,4 +94,3 @@ Start here:
 6. The live plan in Groundwork: run `gw ticket tree` (the work tree is the planning source of truth, [ADR 0040](docs/adr/0040-groundwork-is-planning-source-of-truth.md)); see [.groundwork/WORKFLOW.md](.groundwork/WORKFLOW.md).
 
 Work against the committed docs and ADRs; do not infer missing design from chat history. Record refinements as ADRs and keep the reference docs current.
-

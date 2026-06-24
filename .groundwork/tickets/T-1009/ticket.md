@@ -7,17 +7,17 @@ title: Authority as a uniform loosenable gate (ADR 0038)
 status: backlog
 assignee: null
 requested_actor: null
-priority: 0.3
+priority: 0.7
 labels: []
-parent: G-0001
+parent: T-1066
 depends_on: []
 created_at: "2026-06-21T20:08:43Z"
-updated_at: "2026-06-21T22:35:55Z"
+updated_at: "2026-06-24T22:32:58Z"
 ---
 
 ## Problem
 
-Implement ADR 0038: model reversibility and authority-elevation as ordinary gated actions so the human requirement is a policy default, not code structure. Phase 5 / autonomy. Default config preserves today's behavior.
+Phase 5 authority-gate work. Implement ADR 0038 as part of bounded autonomy: reversibility and authority elevation are ordinary policy-gated actions, and human requirements are loosenable defaults only through explicit policy/envelope decisions. This reduces manual approval overhead without depending on Phase 6 runtime bring-up.
 
 ## Acceptance Criteria
 

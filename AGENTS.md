@@ -2,7 +2,10 @@
 
 **Phases 1–3 are complete and committed** — M1 (CLI & store), M2 (coordinator), and M3
 (self-host low-risk work). The committed docs and ADRs remain the source of truth for
-design; code is written against them. **Phase 4 (Codex Runtime, M4)** is next.
+design; code is written against them. **Phase 4** is next: operator UI for
+ticket/approval visibility, ready/blocked work, approval decisions, and landing
+preview. Phase 5 is bounded autonomy and bulk review; Phase 6 is durable async
+handoff + filesystem-authoritative ticket state and the real Codex runtime.
 
 ## Required Reading
 
@@ -17,11 +20,15 @@ For deeper context, read the matching architecture, contract, or ADR file before
 
 ## Current Boundary
 
-Phase 4 (M4, Codex runtime) is next: replace the records-only run stub with the real
+Phase 4 is next: make the operator web UI useful enough to see tickets, ready/blocked
+work, approval requests, approval decisions, and landing previews. Phase 5 follows with
+bounded autonomy and bulk review so approval envelopes and summarized evidence reduce
+manual approval overhead even before unattended background execution. Phase 6 then
+implements durable async handoff, filesystem-authoritative ticket state, and the real
 Codex adapter — agent execution in isolated worktrees, run-event streaming and
-transcripts, and real git checkpoints/squash/resume — then run the first Codex-assisted
-ticket (T-1003) through Groundwork. Build against the committed contracts and
-architecture docs; where a contract must change, record an ADR rather than diverging
+transcripts, and real git checkpoints/squash/resume — then runs the first
+Codex-assisted ticket (T-1003) through Groundwork. Build against the committed contracts
+and architecture docs; where a contract must change, record an ADR rather than diverging
 silently.
 
 What already exists (build on it, do not rebuild):
@@ -41,12 +48,17 @@ What already exists (build on it, do not rebuild):
 
 Still out of bounds until their phase begins:
 
-- **Autonomy elevation** — earned/auto loosening of gated actions (Phase 5). Gates stay
-  human-required in v1; never self-elevate.
-- **Generated frontend assets** — `docs/design/` holds the web-surface visual reference
-  (the Claude Design wireframe handoff) and the decomposition UI spec. It is reference
-  only; the M2 dashboard surface is API/SSE only. Do not turn the prototypes into
-  generated frontend assets until web-surface work is explicitly started.
+- **Broad autonomy elevation beyond approved envelopes** — Phase 5 may reduce manual
+  approval overhead through envelopes, reviewer checks, and bulk review. Gates stay
+  human-required until explicitly loosened through policy and approved envelopes; never
+  self-elevate.
+- **Durable handoff and real Codex execution** — Phase 6 work. Phase 4 operator UI and
+  Phase 5 bulk-review work should not require the real runtime to exist.
+- **Full SPA polish and future admin-agent surfaces** — `docs/design/` holds the
+  web-surface visual reference (the Claude Design wireframe handoff) and the
+  decomposition UI spec. Phase 4 may build the minimum operator UI needed for
+  tickets, approvals, and landing preview; richer SPA polish follows the web-surface
+  tickets and ADR 0042.
 - **Multi-human roles / authentication / remote mode** (post-v1).
 
 Phase 1 decisions are recorded in ADRs 0016–0022 (CLI framework, SQLite driver,
@@ -93,4 +105,3 @@ and [ADR 0038](docs/adr/0038-authority-as-loosenable-gate.md)):
 Groundwork manages its own work tree: it is the planning source of truth (ADR 0040). The bootstrap `work-tree.yaml` and the static phase-by-phase breakdowns have been imported and retired (see git history); the live plan is the managed ticket exports under `.groundwork/tickets/`. Inspect and evolve it through `gw` (`gw ticket tree`, `gw ticket create`, `gw ticket context`, …) per `.groundwork/WORKFLOW.md`. Keep tickets small enough to validate independently.
 
 Create ADRs for any new major decisions and update the condensed reference docs so future sessions can quickly understand the system.
-

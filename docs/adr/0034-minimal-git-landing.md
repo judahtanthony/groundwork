@@ -56,7 +56,7 @@ auto-staging everything unattended could sweep in unrelated work. This default i
 function of isolation, not a fixed value: when Phase 4 runs a ticket in its own
 worktree, the sandbox holds only that ticket's work, so the non-interactive default
 flips to add-all — which is precisely the seam progressive autonomy plugs into. The
-M3 shared-tree path takes the safe default; the Phase 4 worktree runtime owns the
+M3 shared-tree path takes the safe default; the Phase 6 worktree runtime owns the
 add-all-by-default behavior, justified by isolation rather than hardcoded here.
 
 The capability is deliberately minimal — **stage + commit on the current branch

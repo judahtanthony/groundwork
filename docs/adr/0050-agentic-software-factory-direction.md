@@ -5,7 +5,7 @@ Implemented: Partial
 
 ## Implementation State
 
-Groundwork already has the local-first control-plane foundation: work tree, coordinator, gates, validation records, actors, canon, and planned Codex runtime direction. The broader software-factory model remains draft future direction and does not change the current Phase 4 boundary.
+Groundwork already has the local-first control-plane foundation: work tree, coordinator, gates, validation records, actors, canon, and planned Codex runtime direction. The broader software-factory model remains draft future direction and does not change the active Phase 4 operator-UI boundary or the Phase 5 bounded-autonomy boundary before Phase 6 runtime work.
 
 ## Goal
 
@@ -15,8 +15,8 @@ agents perform structured background work in isolated environments with validati
 audit, memory, and progressively loosenable authority.
 
 This draft ADR records industry direction and turns it into a product evolution path for
-Groundwork. It is not an accepted ADR and does not override the current Phase 4 Codex
-runtime boundary.
+Groundwork. It is not an accepted ADR and does not override the current Phase 4
+operator-UI boundary, Phase 5 bounded-autonomy work, or Phase 6 Codex runtime boundary.
 
 ## Industry Direction
 
@@ -311,4 +311,3 @@ Future ADRs and tickets should consider these schema and API additions:
 - Runtime backends as interchangeable execution environments.
 - Reviewer agents and sampling before autonomous landing.
 - Background triggers as governed work intake.
-

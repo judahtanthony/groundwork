@@ -7,19 +7,19 @@ title: Bootstrap embedded static SPA (Vite) served by gw server via go:embed
 status: backlog
 assignee: null
 requested_actor: null
-priority: 0.8
+priority: 0.58
 labels:
     - web-ui
 parent: T-1036
 depends_on:
     - T-1037
 created_at: "2026-06-24T15:37:14Z"
-updated_at: "2026-06-24T15:37:14Z"
+updated_at: "2026-06-24T22:23:28Z"
 ---
 
 ## Problem
 
-Stand up a lean static-built SPA (React or Svelte + Vite) under web/, build to web/dist, embed via go:embed, serve same-origin from gw server (index at /, hashed assets at /assets, SPA fallback to index.html; API stays /api/v1). No runtime Node. Make target for the frontend build; decide committed-dist vs release-binary source-build (ADR 0042).
+Full embedded static SPA bootstrap for ADR 0042. Deferred behind the urgent operator-unblock slice (T-1061) unless the executor determines the SPA shell is the smallest practical way to deliver that slice. No runtime Node for users; static assets remain embedded in the gw binary.
 
 ## Acceptance Criteria
 

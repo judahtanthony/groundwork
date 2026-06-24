@@ -3,7 +3,8 @@
 Groundwork manages its own work: the work tree is the planning source of truth
 (ADR 0040). Low-risk documentation changes are taken through Groundwork itself — as
 the system of record and the gate keeper — with human landing approval. Agent
-execution is human-performed in M3; the Codex runtime is Phase 4.
+execution is human-performed in M3; the Codex runtime is now Phase 6 after the
+Phase 4 operator UI and Phase 5 bounded-autonomy/bulk-review work.
 
 This runbook is the concrete procedure. For the work-type conventions see
 `.groundwork/sops/documentation/SOP.md`; for the decisions behind it see ADRs

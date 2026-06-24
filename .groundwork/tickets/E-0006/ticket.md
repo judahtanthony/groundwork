@@ -7,17 +7,17 @@ title: Implement Codex runtime adapter
 status: in_progress
 assignee: null
 requested_actor: null
-priority: 0.8
+priority: 0.58
 labels: []
-parent: G-0001
+parent: T-1071
 depends_on: []
 created_at: "2026-06-21T22:33:34Z"
-updated_at: "2026-06-21T22:35:55Z"
+updated_at: "2026-06-24T22:30:25Z"
 ---
 
 ## Problem
 
-_No description recorded._
+Codex runtime work for Phase 6. Replace the records-only stub with the real Codex adapter, isolated worktrees, event streaming, transcripts/artifacts, checkpoints, and squash landing. Sequenced after operator UI and bounded autonomy/bulk-review planning because those reduce approval overhead even for manual human-driven sessions.
 
 ## Acceptance Criteria
 

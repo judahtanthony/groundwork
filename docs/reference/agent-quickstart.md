@@ -1,7 +1,11 @@
 # Agent Quickstart
 
-You are working in the Groundwork repository. **Phases 1 (CLI & Store) and 2
-(Coordinator) are implemented and committed.** Phase 3 (self-hosting) is next.
+You are working in the Groundwork repository. **Phases 1 (CLI & Store), 2
+(Coordinator), and 3 (self-host low-risk work) are implemented and committed.**
+Phase 4 is next: the operator UI for ticket visibility, ready/blocked work,
+approval decisions, and landing preview. Phase 5 follows with bounded autonomy
+and bulk review for manual and agent-directed work; durable async handoff and the
+real Codex runtime move to Phase 6.
 
 ## Read First
 
@@ -19,9 +23,13 @@ You are working in the Groundwork repository. **Phases 1 (CLI & Store) and 2
 - `internal/{server,client,scheduler,eventbus,run,runtime,policy,risk,approval,sop,
   canon}` — the M2 coordinator: `gw server` (HTTP API + SSE), scheduler, run records,
   gate engine, approvals, decompose/escalate, validation + landing gate, canon journal,
-  recovery, import. ADRs 0051/0052 now specify the Phase 4+ durable async handoff model:
+  recovery, import. ADRs 0051/0052 now specify the Phase 6 durable async handoff model:
   ticket sidecar decision records are authoritative for rebuildable blockers, and
   consequential decisions are normal routed work nodes.
+- `internal/git` plus the committed `.groundwork/tickets/` exports — M3
+  self-hosting: Groundwork manages its own work tree, low-risk work is
+  human-performed via manual transitions, and landing is a real coordinator-made
+  git commit.
 
 ## Build & Verify
 
@@ -32,10 +40,14 @@ You are working in the Groundwork repository. **Phases 1 (CLI & Store) and 2
 
 ## Out Of Bounds (see AGENTS.md)
 
-- Codex runtime / real worktrees / real checkpoints (Phase 4) — M2 uses a records-only
-  runtime stub.
-- Autonomy elevation (Phase 5) — gates stay human-required in v1.
-- Generated frontend assets — `docs/design/` is reference only; M2 is API/SSE only.
+- Durable async handoff and real Codex worktree execution are Phase 6; Phase 4
+  should not depend on them.
+- Broad autonomy elevation beyond approved envelopes — Phase 5 may reduce manual
+  approval overhead through envelopes, reviewer checks, and bulk review, but
+  never self-elevate.
+- Full SPA polish and future admin-agent surfaces — Phase 4 may build the
+  minimum operator UI needed for tickets, approvals, and land preview, but rich
+  admin/chat surfaces remain out of scope.
 - Multi-human roles / auth / remote mode (post-v1).
 
 ## Essential Decisions
@@ -45,9 +57,10 @@ You are working in the Groundwork repository. **Phases 1 (CLI & Store) and 2
   workflow, policies, ticket exports, ticket sidecar decision records, and code.
 - Durable state is filesystem-authoritative; SQLite is a rebuildable projection plus
   ephemeral runtime coordination store (ADR 0053).
-- v1 server: localhost-only, single-user. v1 runtime target: Codex first (Phase 4).
-- v1 landing and decomposition: human approval required, modeled as policy gates that
-  loosen via SOPs/context/validation (Phase 5).
+- v1 server: localhost-only, single-user. v1 runtime target: Codex first in Phase 6.
+- v1 landing and decomposition: human approval required by default, modeled as
+  policy gates that loosen only through explicit revised Phase 5 envelope/policy
+  work.
 - Work hierarchy: uniform node tree; `kind` advisory, structure is leaf vs composite by
   triage; dependency-edge DAG overlay. A leaf is one verifiable change.
 

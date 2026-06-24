@@ -62,7 +62,7 @@ gate (ADR 0028): policy auto-approves and lands immediately, otherwise it return
 `{"override": true}` lands immediately, bypassing both the approval and validation
 gates with an audited override. These were added in M2; the changed-file set that
 selects template-required checks and enables docs auto-approval of landing is
-supplied by the Phase 4 runtime.
+supplied by the Phase 6 runtime.
 
 Actor endpoints expose the current local actor registry from `.groundwork/actors.yaml`. Runs expose actor ids and snapshots through the run endpoints; snapshots are runtime audit records, not edits to the actor registry.
 

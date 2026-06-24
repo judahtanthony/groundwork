@@ -5,7 +5,7 @@ Implemented: Not started
 
 ## Implementation State
 
-Parent-owned integration targets and child-to-parent branch landing are not implemented. Current landing is the minimal coordinator commit path described by accepted ADRs; Phase 4 worktree/runtime work is separate.
+Parent-owned integration targets and child-to-parent branch landing are not implemented. Current landing is the minimal coordinator commit path described by accepted ADRs; Phase 6 worktree/runtime work is separate.
 
 ## Goal
 
@@ -148,4 +148,3 @@ For each root, the web admin should show:
 - Parent integration branches for root and composite nodes.
 - Child result refs as distinct from run checkpoints.
 - Root landing as final feature-level review.
-

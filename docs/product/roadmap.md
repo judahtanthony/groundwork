@@ -19,25 +19,105 @@ proposals, escalation/re-plan routing, approval records with actor and
 reversibility gating composed through the gate engine, validation templates +
 results + the landing gate, canon journal + ratification hooks, startup
 reconciliation, and cold-start import are implemented. The Codex runtime is
-modeled by a records-only stub; real agent execution is Phase 4. Decisions are
+modeled by a records-only stub; real agent execution is Phase 6. Decisions are
 recorded in ADRs 0025–0031.
 
 ## Phase 3: Self-Host Low-Risk Work
 
 Import the bootstrap work tree into Groundwork. Use Groundwork for docs, policies, and low-risk CLI/store tickets. Keep human landing approval. Implemented; decisions are recorded in ADRs 0032–0035.
 
-## Phase 4: Codex Runtime
+## Superseded Phase 4: Codex Runtime
 
-Add the Codex runtime adapter, isolated worktrees, run event streaming, transcripts, pause/resume, and tactical approval requests.
+This was the original post-M3 plan: add the Codex runtime adapter, isolated
+worktrees, run event streaming, transcripts, pause/resume, and tactical approval
+requests.
 
-## Phase 5: Autonomy Path
+**Status: superseded before implementation.** The Codex runtime remains required,
+but recent planning showed that the human approval bottleneck should be reduced
+first. The runtime work moves to Phase 6, after the operator UI and bounded
+autonomy / bulk-review model are in place.
 
-Add stronger validation templates, risk scoring, policy learning suggestions, and progressively autonomous `execute`, `decompose`, review, and landing for explicitly permitted low-risk work as work-type SOPs and context mature.
+## Superseded Phase 5: Autonomy Path
 
-## Phase 2 Product Features Beyond V1
+This was the original autonomy plan: add stronger validation templates, risk
+scoring, policy learning suggestions, and progressively autonomous `execute`,
+`decompose`, review, and landing for explicitly permitted low-risk work as
+work-type SOPs and context mature.
+
+**Status: superseded before implementation.** The direction remains valid, but it
+is now framed as bounded parent/root delegation, role-specific agents, durable
+handoffs, reviewer-agent checks, and bulk human review rather than generic
+autonomy loosening.
+
+## Phase 4: Operator UI
+
+Make Groundwork useful as the human operator surface before adding more
+background execution machinery.
+
+- Build the minimum operator web UI needed now: ticket visibility, ready/blocked
+  queues, approval inbox, approve/reject/clarify actions, and landing diff
+  preview. This is the urgent slice of the broader web UI plan in ADR 0042; full
+  SPA polish can follow later.
+- Keep every mutation routed through the existing coordinator APIs and gates; the
+  UI is an operator client, not a policy bypass.
+- Defer durable async handoff, file-authoritative state, and the real Codex
+  runtime to Phase 6.
+
+The live execution plan is represented by the Phase 4 tickets in Groundwork,
+especially `T-1060`, `T-1036`, and the operator-unblock slice under `T-1061`.
+
+## Phase 5: Bounded Autonomy And Bulk Review
+
+Reduce approval overhead by moving human review to approved parent/root
+boundaries and exception points while preserving auditability, validation,
+default-deny authorization, and human control of high-risk authority changes.
+This phase deliberately comes before the real Codex runtime because the same
+model helps even while work is manually directed through Claude Code: the human
+can approve an envelope, review summarized evidence, and avoid approving every
+tactical step.
+
+- Add role-specific agents: planner, coding, and reviewer actors.
+- Add approved envelopes for parent/root work: allowed actions, work types,
+  actors, file/resource scopes, validation requirements, risk ceilings, and
+  exception triggers.
+- Add manual-mode bulk-review flow: child summaries, diffs, validation evidence,
+  reviewer findings, unresolved exceptions, and a final parent/root review
+  bundle.
+- Loosen `allow_claim` only where the execution substrate exists; before Phase 6,
+  envelopes and reviewer-agent checks reduce human overhead without implying
+  unattended background execution.
+- Keep root/main landing, policy changes, autonomy elevation, irreversible
+  actions, failed validation, and unexpected scope expansion human-gated in v1.
+
+The live execution plan is represented by the revised Phase 5 tickets in
+Groundwork and the draft direction ADRs 0043-0050, promoted only as specific
+contracts become implementation-ready.
+
+## Phase 6: Durable Handoff And Codex Runtime
+
+Add the runtime/backend execution substrate after the operator UI and bounded
+review model have reduced manual approval overhead.
+
+- Implement durable async handoff (ADR 0051) and filesystem-authoritative durable
+  state (ADR 0053): ticket-attached decision records, rebuildable live queues,
+  blocked-run handoff summaries, resume packets, and recovery-needed records for
+  missing durable context.
+- Replace the records-only runtime stub with the Codex adapter: isolated
+  worktrees, actor-configured launch, event streaming to SQLite/SSE/JSONL,
+  transcripts/artifacts, checkpoint commits, and squash at landing.
+- Use Groundwork for the first Codex-assisted implementation ticket (`T-1003`)
+  once the runtime can safely prepare work and hand off blockers.
+
+The live execution plan is represented by `T-1071`, with `T-1052` for durable
+handoff/state and `E-0006` for the Codex runtime.
+
+## Phase 7+ Product Features Beyond V1
+
+These remain future work after the revised v1 Phase 4-6 path.
 
 - Chat approval adapter.
-- Reviewer-agent approval.
+- Full embedded SPA polish beyond the operator-unblock slice.
+- Reviewer-agent approval beyond bounded reviewer checks.
 - Policy learning installation flow.
 - Earned and revocable autonomy from per-work-type outcome tracking (track record plus a circuit-breaker that demotes a class after bad outcomes).
 - Budget gates (per-ticket and per-day token/cost ceilings that pause runs).

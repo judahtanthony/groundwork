@@ -73,7 +73,7 @@ approver), and landing (validation gate). The coordinator consults the engine
 live for landing: `POST /tickets/:id/land` opens a `land_to_main` approval via
 `Request`/`Evaluate`, so a node lands only by policy auto-approval or an approved
 human gate. In M2 the changed-file `Scope` for `execute`/`land_to_main` is empty
-(it arrives with the Phase 4 runtime's diff), so risk-scored auto-approval of
+(it arrives with the Phase 6 runtime's diff), so risk-scored auto-approval of
 landing — including documentation auto-approval — is degenerate until then and
 landing is effectively human-gated; the engine path is wired and exercised so
 Phase 4 only supplies the diff. Autonomy levels (`policies.md`) select the

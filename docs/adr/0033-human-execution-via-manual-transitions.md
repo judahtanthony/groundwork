@@ -6,7 +6,7 @@ Implemented: Implemented
 ## Context
 
 M3 makes Groundwork manage its own low-risk docs/CLI work, but agent **execution is
-human-performed** — the Codex runtime is Phase 4. The M2 coordinator already has the
+human-performed** — the Codex runtime is now Phase 6. The M2 coordinator already has the
 scheduler, transactional claim, leases, run records, and a `runtime.Interface` whose
 only M3 implementation is the records-only `Stub`, which emits synthetic lifecycle
 events and writes nothing ([ADR 0027](0027-run-lifecycle-and-checkpoint-records.md)).
