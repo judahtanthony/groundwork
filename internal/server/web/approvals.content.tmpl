@@ -20,6 +20,18 @@
               <div class="meta">{{.ID}} · {{.GateReason}} · risk {{.RiskClass}}{{if ne .RiskScore "—"}} ({{.RiskScore}}){{end}} · {{.Reversible}}</div>
               <div class="meta">ticket {{.TicketID}} — {{.TicketTitle}} [{{.TicketStatus}}{{if ne .TicketWorkType "—"}} · {{.TicketWorkType}}{{end}}]</div>
               <div class="meta">requested by {{.RequestedBy}} · required actors {{.RequiredActors}} · required roles {{.RequiredRoles}} · {{.Created}}</div>
+              {{if .Landing}}
+              <details class="gw-preview">
+                <summary>Preview landing diff</summary>
+                {{if not $.Data.Preview.RepoAvailable}}
+                <div class="gw-empty">Preview unavailable — the project root is not a git work tree.</div>
+                {{else if $.Data.Preview.Staged}}
+                <pre class="gw-diff">{{$.Data.Preview.Diff}}</pre>
+                {{else}}
+                <div class="gw-empty">Nothing staged for this landing. Stage files (git add …) or land with --all.</div>
+                {{end}}
+              </details>
+              {{end}}
               <form class="gw-actions" method="post" action="/approvals/{{.ID}}/decide">
                 <input type="text" name="reason" placeholder="reason (for reject / clarify)" autocomplete="off">
                 <button type="submit" name="decision" value="approve" class="gw-btn ok">Approve</button>

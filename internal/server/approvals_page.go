@@ -18,12 +18,14 @@ import (
 var approvalsTmpl = newPage("web/approvals.content.tmpl")
 
 // approvalItem is one pending approval rendered with its full decision context.
+// Landing is true for land_to_main gates, which get the inline diff preview.
 type approvalItem struct {
 	ID, Type, Summary                                      string
 	RiskClass, RiskScore, Reversible                       string
 	RequestedBy, RequiredActors, RequiredRoles, GateReason string
 	TicketID, TicketTitle, TicketStatus, TicketWorkType    string
 	Created                                                string
+	Landing                                                bool
 }
 
 // approvalGroup buckets pending approvals under one risk class.
@@ -32,9 +34,19 @@ type approvalGroup struct {
 	Items []approvalItem
 }
 
+// landPreviewView is the staged change set shown inline for landing approvals, so
+// a human can inspect the diff before deciding (T-1065). The staged index is
+// repo-global, so one preview serves every landing item on the page.
+type landPreviewView struct {
+	RepoAvailable bool
+	Staged        bool
+	Diff          string
+}
+
 type approvalsData struct {
-	Groups []approvalGroup
-	Total  int
+	Groups  []approvalGroup
+	Total   int
+	Preview landPreviewView
 }
 
 // riskOrder ranks risk classes most-severe first for the grouped inbox.
@@ -108,11 +120,14 @@ func (s *Server) buildApprovals() (*approvalsData, error) {
 	}
 
 	grouped := map[string][]approvalItem{}
+	hasLanding := false
 	for _, a := range pending {
 		risk := a.RiskClass
 		if risk == "" {
 			risk = "unclassified"
 		}
+		landing := approval.Type(a.Type) == approval.TypeLandToMain
+		hasLanding = hasLanding || landing
 		grouped[risk] = append(grouped[risk], approvalItem{
 			ID: a.ID, Type: a.Type, Summary: orDash(a.Summary),
 			RiskClass: risk, RiskScore: intPtrStr(a.RiskScore), Reversible: boolPtrStr(a.Reversible),
@@ -125,10 +140,19 @@ func (s *Server) buildApprovals() (*approvalsData, error) {
 			TicketStatus:   orDash(statuses[a.TicketID]),
 			TicketWorkType: orDash(workTypes[a.TicketID]),
 			Created:        relTime(a.CreatedAt),
+			Landing:        landing,
 		})
 	}
 
 	d := &approvalsData{Total: len(pending)}
+	// Compute the staged diff once for any landing approvals on the page (T-1065).
+	if hasLanding && s.repo != nil {
+		d.Preview.RepoAvailable = true
+		if staged, diff, err := s.stagedPreview(); err == nil {
+			d.Preview.Staged = staged
+			d.Preview.Diff = diff
+		}
+	}
 	// Known risk classes in severity order, then any others (e.g. unclassified).
 	emitted := map[string]bool{}
 	for _, risk := range riskOrder {

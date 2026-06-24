@@ -197,6 +197,17 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .gw-btn.ok { background: var(--gw-ok-bg); border-color: var(--gw-ok-bd); color: var(--gw-ok); }
 .gw-btn.bad { background: var(--gw-bad-bg); border-color: var(--gw-bad-bd); color: var(--gw-bad); }
 
+/* ---- landing diff preview ---- */
+.gw-preview { margin-top: 10px; }
+.gw-preview summary { cursor: pointer; font-size: 12px; font-weight: 600; color: var(--gw-accent); }
+.gw-diff {
+  margin: 8px 0 0; max-height: 360px; overflow: auto;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; line-height: 1.45;
+  background: var(--gw-shell); color: #E6E3DC;
+  border: 1px solid var(--gw-shell-border); border-radius: 8px; padding: 12px 14px;
+  white-space: pre;
+}
+
 /* ---- responsive ---- */
 @media (max-width: 880px) {
   .gw-app { grid-template-columns: 1fr; }

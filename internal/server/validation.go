@@ -89,21 +89,24 @@ func (s *Server) handleTicketLandPreview(w http.ResponseWriter, r *http.Request)
 		writeError(w, http.StatusBadRequest, "not_a_repo", "preview requires a git repository")
 		return
 	}
-	staged, err := s.repo.HasStagedChanges()
+	staged, diff, err := s.stagedPreview()
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "git_error", err.Error())
 		return
 	}
-	if !staged {
-		writeJSON(w, http.StatusOK, map[string]any{"id": id, "staged": false, "diff": ""})
-		return
+	writeJSON(w, http.StatusOK, map[string]any{"id": id, "staged": staged, "diff": diff})
+}
+
+// stagedPreview returns the git index's staged change set: the same read behind
+// `gw ticket land --preview`, shared by the land-preview API (T-1073) and the
+// operator inbox's inline preview (T-1065). Callers must hold a non-nil s.repo.
+func (s *Server) stagedPreview() (staged bool, diff string, err error) {
+	staged, err = s.repo.HasStagedChanges()
+	if err != nil || !staged {
+		return false, "", err
 	}
-	diff, err := s.repo.StagedDiff()
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, "git_error", err.Error())
-		return
-	}
-	writeJSON(w, http.StatusOK, map[string]any{"id": id, "staged": true, "diff": diff})
+	diff, err = s.repo.StagedDiff()
+	return staged, diff, err
 }
 
 func (s *Server) handleTicketLand(w http.ResponseWriter, r *http.Request) {

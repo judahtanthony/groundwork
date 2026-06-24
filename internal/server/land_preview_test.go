@@ -62,6 +62,24 @@ func TestLandPreviewNothingStaged(t *testing.T) {
 	}
 }
 
+// A land_to_main approval renders the staged diff inline in the inbox so the
+// human can inspect the landing before deciding (T-1065).
+func TestApprovalsInboxInlineLandPreview(t *testing.T) {
+	srv, db, root := newGitServer(t)
+	pendingApproval(t, db) // a pending land_to_main approval
+	if err := os.WriteFile(filepath.Join(root, "CHANGES.md"), []byte("diff me please\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	runGit(t, root, "add", "CHANGES.md")
+
+	body := getHTML(t, srv, "/approvals").Body.String()
+	for _, want := range []string{"Preview landing diff", `class="gw-diff"`, "CHANGES.md", "diff me please"} {
+		if !strings.Contains(body, want) {
+			t.Errorf("inbox land preview missing %q", want)
+		}
+	}
+}
+
 // An unknown ticket id is a 404 through the store-error mapping.
 func TestLandPreviewUnknownTicket(t *testing.T) {
 	srv, _, _ := newGitServer(t)
