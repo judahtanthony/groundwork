@@ -10,10 +10,10 @@ requested_actor: null
 priority: 0.88
 labels:
     - web-ui
-parent: T-1060
+parent: T-1074
 depends_on: []
 created_at: "2026-06-24T15:37:14Z"
-updated_at: "2026-06-24T22:30:25Z"
+updated_at: "2026-06-25T01:24:34Z"
 ---
 
 ## Problem

@@ -1,20 +1,21 @@
 ---
 id: T-1063
 kind: ticket
-node_type: null
+node_type: leaf
 work_type: technical_implementation
 title: 'Operator UI: tickets, ready, and blocked views'
-status: todo
-assignee: null
+status: done
+assignee: human.owner
 requested_actor: null
-priority: 0.9
+priority: 0.93
 labels:
     - web-ui
     - operator-unblock
 parent: T-1061
-depends_on: []
+depends_on:
+    - T-1072
 created_at: "2026-06-24T22:22:35Z"
-updated_at: "2026-06-24T22:22:35Z"
+updated_at: "2026-06-24T23:21:23Z"
 ---
 
 ## Problem
