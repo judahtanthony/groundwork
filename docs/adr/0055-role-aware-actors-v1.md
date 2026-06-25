@@ -1,6 +1,6 @@
 # ADR 0055: Role-Aware Actors v1 — Planner, Coding, Reviewer
 
-Status: Pending Review
+Status: Accepted
 Implemented: Partial
 
 Refines [ADR 0048](0048-role-aware-actors-and-local-identity.md) into the minimal v1 role

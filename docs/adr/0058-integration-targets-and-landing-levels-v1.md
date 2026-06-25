@@ -1,6 +1,6 @@
 # ADR 0058: Integration Targets And Landing Levels v1
 
-Status: Pending Review
+Status: Accepted
 Implemented: Partial
 
 Concretizes the git branching model of [ADR 0045](0045-node-branching-and-parent-integration.md)

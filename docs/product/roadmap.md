@@ -93,7 +93,7 @@ The live execution plan is represented by the revised Phase 5 tickets in
 Groundwork. The exploratory direction lives in draft ADRs 0043-0050; the
 implementation-ready v1 contracts are ADRs 0054-0058 (approval envelopes,
 role-aware actors, envelope-aware claim authorization, bulk review bundles, and
-integration targets / landing levels), pending review.
+integration targets / landing levels).
 
 ## Phase 6: Durable Handoff And Codex Runtime
 

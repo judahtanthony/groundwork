@@ -1,6 +1,6 @@
 # ADR 0054: Approval Envelopes v1
 
-Status: Pending Review
+Status: Accepted
 Implemented: Not started
 
 Refines the exploration in [ADR 0044](0044-hierarchical-planning-and-approval-envelopes.md)

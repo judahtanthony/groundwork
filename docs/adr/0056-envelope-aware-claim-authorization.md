@@ -1,6 +1,6 @@
 # ADR 0056: Envelope-Aware Claim Authorization
 
-Status: Pending Review
+Status: Accepted
 Implemented: Not started
 
 Composes [ADR 0028](0028-gate-evaluation-engine.md) (gate engine),

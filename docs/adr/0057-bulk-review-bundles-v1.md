@@ -1,6 +1,6 @@
 # ADR 0057: Bulk Review Bundles v1
 
-Status: Pending Review
+Status: Accepted
 Implemented: Not started
 
 Refines [ADR 0047](0047-hierarchical-memory-and-context-compression.md) (completion
