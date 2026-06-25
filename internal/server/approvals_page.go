@@ -8,6 +8,7 @@ package server
 
 import (
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 
@@ -47,6 +48,7 @@ type approvalsData struct {
 	Groups  []approvalGroup
 	Total   int
 	Preview landPreviewView
+	Error   string // operator-facing banner, e.g. a decision that could not be applied
 }
 
 // riskOrder ranks risk classes most-severe first for the grouped inbox.
@@ -58,6 +60,7 @@ func (s *Server) handleApprovalsPage(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "approvals_failed", err.Error())
 		return
 	}
+	data.Error = r.URL.Query().Get("error")
 	s.renderPage(w, approvalsTmpl, &pageView{
 		Shell: s.shellState(data.Total),
 		Nav:   navApprovals,
@@ -82,7 +85,11 @@ func (s *Server) handleApprovalDecideForm(w http.ResponseWriter, r *http.Request
 		writeError(w, http.StatusBadRequest, "bad_decision", "decision must be approve, reject, or clarify")
 		return
 	}
-	if _, ok := s.applyDecision(w, r.PathValue("id"), to, r.PostFormValue("reason")); !ok {
+	// A decision that cannot be applied (e.g. the node is not yet in review) is an
+	// operator-facing condition, not an API error: redirect back to the inbox with
+	// the message so it renders as a banner rather than a raw JSON envelope.
+	if _, err := s.recordDecision(r.PathValue("id"), to, r.PostFormValue("reason")); err != nil {
+		http.Redirect(w, r, "/approvals?error="+url.QueryEscape(err.Error()), http.StatusSeeOther)
 		return
 	}
 	http.Redirect(w, r, "/approvals", http.StatusSeeOther)

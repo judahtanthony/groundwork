@@ -66,6 +66,35 @@ func TestApprovalDecideRejectRedirects(t *testing.T) {
 	}
 }
 
+// A decision that cannot be applied (the node is not yet review/approved)
+// redirects back to the inbox with the message as a banner, not a raw JSON error.
+func TestApprovalDecideErrorShowsBanner(t *testing.T) {
+	srv, db := newTestServer(t)
+	id := pendingApproval(t, db) // land_to_main on an in_progress (not review) node
+
+	rr := postForm(t, srv, "/approvals/"+id+"/decide", url.Values{"decision": {"approve"}})
+	if rr.Code != http.StatusSeeOther {
+		t.Fatalf("decide = %d, want 303", rr.Code)
+	}
+	loc := rr.Header().Get("Location")
+	if !strings.HasPrefix(loc, "/approvals?error=") {
+		t.Fatalf("redirect Location = %q, want /approvals?error=...", loc)
+	}
+	// The redirect target renders the message as a banner.
+	body := getHTML(t, srv, loc).Body.String()
+	if !strings.Contains(body, "gw-banner") || !strings.Contains(body, "review or approved") {
+		t.Errorf("error banner not rendered on %q", loc)
+	}
+	// The approval is untouched (still pending), not falsely decided.
+	a, err := db.GetApproval(id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if a.Status != string(approval.StatusPending) {
+		t.Errorf("approval status = %q, want pending", a.Status)
+	}
+}
+
 // An unknown decision value is rejected before touching the service.
 func TestApprovalDecideRejectsBadDecision(t *testing.T) {
 	srv, db := newTestServer(t)

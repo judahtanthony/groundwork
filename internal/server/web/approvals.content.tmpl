@@ -1,4 +1,7 @@
 {{define "content"}}
+      {{if .Data.Error}}
+      <div class="gw-banner bad">{{.Data.Error}}</div>
+      {{end}}
       {{if not .Data.Groups}}
       <div class="gw-panel">
         <div class="gw-panel-head"><h3>Approvals</h3></div>

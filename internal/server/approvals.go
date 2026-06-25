@@ -2,6 +2,7 @@ package server
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 
@@ -43,30 +44,50 @@ func (s *Server) handleApprovalClarify(w http.ResponseWriter, r *http.Request) {
 	s.decideApproval(w, r, approval.StatusClarifying)
 }
 
+// errApprovalsUnavailable is returned when the approval service is not configured.
+var errApprovalsUnavailable = errors.New("approval service is not configured")
+
+// landCommitError marks a landing whose store transition succeeded but whose git
+// commit failed: the node is recorded done but uncommitted, and re-running the
+// land finishes the commit idempotently (ADR 0034). Its message names the
+// recovery command for both the JSON envelope and the operator-UI banner.
+type landCommitError struct {
+	id  string
+	err error
+}
+
+func (e *landCommitError) Error() string {
+	return fmt.Sprintf("%s is recorded landed but the git commit failed: %v; resolve the git "+
+		"issue and run \"gw ticket land %s\" to finish the commit", e.id, e.err, e.id)
+}
+
+func (e *landCommitError) Unwrap() error { return e.err }
+
 // decideApproval records a decision via the approval service (JSON API path).
 func (s *Server) decideApproval(w http.ResponseWriter, r *http.Request, to approval.Status) {
 	var body struct {
 		Reason string `json:"reason"`
 	}
 	_ = json.NewDecoder(r.Body).Decode(&body)
-	if a, ok := s.applyDecision(w, r.PathValue("id"), to, body.Reason); ok {
-		writeJSON(w, http.StatusOK, a)
+	a, err := s.recordDecision(r.PathValue("id"), to, body.Reason)
+	if err != nil {
+		s.writeDecisionError(w, err)
+		return
 	}
+	writeJSON(w, http.StatusOK, a)
 }
 
-// applyDecision records an approval decision through the ApprovalService and runs
+// recordDecision records an approval decision through the ApprovalService and runs
 // the gate's side effects, shared by the JSON API and the operator UI form so
-// neither bypasses policy or self-approves (ADR 0028). On failure it writes an
-// error response and returns ok=false; the caller writes the success response.
-func (s *Server) applyDecision(w http.ResponseWriter, id string, to approval.Status, reason string) (*sqlite.Approval, bool) {
+// neither bypasses policy or self-approves (ADR 0028). It does not write to a
+// ResponseWriter; callers map the returned error to their own response surface.
+func (s *Server) recordDecision(id string, to approval.Status, reason string) (*sqlite.Approval, error) {
 	if s.approvals == nil {
-		writeError(w, http.StatusServiceUnavailable, "approvals_unavailable", "approval service is not configured")
-		return nil, false
+		return nil, errApprovalsUnavailable
 	}
 	a, err := s.approvals.Decide(id, to, ownerActor, reason)
 	if err != nil {
-		s.writeMutationError(w, err)
-		return nil, false
+		return nil, err
 	}
 	// Accepting a decomposition ratifies the parent contract into canon
 	// (ADR 0013/0030); record the ratification gate in the node's journal.
@@ -76,11 +97,26 @@ func (s *Server) applyDecision(w http.ResponseWriter, id string, to approval.Sta
 	// Approving a land_to_main gate performs the land in Decide; complete it with
 	// the durable git commit so the node is committed, not just recorded (ADR 0034).
 	if to == approval.StatusApproved && approval.Type(a.Type) == approval.TypeLandToMain {
-		if !s.completeLanding(w, a.TicketID, "node landed (human-approved)") {
-			return nil, false
+		if err := s.finishLanding(a.TicketID, "node landed (human-approved)"); err != nil {
+			return nil, &landCommitError{id: a.TicketID, err: err}
 		}
 	}
-	return a, true
+	return a, nil
+}
+
+// writeDecisionError maps a decision error to the JSON envelope: an unconfigured
+// service is 503; everything else flows through the store-error mapping (e.g.
+// ErrNotApproved -> 409).
+func (s *Server) writeDecisionError(w http.ResponseWriter, err error) {
+	var lce *landCommitError
+	switch {
+	case errors.Is(err, errApprovalsUnavailable):
+		writeError(w, http.StatusServiceUnavailable, "approvals_unavailable", err.Error())
+	case errors.As(err, &lce):
+		writeError(w, http.StatusInternalServerError, "land_commit_failed", lce.Error())
+	default:
+		s.writeMutationError(w, err)
+	}
 }
 
 // handleTicketDecompose records a decomposition proposal: children in backlog +

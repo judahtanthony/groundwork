@@ -197,6 +197,10 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 .gw-btn.ok { background: var(--gw-ok-bg); border-color: var(--gw-ok-bd); color: var(--gw-ok); }
 .gw-btn.bad { background: var(--gw-bad-bg); border-color: var(--gw-bad-bd); color: var(--gw-bad); }
 
+/* ---- inline banner ---- */
+.gw-banner { border-radius: 8px; padding: 11px 14px; margin-bottom: 16px; font-size: 13px; border: 1px solid var(--gw-border); }
+.gw-banner.bad { background: var(--gw-bad-bg); border-color: var(--gw-bad-bd); color: var(--gw-bad); }
+
 /* ---- landing diff preview ---- */
 .gw-preview { margin-top: 10px; }
 .gw-preview summary { cursor: pointer; font-size: 12px; font-weight: 600; color: var(--gw-accent); }
