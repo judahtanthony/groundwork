@@ -4,7 +4,7 @@ kind: epic
 node_type: composite
 work_type: technical_design
 title: Operator UI unblock slice
-status: review
+status: done
 assignee: null
 requested_actor: null
 priority: 0.95
@@ -14,7 +14,7 @@ labels:
 parent: T-1060
 depends_on: []
 created_at: "2026-06-24T22:22:21Z"
-updated_at: "2026-06-25T01:24:34Z"
+updated_at: "2026-06-25T01:55:36Z"
 ---
 
 ## Problem
