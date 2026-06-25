@@ -90,8 +90,10 @@ tactical step.
   actions, failed validation, and unexpected scope expansion human-gated in v1.
 
 The live execution plan is represented by the revised Phase 5 tickets in
-Groundwork and the draft direction ADRs 0043-0050, promoted only as specific
-contracts become implementation-ready.
+Groundwork. The exploratory direction lives in draft ADRs 0043-0050; the
+implementation-ready v1 contracts are ADRs 0054-0058 (approval envelopes,
+role-aware actors, envelope-aware claim authorization, bulk review bundles, and
+integration targets / landing levels), pending review.
 
 ## Phase 6: Durable Handoff And Codex Runtime
 

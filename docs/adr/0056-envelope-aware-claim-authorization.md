@@ -6,8 +6,9 @@ Implemented: Not started
 Composes [ADR 0028](0028-gate-evaluation-engine.md) (gate engine),
 [ADR 0038](0038-authority-as-loosenable-gate.md) (authority as loosenable policy),
 [ADR 0054](0054-approval-envelopes-v1.md) (envelopes), [ADR 0055](0055-role-aware-actors-v1.md)
-(roles), and [ADR 0046](0046-resource-scope-ownership-and-conflict-policy.md) (scope). This
-is the rule that turns an approved envelope into actual bounded autonomy.
+(roles), [ADR 0046](0046-resource-scope-ownership-and-conflict-policy.md) (scope), and
+[ADR 0058](0058-integration-targets-and-landing-levels-v1.md) (`land_to_parent` git
+mechanics). This is the rule that turns an approved envelope into actual bounded autonomy.
 
 ## Context
 

@@ -8,7 +8,9 @@ into a concrete, minimal v1 contract for Phase 5. Composes with
 [ADR 0028](0028-gate-evaluation-engine.md) (gates), [ADR 0038](0038-authority-as-loosenable-gate.md)
 (authority as policy), [ADR 0040](0040-groundwork-is-planning-source-of-truth.md) /
 [ADR 0053](0053-filesystem-authoritative-durable-state.md) (file-authoritative state),
-and [ADR 0046](0046-resource-scope-ownership-and-conflict-policy.md) (scope).
+[ADR 0046](0046-resource-scope-ownership-and-conflict-policy.md) (scope), and
+[ADR 0058](0058-integration-targets-and-landing-levels-v1.md) (integration target / git
+landing mechanics).
 
 ## Context
 

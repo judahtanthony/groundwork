@@ -20,7 +20,8 @@ result refs.
 
 Add a **review bundle**: a deterministic, read-only assembly over a composite/root
 subtree, presented for the human's feature-level decision (the root `land_to_main`
-approval, which stays human-gated in v1).
+approval, which stays human-gated in v1 and merges the root integration branch to `main`
+per [ADR 0058](0058-integration-targets-and-landing-levels-v1.md)).
 
 ### Bundle contents
 
