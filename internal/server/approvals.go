@@ -193,10 +193,18 @@ func (s *ApprovalService) Request(p RequestParams) (*sqlite.Approval, error) {
 	d := s.policies.Evaluate(p.Action)
 	score, reversible := d.RiskScore, d.Reversible
 
+	// The required approver role is taken from the explicit request, else from the
+	// role the firing require_human rule demanded (ADR 0055), so the approval is
+	// honest about which role was required and why.
+	requiredRoles := p.RequiredRoles
+	if len(requiredRoles) == 0 {
+		requiredRoles = d.RequiredRoles
+	}
+
 	params := sqlite.CreateApprovalParams{
 		RunID: p.RunID, TicketID: p.TicketID, Type: p.Type, RiskClass: string(d.RiskClass),
 		RiskScore: &score, Reversible: &reversible, Summary: p.Summary, ActionJSON: p.ActionJSON,
-		RequestedByActor: actorID(p.Action.Actor), RequiredActors: p.RequiredActors, RequiredRoles: p.RequiredRoles,
+		RequestedByActor: actorID(p.Action.Actor), RequiredActors: p.RequiredActors, RequiredRoles: requiredRoles,
 	}
 	if d.Outcome == policy.OutcomeAutoApprove {
 		params.Status = approval.StatusApproved

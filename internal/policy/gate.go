@@ -39,6 +39,10 @@ type Decision struct {
 	RiskScore  int
 	Reversible bool
 	Reasons    []string
+	// RequiredRoles is the approver role(s) the firing require_human rule demands
+	// (ADR 0055). Empty when no rule named one; the approval records it so the
+	// gate decision is explainable and ready for multi-human identity.
+	RequiredRoles []string
 }
 
 // classify computes the risk score, class, and reversibility for an action. An
@@ -72,6 +76,7 @@ func (s *Set) Evaluate(a Action) Decision {
 		if r := firstMatch(s.Trust.RequireHuman, a, class, reversible); r != nil {
 			d.Outcome = OutcomeRequireHuman
 			d.RuleID = r.ID
+			d.RequiredRoles = r.RequireRoles
 			return d
 		}
 		// 3. auto_approve.

@@ -45,6 +45,38 @@ func TestEvaluateRequireHumanBeatsAutoApprove(t *testing.T) {
 	}
 }
 
+func TestEvaluateRequireHumanCarriesRequiredRoles(t *testing.T) {
+	set := &Set{Trust: &TrustPolicy{
+		RequireHuman: []Rule{{
+			ID: "land-needs-staff", When: Match{ActionTypes: []string{"land_to_main"}},
+			RequireRoles: []string{"staff_engineer"},
+		}},
+	}}
+	d := set.Evaluate(Action{Type: "land_to_main", Scope: risk.Scope{Files: []string{"README.md"}}})
+	if d.Outcome != OutcomeRequireHuman || d.RuleID != "land-needs-staff" {
+		t.Fatalf("outcome=%v rule=%q, want require_human/land-needs-staff", d.Outcome, d.RuleID)
+	}
+	if len(d.RequiredRoles) != 1 || d.RequiredRoles[0] != "staff_engineer" {
+		t.Errorf("required roles = %v, want [staff_engineer]", d.RequiredRoles)
+	}
+}
+
+// Role is a live policy input: a role-scoped rule matches only actors that hold
+// the role (ADR 0055).
+func TestEvaluateRoleScopedRuleMatchesByRole(t *testing.T) {
+	set := &Set{Trust: &TrustPolicy{
+		RequireHuman: []Rule{{ID: "coding-gate", When: Match{Roles: []string{"coding"}}}},
+	}}
+	coder := &actor.Actor{ID: "ai.coding.codex", Type: actor.TypeAIAgent, Roles: []string{"coding"}}
+	planner := &actor.Actor{ID: "ai.planner.codex", Type: actor.TypeAIAgent, Roles: []string{"planner"}}
+	if d := set.Evaluate(Action{Type: "execute", Actor: coder, Scope: risk.Scope{Files: []string{"README.md"}}}); d.RuleID != "coding-gate" {
+		t.Errorf("coding actor: rule=%q, want coding-gate", d.RuleID)
+	}
+	if d := set.Evaluate(Action{Type: "execute", Actor: planner, Scope: risk.Scope{Files: []string{"README.md"}}}); d.RuleID == "coding-gate" {
+		t.Errorf("planner actor matched coding-only rule")
+	}
+}
+
 func TestEvaluateAutoApproveDocs(t *testing.T) {
 	set := &Set{Trust: &TrustPolicy{AutoApprove: []Rule{{
 		ID:   "internal_docs",

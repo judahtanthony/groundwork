@@ -4,8 +4,8 @@ kind: ticket
 node_type: leaf
 work_type: technical_implementation
 title: Define planner, coding, and reviewer AI actors
-status: todo
-assignee: null
+status: done
+assignee: human.owner
 requested_actor: null
 priority: 0.61
 labels:
@@ -14,7 +14,7 @@ labels:
 parent: T-1066
 depends_on: []
 created_at: "2026-06-24T22:23:00Z"
-updated_at: "2026-06-25T20:24:08Z"
+updated_at: "2026-06-25T20:46:56Z"
 ---
 
 ## Problem
