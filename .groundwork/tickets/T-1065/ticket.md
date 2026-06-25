@@ -1,21 +1,22 @@
 ---
 id: T-1065
 kind: ticket
-node_type: null
+node_type: leaf
 work_type: technical_implementation
 title: 'Operator UI: land preview'
-status: backlog
-assignee: null
+status: done
+assignee: human.owner
 requested_actor: null
-priority: 0.82
+priority: 0.89
 labels:
     - web-ui
     - operator-unblock
 parent: T-1061
 depends_on:
     - T-1062
+    - T-1073
 created_at: "2026-06-24T22:22:35Z"
-updated_at: "2026-06-24T22:22:35Z"
+updated_at: "2026-06-24T23:32:14Z"
 ---
 
 ## Problem

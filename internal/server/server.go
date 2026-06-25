@@ -64,6 +64,9 @@ func New(db *sqlite.DB, proj *config.Project, version string) *Server {
 func (s *Server) routes() {
 	s.mux.HandleFunc("GET /healthz", s.handleHealth)
 	s.mux.HandleFunc("GET /{$}", s.handleDashboard)
+	s.mux.HandleFunc("GET /tickets", s.handleTicketsPage)
+	s.mux.HandleFunc("GET /approvals", s.handleApprovalsPage)
+	s.mux.HandleFunc("POST /approvals/{id}/decide", s.handleApprovalDecideForm)
 	s.mux.HandleFunc("GET /static/groundwork.css", s.handleDashboardCSS)
 	s.mux.HandleFunc("GET /api/v1/state", s.handleState)
 	s.mux.HandleFunc("GET /api/v1/tickets", s.handleTicketList)
@@ -90,6 +93,7 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("POST /api/v1/tickets/{id}/escalate", s.handleTicketEscalate)
 	s.mux.HandleFunc("GET /api/v1/tickets/{id}/validations", s.handleTicketValidations)
 	s.mux.HandleFunc("POST /api/v1/tickets/{id}/validations", s.handleRecordValidation)
+	s.mux.HandleFunc("GET /api/v1/tickets/{id}/land/preview", s.handleTicketLandPreview)
 	s.mux.HandleFunc("POST /api/v1/tickets/{id}/land", s.handleTicketLand)
 	s.mux.HandleFunc("GET /api/v1/approvals", s.handleApprovalList)
 	s.mux.HandleFunc("GET /api/v1/approvals/{id}", s.handleApprovalGet)

@@ -4,7 +4,7 @@ kind: epic
 node_type: composite
 work_type: null
 title: Implement recovery and export/import
-status: in_progress
+status: done
 assignee: null
 requested_actor: null
 priority: null
@@ -12,7 +12,7 @@ labels: []
 parent: G-0001
 depends_on: []
 created_at: ""
-updated_at: ""
+updated_at: "2026-06-25T01:24:46Z"
 ---
 
 ## Problem

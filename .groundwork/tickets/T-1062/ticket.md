@@ -1,13 +1,13 @@
 ---
 id: T-1062
 kind: ticket
-node_type: null
+node_type: leaf
 work_type: technical_implementation
 title: 'Operator UI: approvals inbox'
-status: backlog
-assignee: null
+status: done
+assignee: human.owner
 requested_actor: null
-priority: 0.86
+priority: 0.92
 labels:
     - web-ui
     - operator-unblock
@@ -15,7 +15,7 @@ parent: T-1061
 depends_on:
     - T-1063
 created_at: "2026-06-24T22:22:35Z"
-updated_at: "2026-06-24T22:22:35Z"
+updated_at: "2026-06-24T23:23:53Z"
 ---
 
 ## Problem

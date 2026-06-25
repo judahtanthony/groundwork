@@ -4,7 +4,6 @@ import (
 	"embed"
 	"encoding/json"
 	"fmt"
-	"html/template"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -17,10 +16,10 @@ import (
 	"groundwork/internal/ticket"
 )
 
-//go:embed web/dashboard.html.tmpl web/groundwork.css
+//go:embed web/*.tmpl web/groundwork.css
 var webFS embed.FS
 
-var dashboardTmpl = template.Must(template.ParseFS(webFS, "web/dashboard.html.tmpl"))
+var dashboardTmpl = newPage("web/dashboard.content.tmpl")
 
 // --- view models ---
 
@@ -54,11 +53,13 @@ func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "dashboard_failed", err.Error())
 		return
 	}
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if err := dashboardTmpl.Execute(w, data); err != nil {
-		// Header is already written; nothing actionable beyond logging upstream.
-		return
-	}
+	s.renderPage(w, dashboardTmpl, &pageView{
+		Shell: s.shellState(data.PendingApprovals),
+		Nav:   navDashboard,
+		Crumb: "Operate",
+		Title: "Dashboard",
+		Data:  data,
+	})
 }
 
 // handleDashboardCSS serves the embedded stylesheet.

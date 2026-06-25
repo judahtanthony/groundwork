@@ -1,0 +1,97 @@
+{{define "content"}}
+      <div class="gw-kpis">
+        {{range .Data.KPIs}}
+        <div class="gw-kpi {{.Tone}}">
+          <div class="label">{{.Label}}</div>
+          <div class="value">{{.Value}}</div>
+          {{if .Sub}}<div class="sub">{{.Sub}}</div>{{end}}
+        </div>
+        {{end}}
+      </div>
+
+      <div class="gw-panel">
+        <div class="gw-panel-head">
+          <h3>Active runs</h3>
+          {{if .Data.Runs}}<span class="gw-badge run"><i class="bdot"></i>{{len .Data.Runs}} live</span>{{end}}
+          <span class="gw-id">{{.Data.Now}}</span>
+        </div>
+        {{if .Data.Runs}}
+        <table class="gw-table">
+          <thead><tr><th>Work</th><th>Actor</th><th>Mode</th><th>Status</th><th>Elapsed</th><th>Last event</th></tr></thead>
+          <tbody>
+            {{range .Data.Runs}}
+            <tr>
+              <td><div class="gw-cell-title">{{.Title}}</div><div class="gw-id">{{.Ticket}} · {{.RunID}}</div></td>
+              <td class="gw-muted">{{.Actor}}</td>
+              <td class="gw-muted">{{.Mode}}</td>
+              <td><span class="gw-badge {{.Tone}}"><i class="bdot"></i>{{.Status}}</span></td>
+              <td class="num">{{.Elapsed}}</td>
+              <td class="gw-subtle">{{.Last}}</td>
+            </tr>
+            {{end}}
+          </tbody>
+        </table>
+        {{else}}
+        <div class="gw-empty">No active runs. The scheduler dispatches eligible work when the trust policy authorizes an actor (ADR 0033).</div>
+        {{end}}
+      </div>
+
+      <div class="gw-cols">
+        <div class="gw-panel">
+          <div class="gw-panel-head"><h3>Attention queue</h3><span class="gw-id">{{len .Data.Attention}} items</span></div>
+          <div class="gw-panel-body">
+            {{if .Data.Attention}}
+            <div class="gw-attn">
+              {{range .Data.Attention}}
+              <div class="gw-attn-item">
+                <span class="gw-badge {{.Tone}} tag"><i class="bdot"></i>{{.Tag}}</span>
+                <div class="body"><div class="title">{{.Title}}</div><div class="meta">{{.Meta}}</div></div>
+              </div>
+              {{end}}
+            </div>
+            {{else}}
+            <div class="gw-empty">Nothing needs attention — no pending approvals or blocked work.</div>
+            {{end}}
+          </div>
+        </div>
+
+        <div class="gw-panel">
+          <div class="gw-panel-head"><h3>Recent events</h3><span class="gw-id">audit log</span></div>
+          <div class="gw-panel-body">
+            {{if .Data.Events}}
+            <div class="gw-tl">
+              {{range .Data.Events}}
+              <div class="gw-tl-item">
+                <div class="gw-tl-time">{{.Time}}</div>
+                <div class="gw-tl-body"><span class="ev">{{.Event}}</span> <span class="obj">{{.Object}}</span><div class="who">{{.Who}}</div></div>
+              </div>
+              {{end}}
+            </div>
+            {{else}}
+            <div class="gw-empty">No events recorded yet.</div>
+            {{end}}
+          </div>
+        </div>
+      </div>
+
+      <div class="gw-cols-3">
+        <div class="gw-panel">
+          <div class="gw-panel-head"><h3>Work tree</h3></div>
+          <div class="gw-panel-body">
+            {{range .Data.StatusBreakdown}}
+            <div class="gw-between"><span class="gw-muted">{{.Status}}</span><span class="num">{{.Count}}</span></div>
+            {{end}}
+          </div>
+        </div>
+        <div class="gw-panel">
+          <div class="gw-panel-head"><h3>Local runtime</h3></div>
+          <div class="gw-panel-body">
+            <div class="gw-between"><span class="gw-muted">runtime</span><span class="mono">{{.Data.Runtime}}</span></div>
+            <div class="gw-between"><span class="gw-muted">sandbox</span><span class="gw-badge ok"><i class="bdot"></i>{{.Data.Sandbox}}</span></div>
+            <div class="gw-between"><span class="gw-muted">max concurrency</span><span class="num">{{.Data.Concurrency}}</span></div>
+            <div class="gw-between"><span class="gw-muted">uptime</span><span class="mono">{{.Data.Uptime}}</span></div>
+            <div class="gw-between"><span class="gw-muted">state.sqlite</span><span class="mono">{{.Data.DBSize}}</span></div>
+          </div>
+        </div>
+      </div>
+{{end}}

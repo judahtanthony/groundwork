@@ -72,6 +72,43 @@ type landResponse struct {
 // decide (approving it lands). The `override` escape hatch lets the owner land
 // immediately, bypassing both the approval gate and the validation gate. A
 // successful landing records a ratification in the journal (ADR 0013).
+// handleTicketLandPreview exposes the staged change set a landing of id would
+// commit, so the operator UI (and any API client) can inspect a landing before
+// approving it — the same read as `gw ticket land --preview` (ADR 0034/0041),
+// but server-mediated since the server is the source of truth. It is read-only:
+// it never stages, commits, or opens an approval. The staged diff is the git
+// index (the human's explicit selection), so the response echoes id rather than
+// scoping the diff to it, matching the CLI.
+func (s *Server) handleTicketLandPreview(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	if _, err := s.db.GetTicket(id); err != nil {
+		s.writeStoreError(w, err)
+		return
+	}
+	if s.repo == nil {
+		writeError(w, http.StatusBadRequest, "not_a_repo", "preview requires a git repository")
+		return
+	}
+	staged, diff, err := s.stagedPreview()
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "git_error", err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"id": id, "staged": staged, "diff": diff})
+}
+
+// stagedPreview returns the git index's staged change set: the same read behind
+// `gw ticket land --preview`, shared by the land-preview API (T-1073) and the
+// operator inbox's inline preview (T-1065). Callers must hold a non-nil s.repo.
+func (s *Server) stagedPreview() (staged bool, diff string, err error) {
+	staged, err = s.repo.HasStagedChanges()
+	if err != nil || !staged {
+		return false, "", err
+	}
+	diff, err = s.repo.StagedDiff()
+	return staged, diff, err
+}
+
 func (s *Server) handleTicketLand(w http.ResponseWriter, r *http.Request) {
 	if s.approvals == nil {
 		writeError(w, http.StatusServiceUnavailable, "approvals_unavailable", "approval service is not configured")

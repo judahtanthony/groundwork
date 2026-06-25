@@ -16,14 +16,22 @@ import (
 // straight back here). Returns true when the landing is fully recorded: commit
 // made, nothing to commit, or no git work tree.
 func (s *Server) completeLanding(w http.ResponseWriter, id, reason string) bool {
-	s.ratify(id, "land", reason)
-	if err := s.commitLanding(id); err != nil {
+	if err := s.finishLanding(id, reason); err != nil {
 		writeError(w, http.StatusInternalServerError, "land_commit_failed", fmt.Sprintf(
 			"%s is recorded landed but the git commit failed: %v; resolve the git issue and "+
 				"run \"gw ticket land %s\" to finish the commit", id, err, id))
 		return false
 	}
 	return true
+}
+
+// finishLanding records the ratification and makes the durable git commit for a
+// landing whose store transition to done has already happened, returning any
+// commit error so non-HTTP callers (the decision recorder) can map it onto their
+// own response surface. completeLanding wraps this for the JSON handlers.
+func (s *Server) finishLanding(id, reason string) error {
+	s.ratify(id, "land", reason)
+	return s.commitLanding(id)
 }
 
 // commitLanding regenerates the node's Markdown export (now status=done) and, in a

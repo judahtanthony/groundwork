@@ -22,6 +22,7 @@ POST /api/v1/tickets/:id/dependencies
 DELETE /api/v1/tickets/:id/dependencies/:depId
 GET  /api/v1/tickets/:id/validations
 POST /api/v1/tickets/:id/validations
+GET  /api/v1/tickets/:id/land/preview
 POST /api/v1/tickets/:id/land
 GET  /api/v1/runs
 POST /api/v1/runs
@@ -56,6 +57,10 @@ change after rebuild, but the durable request id remains stable.
 `GET /api/v1/tickets/:id/validations` lists recorded validation results and
 `POST /api/v1/tickets/:id/validations` records one (the coordinator-mediated path
 `gw validation run` uses, so the server's state/SSE stay coherent — ADR 0031).
+`GET /api/v1/tickets/:id/land/preview` returns the staged change set a landing of
+the node would commit — `{"id", "staged", "diff"}` — the server-mediated read of
+`gw ticket land --preview` (ADR 0034/0041). It is read-only (no staging, commit,
+or approval) and returns `400 not_a_repo` outside a git work tree.
 `POST /api/v1/tickets/:id/land` drives landing through the `land_to_main` approval
 gate (ADR 0028): policy auto-approves and lands immediately, otherwise it returns
 `{"landed": false, "approval": …}` for a human to approve (approving lands).
