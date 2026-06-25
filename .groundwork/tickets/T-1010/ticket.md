@@ -4,15 +4,16 @@ kind: ticket
 node_type: leaf
 work_type: technical_implementation
 title: 'Reversibility: highest-bar condition, not pre-policy short-circuit'
-status: backlog
+status: todo
 assignee: null
 requested_actor: null
-priority: null
+priority: 0.9
 labels: []
 parent: T-1009
-depends_on: []
+depends_on:
+    - T-1067
 created_at: "2026-06-21T20:08:43Z"
-updated_at: "2026-06-21T20:08:43Z"
+updated_at: "2026-06-25T20:24:08Z"
 ---
 
 ## Problem
