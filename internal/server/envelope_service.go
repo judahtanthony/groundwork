@@ -61,7 +61,11 @@ func (s *Server) activateEnvelope(actionJSON, nodeID, decidedBy string) error {
 	if err := envelope.Write(s.proj.TicketsDir(), &draft); err != nil {
 		return err
 	}
-	return s.db.UpsertEnvelope(&draft)
+	if err := s.db.UpsertEnvelope(&draft); err != nil {
+		return err
+	}
+	// Establish the root's integration target so children can land to it (ADR 0058).
+	return s.ensureIntegrationBranch(nodeID)
 }
 
 // RevokeEnvelope flips an envelope to revoked in both the mirror and the

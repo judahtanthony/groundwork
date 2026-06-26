@@ -46,3 +46,9 @@ Autonomous execution of the Phase 5 leaf chain (ADRs 0054–0058) on
   proposed boundary (actions/roles/work-types/risk/scope) for `approve_envelope`
   items so the human sees what they authorize. Exception-by-envelope grouping lands
   with the claim stream (exceptions are created there). Tests: inbox boundary shown.
+- **T-1079** root integration-branch lifecycle (ADR 0058) — on envelope approval the
+  root gets a recorded integration target (`integration_branches` table, migration
+  0006): adopt the current feature branch, or create+checkout `gw/root/<id>-<slug>`
+  from the default branch. New git helpers (HeadCommit/CreateAndCheckout/Checkout/
+  MergeNoFF/DeleteBranch). No worktrees (Phase 6). Tests: slugify; branch created +
+  checked out + recorded on approval.

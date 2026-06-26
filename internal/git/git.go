@@ -93,6 +93,38 @@ func (r *Repo) CurrentBranch() (string, error) {
 	return strings.TrimSpace(out), nil
 }
 
+// HeadCommit returns the current HEAD commit SHA.
+func (r *Repo) HeadCommit() (string, error) {
+	out, err := r.run("rev-parse", "HEAD")
+	return strings.TrimSpace(out), err
+}
+
+// CreateAndCheckout creates a new branch at HEAD and checks it out (git checkout
+// -b). Used to start a root integration branch from the default branch (ADR 0058).
+func (r *Repo) CreateAndCheckout(name string) error {
+	_, err := r.run("checkout", "-b", name)
+	return err
+}
+
+// Checkout switches to an existing branch.
+func (r *Repo) Checkout(name string) error {
+	_, err := r.run("checkout", name)
+	return err
+}
+
+// MergeNoFF merges branch into the current branch with a merge commit
+// (--no-ff), preserving the feature boundary (ADR 0058).
+func (r *Repo) MergeNoFF(branch, message string) error {
+	_, err := r.run("merge", "--no-ff", "-m", message, branch)
+	return err
+}
+
+// DeleteBranch removes a branch (git branch -D).
+func (r *Repo) DeleteBranch(name string) error {
+	_, err := r.run("branch", "-D", name)
+	return err
+}
+
 // AddAll stages every change in the work tree (git add -A): modified, deleted,
 // and new files, honoring .gitignore. It is the `git commit -a`-style convenience
 // for landing (ADR 0034).
