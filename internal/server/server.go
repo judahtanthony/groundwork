@@ -95,6 +95,7 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("POST /api/v1/tickets/{id}/validations", s.handleRecordValidation)
 	s.mux.HandleFunc("GET /api/v1/tickets/{id}/land/preview", s.handleTicketLandPreview)
 	s.mux.HandleFunc("POST /api/v1/tickets/{id}/land", s.handleTicketLand)
+	s.mux.HandleFunc("POST /api/v1/tickets/{id}/land-to-parent", s.handleTicketLandToParent)
 	s.mux.HandleFunc("GET /api/v1/approvals", s.handleApprovalList)
 	s.mux.HandleFunc("GET /api/v1/approvals/{id}", s.handleApprovalGet)
 	s.mux.HandleFunc("POST /api/v1/approvals/{id}/approve", s.handleApprovalApprove)

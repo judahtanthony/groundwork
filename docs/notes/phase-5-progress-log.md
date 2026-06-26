@@ -52,3 +52,9 @@ Autonomous execution of the Phase 5 leaf chain (ADRs 0054–0058) on
   from the default branch. New git helpers (HeadCommit/CreateAndCheckout/Checkout/
   MergeNoFF/DeleteBranch). No worktrees (Phase 6). Tests: slugify; branch created +
   checked out + recorded on approval.
+- **T-1080** land_to_parent landing path (ADR 0058) — `LandToParent(childID)` resolves
+  the nearest integration target (self/ancestors), checks it out, marks the child
+  done, and commits its export + staged work there (reusing the ADR 0034 commit
+  path) — distinct from land_to_main, no main merge. Endpoint
+  POST /tickets/{id}/land-to-parent. Tests: child lands to integration branch (not
+  main), HEAD advances, child done; errors without a target.
