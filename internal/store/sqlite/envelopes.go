@@ -8,6 +8,17 @@ import (
 	"groundwork/internal/envelope"
 )
 
+// NextEnvelopeID allocates the next monotonic envelope id (ENV-0001, …).
+func (db *DB) NextEnvelopeID() (string, error) {
+	var id string
+	err := db.withTx(func(tx *sql.Tx) error {
+		var e error
+		id, e = nextSeqID(tx, "envelope_seq", "ENV")
+		return e
+	})
+	return id, err
+}
+
 // UpsertEnvelope mirrors an authoritative envelope (sidecar) into SQLite for
 // live evaluation (ADR 0053). The sidecar remains the source of truth.
 func (db *DB) UpsertEnvelope(e *envelope.Envelope) error {

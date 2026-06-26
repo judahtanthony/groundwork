@@ -42,13 +42,16 @@ const (
 	// delegating the "improvement" layer expressible without enabling it.
 	TypeAmendPolicy     Type = "amend_policy"
 	TypeElevateAutonomy Type = "elevate_autonomy"
+	// TypeApproveEnvelope approves a parent/root approval envelope (ADR 0054): a
+	// bounded boundary for child planning/execution/land-to-parent. Human-gated.
+	TypeApproveEnvelope Type = "approve_envelope"
 )
 
 // Valid reports whether t is a recognized approval type.
 func (t Type) Valid() bool {
 	switch t {
 	case TypeExecute, TypeLandToMain, TypeDecompose, TypeReplan,
-		TypeAmendPolicy, TypeElevateAutonomy:
+		TypeAmendPolicy, TypeElevateAutonomy, TypeApproveEnvelope:
 		return true
 	}
 	return false

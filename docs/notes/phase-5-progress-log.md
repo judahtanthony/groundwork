@@ -35,3 +35,9 @@ Autonomous execution of the Phase 5 leaf chain (ADRs 0054–0058) on
   (`envelopes` table, migration 0005; upsert/get/get-active-for-node/set-status;
   one active envelope per node; status column authoritative on read). Tests:
   sidecar round-trip + missing; matchers; mirror CRUD + revoke.
+- **T-1077** envelope approval and lifecycle (ADR 0054) — new `approve_envelope`
+  approval type (human-gated); `ProposeEnvelope` opens a pending approval carrying
+  the draft, `activateEnvelope` (wired into the shared decision path) materializes
+  it on approval (sidecar + mirror), and `RevokeEnvelope`/`SupersedeEnvelope` flip
+  status in both. Child creation stays the decompose flow, composing within the
+  envelope. Tests: propose→approve activates; revoke clears active.

@@ -101,6 +101,12 @@ func (s *Server) recordDecision(id string, to approval.Status, reason string) (*
 			return nil, &landCommitError{id: a.TicketID, err: err}
 		}
 	}
+	// Approving an approve_envelope gate materializes the boundary (ADR 0054).
+	if to == approval.StatusApproved && approval.Type(a.Type) == approval.TypeApproveEnvelope {
+		if err := s.activateEnvelope(a.ActionJSON, a.TicketID, ownerActor); err != nil {
+			return nil, err
+		}
+	}
 	return a, nil
 }
 
@@ -309,7 +315,7 @@ func (s *ApprovalService) authorize(a *sqlite.Approval, decidedBy string) error 
 func humanGated(t approval.Type) bool {
 	switch t {
 	case approval.TypeDecompose, approval.TypeReplan, approval.TypeLandToMain,
-		approval.TypeAmendPolicy, approval.TypeElevateAutonomy:
+		approval.TypeAmendPolicy, approval.TypeElevateAutonomy, approval.TypeApproveEnvelope:
 		return true
 	}
 	return false
