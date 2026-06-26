@@ -315,7 +315,8 @@ func (s *ApprovalService) authorize(a *sqlite.Approval, decidedBy string) error 
 func humanGated(t approval.Type) bool {
 	switch t {
 	case approval.TypeDecompose, approval.TypeReplan, approval.TypeLandToMain,
-		approval.TypeAmendPolicy, approval.TypeElevateAutonomy, approval.TypeApproveEnvelope:
+		approval.TypeAmendPolicy, approval.TypeElevateAutonomy, approval.TypeApproveEnvelope,
+		approval.TypeException:
 		return true
 	}
 	return false

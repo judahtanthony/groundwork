@@ -45,13 +45,16 @@ const (
 	// TypeApproveEnvelope approves a parent/root approval envelope (ADR 0054): a
 	// bounded boundary for child planning/execution/land-to-parent. Human-gated.
 	TypeApproveEnvelope Type = "approve_envelope"
+	// TypeException is raised when an in-trust AI action falls outside its approved
+	// envelope (ADR 0056): the boundary crossing is held for a human decision.
+	TypeException Type = "exception"
 )
 
 // Valid reports whether t is a recognized approval type.
 func (t Type) Valid() bool {
 	switch t {
 	case TypeExecute, TypeLandToMain, TypeDecompose, TypeReplan,
-		TypeAmendPolicy, TypeElevateAutonomy, TypeApproveEnvelope:
+		TypeAmendPolicy, TypeElevateAutonomy, TypeApproveEnvelope, TypeException:
 		return true
 	}
 	return false

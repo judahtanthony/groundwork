@@ -40,6 +40,10 @@ type Match struct {
 	MaxDiffLines       int      `yaml:"max_diff_lines,omitempty"`
 	CwdWithinWorkspace *bool    `yaml:"cwd_within_workspace,omitempty"`
 	Network            *bool    `yaml:"network,omitempty"`
+	// WithinEnvelope matches the coordinator-computed fact that an action sits
+	// inside an approved parent/root envelope (ADR 0056), so allow_claim rules can
+	// require bounded-autonomy authorization.
+	WithinEnvelope *bool `yaml:"within_envelope,omitempty"`
 }
 
 // ReviewAllowedBy names who may review/decide for an auto_approve rule that

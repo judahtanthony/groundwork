@@ -69,3 +69,10 @@ Autonomous execution of the Phase 5 leaf chain (ADRs 0054–0058) on
   computes `envelopeFacts`/`envelopeAuthorizes` (approved action ∧ work type ∧ role
   ∧ risk≤ceiling ∧ file scope allow/deny), reusing `policy.FilesMatch` + risk
   AtMost. Tests cover in-scope and each rejection axis + no-envelope.
+- **T-1083** envelope-aware gate composition + exception approvals (ADR 0056) — added
+  `Match.within_envelope`; `AuthorizeEnvelopedClaim` composes trust AND envelope for
+  AI actors (humans bypass): no envelope ⇒ deny; trust+within ⇒ allow; trust-allowable
+  but outside ⇒ a human `exception` approval (new approval type) linked to node+envelope;
+  otherwise deny. Maps gate actions → envelope vocabulary. Completes the claim stream
+  → ADR 0056 Implemented: Partial. Tests: human bypass, within→allow, crossing→exception,
+  wrong-role/no-envelope→deny. (Live scheduler/runtime wiring is Phase 6.)

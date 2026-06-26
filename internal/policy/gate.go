@@ -265,6 +265,9 @@ func matches(m *Match, a Action, class risk.Class, reversible bool) bool {
 	if m.CwdWithinWorkspace != nil && a.CwdWithinWorkspace != *m.CwdWithinWorkspace {
 		return false
 	}
+	if m.WithinEnvelope != nil && a.WithinEnvelope != *m.WithinEnvelope {
+		return false
+	}
 	return true
 }
 

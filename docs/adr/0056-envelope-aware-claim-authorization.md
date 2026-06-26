@@ -1,7 +1,7 @@
 # ADR 0056: Envelope-Aware Claim Authorization
 
 Status: Accepted
-Implemented: Not started
+Implemented: Partial
 
 Composes [ADR 0028](0028-gate-evaluation-engine.md) (gate engine),
 [ADR 0038](0038-authority-as-loosenable-gate.md) (authority as loosenable policy),
