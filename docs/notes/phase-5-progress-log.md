@@ -17,3 +17,8 @@ Autonomous execution of the Phase 5 leaf chain (ADRs 0054–0058) on
   — added the two approval types (Valid + human-gated set); they flow through the
   same gate engine and default to `require_human`. Authority elevation is now
   *expressible* without being *enabled*. Tests: types valid; default require_human.
+- **T-1012** wire earned autonomy via `AutonomyRequires` (ADR 0038) — `autonomyOutcome`
+  now honors a per-work-type elevation's prerequisites (named SOP present, required
+  validations passed) read from new `Action.SatisfiedSOPs`/`PassedValidations`; unmet
+  prerequisites fall back to require_human. Absent requirements stay back-compat.
+  Tests: elevation gated when unmet, applies when met.

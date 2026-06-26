@@ -110,6 +110,28 @@ func TestEvaluateRoleScopedRuleMatchesByRole(t *testing.T) {
 	}
 }
 
+// An elevated autonomy level guarded by AutonomyRequires applies only when its
+// prerequisites are met; otherwise it falls back to require_human (ADR 0038).
+func TestEvaluateEarnedAutonomyRequirements(t *testing.T) {
+	set := &Set{Autonomy: &AutonomyPolicy{Actions: map[string]AutonomyAction{
+		"execute": {Default: "require_human", ByWorkType: map[string]AutonomyByWorkType{
+			"documentation": {Level: "auto", Requires: AutonomyRequires{Validations: []string{"go"}}},
+		}},
+	}}}
+	base := Action{Type: "execute", WorkType: "documentation", Scope: risk.Scope{Files: []string{"docs/x.md"}}}
+
+	// Prerequisite unmet -> elevation does not apply.
+	if d := set.Evaluate(base); d.Outcome != OutcomeRequireHuman {
+		t.Errorf("unmet requires: outcome=%s, want require_human", d.Outcome)
+	}
+	// Prerequisite met -> elevation applies.
+	met := base
+	met.PassedValidations = []string{"go"}
+	if d := set.Evaluate(met); d.Outcome != OutcomeAutoApprove {
+		t.Errorf("met requires: outcome=%s, want auto_approve", d.Outcome)
+	}
+}
+
 func TestEvaluateAutoApproveDocs(t *testing.T) {
 	set := &Set{Trust: &TrustPolicy{AutoApprove: []Rule{{
 		ID:   "internal_docs",

@@ -17,6 +17,11 @@ type Action struct {
 	DiffLines          int    // 0 when unknown
 	CwdWithinWorkspace bool
 	Scope              risk.Scope
+	// Earned-autonomy requirement facts (ADR 0038): what the node actually has, so
+	// an elevated autonomy level guarded by AutonomyRequires only applies when its
+	// prerequisites are met. Empty keeps elevation conservatively gated.
+	SatisfiedSOPs     []string
+	PassedValidations []string
 }
 
 // Outcome is a gate decision result.
@@ -138,6 +143,7 @@ func (s *Set) AuthorizeClaim(a Action) Decision {
 // outcome. reviewer behaves as human-required until reviewer agents land.
 func (s *Set) autonomyOutcome(a Action) Outcome {
 	level := "require_human"
+	var requires AutonomyRequires // only per-work-type elevation carries prerequisites
 	if s.Autonomy != nil {
 		if act, ok := s.Autonomy.Actions[a.Type]; ok {
 			if act.Default != "" {
@@ -145,13 +151,31 @@ func (s *Set) autonomyOutcome(a Action) Outcome {
 			}
 			if by, ok := act.ByWorkType[a.WorkType]; ok && by.Level != "" {
 				level = by.Level
+				requires = by.Requires
 			}
 		}
 	}
-	if level == "auto" {
+	// An elevated level only applies when its earned-autonomy prerequisites are
+	// met (ADR 0038); otherwise it falls back to require_human.
+	if level == "auto" && requirementsMet(requires, a) {
 		return OutcomeAutoApprove
 	}
 	return OutcomeRequireHuman
+}
+
+// requirementsMet reports whether the node satisfies an elevated level's
+// AutonomyRequires: the named SOP is present and every required validation has
+// passed. Absent requirements are trivially met (back-compat for default-auto).
+func requirementsMet(req AutonomyRequires, a Action) bool {
+	if req.SOP != "" && !inList(a.SatisfiedSOPs, req.SOP) {
+		return false
+	}
+	for _, v := range req.Validations {
+		if !inList(a.PassedValidations, v) {
+			return false
+		}
+	}
+	return true
 }
 
 // firstMatch returns the first rule whose predicate matches, or nil.
