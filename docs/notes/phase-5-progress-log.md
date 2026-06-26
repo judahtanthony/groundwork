@@ -29,3 +29,9 @@ Autonomous execution of the Phase 5 leaf chain (ADRs 0054–0058) on
   policy snippet for a human to apply — **never self-elevates** (amend_policy stays
   human-gated). Tests: scan creates/idempotent/dismiss; failure blocks. Completes the
   ADR 0038 authority-gate stream → 0038 Implemented: Partial.
+- **T-1076** envelope record, store, file-authoritative sidecar (ADR 0054) — new
+  `internal/envelope` package (full ADR 0054 shape + `Allows`/`AllowsRole`/
+  `AllowsWorkType` + `envelope.yaml` sidecar read/write) and a SQLite mirror
+  (`envelopes` table, migration 0005; upsert/get/get-active-for-node/set-status;
+  one active envelope per node; status column authoritative on read). Tests:
+  sidecar round-trip + missing; matchers; mirror CRUD + revoke.

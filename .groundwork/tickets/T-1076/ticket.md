@@ -4,8 +4,8 @@ kind: ticket
 node_type: leaf
 work_type: technical_implementation
 title: Envelope record, store, and file-authoritative sidecar
-status: todo
-assignee: null
+status: done
+assignee: human.owner
 requested_actor: null
 priority: 0.9
 labels:
@@ -14,7 +14,7 @@ parent: T-1068
 depends_on:
     - T-1013
 created_at: "2026-06-25T20:23:29Z"
-updated_at: "2026-06-25T20:24:08Z"
+updated_at: "2026-06-26T01:00:40Z"
 ---
 
 ## Problem
