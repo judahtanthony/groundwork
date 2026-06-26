@@ -58,38 +58,57 @@ func classify(a Action) (risk.Class, int, bool, []string) {
 }
 
 // Evaluate decides whether a gated action (execute, land_to_main, decompose, …)
-// may proceed automatically or needs a human. Composition order (ADR 0028):
-// reversibility floor → first-match require_human → first-match auto_approve →
-// autonomy default. Earlier steps cannot be loosened by later ones.
+// may proceed automatically or needs a human. Composition order (ADR 0028/0038):
+// first-match require_human → first-match auto_approve → autonomy default, with
+// irreversibility as the highest bar threaded *through* evaluation rather than a
+// pre-policy short-circuit. The reversibility verdict is always computed and
+// surfaced (an invariant), but an irreversible action is passable only by an
+// auto_approve rule that explicitly opts in (when.reversible: false); absent such
+// a rule it resolves to require_human — identical to the former floor. Earlier
+// steps cannot be loosened by later ones.
 func (s *Set) Evaluate(a Action) Decision {
 	class, score, reversible, reasons := classify(a)
 	d := Decision{RiskClass: class, RiskScore: score, Reversible: reversible, Reasons: reasons}
 
-	// 1. Reversibility floor: irreversible is forced critical, human-required.
-	if !reversible {
-		d.Outcome = OutcomeRequireHuman
-		return d
-	}
-
 	if s.Trust != nil {
-		// 2. require_human wins over any auto path.
+		// require_human wins over any auto path.
 		if r := firstMatch(s.Trust.RequireHuman, a, class, reversible); r != nil {
 			d.Outcome = OutcomeRequireHuman
 			d.RuleID = r.ID
 			d.RequiredRoles = r.RequireRoles
 			return d
 		}
-		// 3. auto_approve.
-		if r := firstMatch(s.Trust.AutoApprove, a, class, reversible); r != nil {
+		// auto_approve. Irreversibility is the highest bar: an irreversible action
+		// auto-approves only via a rule that explicitly opts in (when.reversible:
+		// false), never via an unqualified or reversible-only rule.
+		for i := range s.Trust.AutoApprove {
+			r := &s.Trust.AutoApprove[i]
+			if !matches(&r.When, a, class, reversible) {
+				continue
+			}
+			if !reversible && !ruleOptsIntoIrreversible(r) {
+				continue
+			}
 			d.Outcome = OutcomeAutoApprove
 			d.RuleID = r.ID
 			return d
 		}
 	}
 
-	// 4. Autonomy default for this action (with per-work-type elevation).
+	// Defaults. An irreversible action holds at require_human regardless of the
+	// autonomy level (ADR 0038): only an explicit opt-in rule above can pass it.
+	if !reversible {
+		d.Outcome = OutcomeRequireHuman
+		return d
+	}
 	d.Outcome = s.autonomyOutcome(a)
 	return d
+}
+
+// ruleOptsIntoIrreversible reports whether a rule explicitly authorizes
+// irreversible actions by constraining its match to when.reversible: false.
+func ruleOptsIntoIrreversible(r *Rule) bool {
+	return r.When.Reversible != nil && !*r.When.Reversible
 }
 
 // AuthorizeClaim decides whether the actor may claim/act on the node. It scans

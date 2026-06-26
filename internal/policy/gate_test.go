@@ -34,6 +34,27 @@ func TestEvaluateReversibilityFloorForcesCritical(t *testing.T) {
 	}
 }
 
+// An irreversible action is passable when a rule explicitly opts in via
+// when.reversible:false (ADR 0038): reversibility is a loosenable highest bar,
+// not a structural short-circuit. An unqualified auto rule still cannot pass it.
+func TestEvaluateIrreversibleOptInAutoApproves(t *testing.T) {
+	irreversible := Action{Type: "execute", Scope: risk.Scope{Files: []string{"db/migrate.sql"}, External: true}}
+
+	optIn := &Set{Trust: &TrustPolicy{AutoApprove: []Rule{{
+		ID: "trusted-irreversible", When: Match{Reversible: boolPtr(false)},
+	}}}}
+	if d := optIn.Evaluate(irreversible); d.Outcome != OutcomeAutoApprove || d.RuleID != "trusted-irreversible" {
+		t.Errorf("opt-in rule: outcome=%s rule=%q, want auto_approve/trusted-irreversible", d.Outcome, d.RuleID)
+	}
+	// A reversible-only rule must NOT pass an irreversible action.
+	revOnly := &Set{Trust: &TrustPolicy{AutoApprove: []Rule{{
+		ID: "rev-only", When: Match{Reversible: boolPtr(true)},
+	}}}}
+	if d := revOnly.Evaluate(irreversible); d.Outcome != OutcomeRequireHuman {
+		t.Errorf("reversible-only rule: outcome=%s, want require_human", d.Outcome)
+	}
+}
+
 func TestEvaluateRequireHumanBeatsAutoApprove(t *testing.T) {
 	set := &Set{Trust: &TrustPolicy{
 		AutoApprove:  []Rule{{ID: "docs", When: Match{Files: []string{"**/*.md"}}}},
