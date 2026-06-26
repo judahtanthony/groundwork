@@ -4,7 +4,7 @@ kind: ticket
 node_type: composite
 work_type: technical_implementation
 title: Implement approval envelopes for parent/root work
-status: todo
+status: done
 assignee: null
 requested_actor: null
 priority: 0.55
@@ -14,7 +14,7 @@ labels:
 parent: T-1066
 depends_on: []
 created_at: "2026-06-24T22:23:00Z"
-updated_at: "2026-06-25T20:24:08Z"
+updated_at: "2026-06-26T01:07:45Z"
 ---
 
 ## Problem

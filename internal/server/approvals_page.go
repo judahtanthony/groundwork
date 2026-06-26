@@ -7,12 +7,15 @@ package server
 // approve/reject/clarify actions are wired by T-1064.
 
 import (
+	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
 
 	"groundwork/internal/approval"
+	"groundwork/internal/envelope"
 	"groundwork/internal/store/sqlite"
 )
 
@@ -27,6 +30,7 @@ type approvalItem struct {
 	TicketID, TicketTitle, TicketStatus, TicketWorkType    string
 	Created                                                string
 	Landing                                                bool
+	Boundary                                               string // envelope summary for approve_envelope items
 }
 
 // approvalGroup buckets pending approvals under one risk class.
@@ -95,6 +99,22 @@ func (s *Server) handleApprovalDecideForm(w http.ResponseWriter, r *http.Request
 	http.Redirect(w, r, "/approvals", http.StatusSeeOther)
 }
 
+// envelopeBoundary renders a one-line summary of the proposed boundary for an
+// approve_envelope approval, so a human sees what they would authorize (ADR 0054).
+// Empty for other approval types.
+func envelopeBoundary(a *sqlite.Approval) string {
+	if approval.Type(a.Type) != approval.TypeApproveEnvelope || a.ActionJSON == "" {
+		return ""
+	}
+	var e envelope.Envelope
+	if err := json.Unmarshal([]byte(a.ActionJSON), &e); err != nil {
+		return ""
+	}
+	return fmt.Sprintf("actions %v · roles %v · work types %v · risk≤%s · allow %v · deny %v",
+		e.ApprovedActions, e.AllowedRoles, e.Planning.AllowedWorkTypes, orDash(e.RiskCeiling),
+		e.Scope.Files.Allow, e.Scope.Files.Deny)
+}
+
 // decisionStatus maps an inbox button value to an approval status.
 func decisionStatus(v string) (approval.Status, bool) {
 	switch v {
@@ -148,6 +168,7 @@ func (s *Server) buildApprovals() (*approvalsData, error) {
 			TicketWorkType: orDash(workTypes[a.TicketID]),
 			Created:        relTime(a.CreatedAt),
 			Landing:        landing,
+			Boundary:       envelopeBoundary(a),
 		})
 	}
 

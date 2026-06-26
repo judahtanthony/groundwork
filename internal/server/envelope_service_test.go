@@ -1,12 +1,38 @@
 package server
 
 import (
+	"strings"
 	"testing"
 
 	"groundwork/internal/approval"
 	"groundwork/internal/envelope"
 	"groundwork/internal/ticket"
 )
+
+// The approvals inbox shows the proposed boundary for an approve_envelope
+// approval so the human sees what they would authorize (ADR 0054/T-1078).
+func TestApprovalsInboxShowsEnvelopeBoundary(t *testing.T) {
+	srv, db := newTestServer(t)
+	parent := &ticket.Ticket{Title: "root", NodeType: ticket.NodeComposite, Status: ticket.StatusTodo, WorkType: "technical_design"}
+	if err := db.CreateTicket(parent, "tester"); err != nil {
+		t.Fatal(err)
+	}
+	draft := &envelope.Envelope{
+		ApprovedActions: []string{envelope.ActionExecuteChildren},
+		AllowedRoles:    []string{"coding"},
+		RiskCeiling:     "medium",
+		Planning:        envelope.Planning{AllowedWorkTypes: []string{"technical_implementation"}},
+	}
+	if _, err := srv.ProposeEnvelope(parent.ID, draft); err != nil {
+		t.Fatal(err)
+	}
+	body := getHTML(t, srv, "/approvals").Body.String()
+	for _, want := range []string{"approve_envelope", "envelope boundary:", "execute_children", "coding"} {
+		if !strings.Contains(body, want) {
+			t.Errorf("inbox missing %q", want)
+		}
+	}
+}
 
 // Proposing an envelope opens a pending approve_envelope approval; approving it
 // materializes an active envelope (mirror + authoritative sidecar). Revoking

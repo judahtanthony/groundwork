@@ -41,3 +41,8 @@ Autonomous execution of the Phase 5 leaf chain (ADRs 0054–0058) on
   it on approval (sidecar + mirror), and `RevokeEnvelope`/`SupersedeEnvelope` flip
   status in both. Child creation stays the decompose flow, composing within the
   envelope. Tests: propose→approve activates; revoke clears active.
+- **T-1078** envelope CLI and operator-UI surface (ADR 0054) — `gw envelope
+  list/show/revoke` (+ store `ListEnvelopes`); the approvals inbox renders the
+  proposed boundary (actions/roles/work-types/risk/scope) for `approve_envelope`
+  items so the human sees what they authorize. Exception-by-envelope grouping lands
+  with the claim stream (exceptions are created there). Tests: inbox boundary shown.

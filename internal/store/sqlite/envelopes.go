@@ -80,6 +80,36 @@ func (db *DB) GetActiveEnvelopeForNode(nodeID string) (*envelope.Envelope, error
 	return envelopeFromDoc(doc)
 }
 
+// ListEnvelopes returns all envelopes newest-first, optionally filtered by status.
+func (db *DB) ListEnvelopes(status string) ([]*envelope.Envelope, error) {
+	q := `SELECT doc_json, status FROM envelopes`
+	var args []any
+	if status != "" {
+		q += ` WHERE status = ?`
+		args = append(args, status)
+	}
+	q += ` ORDER BY id DESC`
+	rows, err := db.Query(q, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []*envelope.Envelope{}
+	for rows.Next() {
+		var doc, st string
+		if err := rows.Scan(&doc, &st); err != nil {
+			return nil, err
+		}
+		e, err := envelopeFromDoc(doc)
+		if err != nil {
+			return nil, err
+		}
+		e.Status = envelope.Status(st)
+		out = append(out, e)
+	}
+	return out, rows.Err()
+}
+
 // SetEnvelopeStatus updates an envelope's lifecycle state (revoked/superseded)
 // in the mirror; callers also rewrite the authoritative sidecar.
 func (db *DB) SetEnvelopeStatus(id string, status envelope.Status) error {
