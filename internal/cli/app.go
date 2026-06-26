@@ -96,6 +96,7 @@ func buildRoot() *Command {
 			newValidationCmd(),
 			newPolicyCmd(),
 			newEnvelopeCmd(),
+			newReviewCmd(),
 			newServerCmd(),
 			newExportCmd(),
 			newDoctorCmd(),

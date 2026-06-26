@@ -4,8 +4,8 @@ kind: ticket
 node_type: leaf
 work_type: technical_implementation
 title: Review-bundle assembler and gw review bundle CLI
-status: todo
-assignee: null
+status: done
+assignee: human.owner
 requested_actor: null
 priority: 0.8
 labels:
@@ -14,7 +14,7 @@ parent: T-1070
 depends_on:
     - T-1084
 created_at: "2026-06-25T20:23:30Z"
-updated_at: "2026-06-25T20:24:08Z"
+updated_at: "2026-06-26T01:33:04Z"
 ---
 
 ## Problem

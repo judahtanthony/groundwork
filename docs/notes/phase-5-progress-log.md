@@ -81,3 +81,8 @@ Autonomous execution of the Phase 5 leaf chain (ADRs 0054–0058) on
   `completion.yaml` sidecar) and SQLite mirror (`completion_summaries`, migration
   0007). `gw ticket summary set/show`. The unit the bulk bundle aggregates. Tests:
   sidecar round-trip + mirror.
+- **T-1085** review-bundle assembler + `gw review bundle` (ADR 0057) — `db.ReviewBundle`
+  walks a subtree and deterministically aggregates per-leaf summaries, validations,
+  and pending exceptions, with a recommendation (hold if unresolved exceptions,
+  rework if a validation failed, else land). `gw review bundle <id> [--json]`. Tests:
+  clean→land, failure→rework, exception→hold.
