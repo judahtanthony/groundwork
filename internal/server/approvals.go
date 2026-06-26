@@ -308,7 +308,8 @@ func (s *ApprovalService) authorize(a *sqlite.Approval, decidedBy string) error 
 // humanGated reports whether an approval type is human-required in v1.
 func humanGated(t approval.Type) bool {
 	switch t {
-	case approval.TypeDecompose, approval.TypeReplan, approval.TypeLandToMain:
+	case approval.TypeDecompose, approval.TypeReplan, approval.TypeLandToMain,
+		approval.TypeAmendPolicy, approval.TypeElevateAutonomy:
 		return true
 	}
 	return false

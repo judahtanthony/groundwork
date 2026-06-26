@@ -13,3 +13,7 @@ Autonomous execution of the Phase 5 leaf chain (ADRs 0054–0058) on
   in (`when.reversible: false`), else `require_human`. Shipped defaults preserve
   prior behavior exactly. Tests: opt-in auto-approves; reversible-only/unqualified
   rules still gate.
+- **T-1011** first-class `amend_policy` / `elevate_autonomy` action types (ADR 0038)
+  — added the two approval types (Valid + human-gated set); they flow through the
+  same gate engine and default to `require_human`. Authority elevation is now
+  *expressible* without being *enabled*. Tests: types valid; default require_human.

@@ -84,6 +84,18 @@ func TestEvaluateRequireHumanCarriesRequiredRoles(t *testing.T) {
 
 // Role is a live policy input: a role-scoped rule matches only actors that hold
 // the role (ADR 0055).
+// Authority-elevation actions are ordinary gated actions that default to
+// require_human with no autonomy config (ADR 0038).
+func TestEvaluateAuthorityElevationDefaultsHuman(t *testing.T) {
+	set := &Set{}
+	for _, at := range []string{"amend_policy", "elevate_autonomy"} {
+		d := set.Evaluate(Action{Type: at, Scope: risk.Scope{Files: []string{"README.md"}}})
+		if d.Outcome != OutcomeRequireHuman {
+			t.Errorf("%s outcome = %s, want require_human", at, d.Outcome)
+		}
+	}
+}
+
 func TestEvaluateRoleScopedRuleMatchesByRole(t *testing.T) {
 	set := &Set{Trust: &TrustPolicy{
 		RequireHuman: []Rule{{ID: "coding-gate", When: Match{Roles: []string{"coding"}}}},

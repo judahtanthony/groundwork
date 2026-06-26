@@ -36,12 +36,19 @@ const (
 	TypeLandToMain Type = "land_to_main"
 	TypeDecompose  Type = "decompose"
 	TypeReplan     Type = "replan"
+	// Authority-elevation as first-class gated actions (ADR 0038): amending policy
+	// or raising an autonomy level are ordinary gated actions, default
+	// require_human, rather than human-only carve-outs in code. This makes
+	// delegating the "improvement" layer expressible without enabling it.
+	TypeAmendPolicy     Type = "amend_policy"
+	TypeElevateAutonomy Type = "elevate_autonomy"
 )
 
 // Valid reports whether t is a recognized approval type.
 func (t Type) Valid() bool {
 	switch t {
-	case TypeExecute, TypeLandToMain, TypeDecompose, TypeReplan:
+	case TypeExecute, TypeLandToMain, TypeDecompose, TypeReplan,
+		TypeAmendPolicy, TypeElevateAutonomy:
 		return true
 	}
 	return false
