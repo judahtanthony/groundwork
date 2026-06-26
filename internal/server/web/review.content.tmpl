@@ -1,0 +1,30 @@
+{{define "content"}}
+      <div class="gw-panel">
+        <div class="gw-panel-head">
+          <h3>Review — {{.Data.NodeID}} {{.Data.Title}}</h3>
+          <span class="gw-badge {{if eq .Data.Recommendation "land"}}ok{{else if eq .Data.Recommendation "hold"}}bad{{else}}warn{{end}}">{{.Data.Recommendation}}</span>
+        </div>
+        <div class="gw-panel-body">
+          {{if .Data.UnresolvedExceptions}}
+          <div class="gw-banner bad">unresolved exceptions: {{.Data.UnresolvedExceptions}}</div>
+          {{end}}
+          {{if not .Data.Children}}
+          <div class="gw-empty">No child work to review yet.</div>
+          {{end}}
+          {{range .Data.Children}}
+          <details class="gw-preview">
+            <summary>{{.NodeID}} [{{.Status}}] {{.Title}}{{if .Summary}} — {{.Summary.Outcome}}{{end}}</summary>
+            {{if .Summary}}
+              {{if .Summary.Changed}}<div class="meta">changed: {{.Summary.Changed}}</div>{{end}}
+              {{if .Summary.Decisions}}<div class="meta">decisions: {{.Summary.Decisions}}</div>{{end}}
+              {{if .Summary.Risks}}<div class="meta">risks: {{.Summary.Risks}}</div>{{end}}
+            {{else}}
+              <div class="meta gw-muted">no completion summary recorded</div>
+            {{end}}
+            {{range .Validations}}<div class="meta">validation {{.Name}}: {{.Status}}</div>{{end}}
+            {{if .Exceptions}}<div class="meta">exceptions: {{.Exceptions}}</div>{{end}}
+          </details>
+          {{end}}
+        </div>
+      </div>
+{{end}}

@@ -25,6 +25,7 @@
               {{if .Boundary}}<div class="meta">envelope boundary: {{.Boundary}}</div>{{end}}
               <div class="meta">requested by {{.RequestedBy}} · required actors {{.RequiredActors}} · required roles {{.RequiredRoles}} · {{.Created}}</div>
               {{if .Landing}}
+              <div class="meta"><a href="/review/{{.TicketID}}">open review bundle →</a></div>
               <details class="gw-preview">
                 <summary>Preview landing diff</summary>
                 {{if not $.Data.Preview.RepoAvailable}}

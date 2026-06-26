@@ -86,3 +86,14 @@ Autonomous execution of the Phase 5 leaf chain (ADRs 0054–0058) on
   and pending exceptions, with a recommendation (hold if unresolved exceptions,
   rework if a validation failed, else land). `gw review bundle <id> [--json]`. Tests:
   clean→land, failure→rework, exception→hold.
+- **T-1086** web parent/root review screen (ADR 0057) — `GET /review/{id}` renders the
+  bundle on the Phase 4 server-rendered chrome (recommendation badge, unresolved
+  exceptions, per-child expandable summary/validation/exceptions); land_to_main inbox
+  items link to it. Completes the bulk-review stream → ADR 0057 Implemented: Partial.
+  Test: review page renders the bundle.
+
+## Phase 5 complete
+All 16 leaves landed on `phase-5-bounded-autonomy`; streams: role-aware actors,
+authority gate (0038), envelopes (0054), integration/landing (0058), envelope-aware
+claim (0056), bulk review (0057). Build/vet/full test suite green throughout. Phase 5
+epic (T-1066) closure + merge to main await the human top-level review.

@@ -1,7 +1,7 @@
 # ADR 0057: Bulk Review Bundles v1
 
 Status: Accepted
-Implemented: Not started
+Implemented: Partial
 
 Refines [ADR 0047](0047-hierarchical-memory-and-context-compression.md) (completion
 summaries, parent memory) and [ADR 0045](0045-node-branching-and-parent-integration.md)
