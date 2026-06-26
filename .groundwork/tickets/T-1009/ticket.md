@@ -4,7 +4,7 @@ kind: epic
 node_type: composite
 work_type: technical_design
 title: Authority as a uniform loosenable gate (ADR 0038)
-status: todo
+status: done
 assignee: null
 requested_actor: null
 priority: 0.6
@@ -12,7 +12,7 @@ labels: []
 parent: T-1066
 depends_on: []
 created_at: "2026-06-21T20:08:43Z"
-updated_at: "2026-06-25T20:24:08Z"
+updated_at: "2026-06-26T00:57:28Z"
 ---
 
 ## Problem

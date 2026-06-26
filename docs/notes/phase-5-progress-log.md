@@ -22,3 +22,10 @@ Autonomous execution of the Phase 5 leaf chain (ADRs 0054–0058) on
   validations passed) read from new `Action.SatisfiedSOPs`/`PassedValidations`; unmet
   prerequisites fall back to require_human. Absent requirements stay back-compat.
   Tests: elevation gated when unmet, applies when met.
+- **T-1013** elevation-readiness suggestion queue (ADR 0038) — new `policy_suggestions`
+  table + store (list/get/set-status + `GenerateElevationSuggestions` scan: ≥3 clean
+  done leaves of a work type with no failures → propose `execute@wt → auto`). New
+  `gw policy suggestions [--scan] [--all]` / `promote` / `dismiss`. Promote emits the
+  policy snippet for a human to apply — **never self-elevates** (amend_policy stays
+  human-gated). Tests: scan creates/idempotent/dismiss; failure blocks. Completes the
+  ADR 0038 authority-gate stream → 0038 Implemented: Partial.
