@@ -22,6 +22,13 @@ type Action struct {
 	// prerequisites are met. Empty keeps elevation conservatively gated.
 	SatisfiedSOPs     []string
 	PassedValidations []string
+	// Bounded-autonomy envelope facts (ADR 0056), computed by the coordinator from
+	// the active ancestor envelope before evaluation. WithinEnvelope is true only
+	// when the action, work type, role, scope, and risk all sit inside the boundary.
+	ActorRole      string
+	EnvelopeID     string
+	WithinEnvelope bool
+	PlannedScope   []string
 }
 
 // Outcome is a gate decision result.
@@ -295,6 +302,12 @@ func commandCategoryMatch(categories []string, scope risk.Scope) bool {
 }
 
 // anyFileMatch reports whether any file matches any glob pattern.
+// FilesMatch reports whether any file matches any glob pattern (the same
+// glob semantics the gate uses). Exported for envelope scope checks (ADR 0056).
+func FilesMatch(patterns, files []string) bool {
+	return anyFileMatch(patterns, files)
+}
+
 func anyFileMatch(patterns, files []string) bool {
 	for _, p := range patterns {
 		re := globToRegexp(p)

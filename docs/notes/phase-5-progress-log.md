@@ -63,3 +63,9 @@ Autonomous execution of the Phase 5 leaf chain (ADRs 0054–0058) on
   branch (`--no-ff`), deletes the branch, and closes the record (`DefaultBranch`
   git helper). No-op for ordinary nodes. Completes the integration stream → ADR
   0058 Implemented: Partial. Test: end-to-end root land merges + cleans up.
+- **T-1082** envelope facts in policy.Action + WithinEnvelope (ADR 0056) — added
+  `ActorRole/EnvelopeID/WithinEnvelope/PlannedScope` to `policy.Action`; the
+  coordinator resolves the active ancestor envelope (`activeAncestorEnvelope`) and
+  computes `envelopeFacts`/`envelopeAuthorizes` (approved action ∧ work type ∧ role
+  ∧ risk≤ceiling ∧ file scope allow/deny), reusing `policy.FilesMatch` + risk
+  AtMost. Tests cover in-scope and each rejection axis + no-envelope.
