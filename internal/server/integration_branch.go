@@ -8,9 +8,42 @@ package server
 // it up. No worktrees in v1.
 
 import (
+	"fmt"
 	"strings"
 	"unicode"
 )
+
+// mergeRootToMain finishes a root land_to_main by merging the root's integration
+// branch into the default branch (--no-ff) and deleting it (ADR 0058). It is a
+// no-op for nodes without an open integration branch (ordinary land_to_main) or
+// outside a git work tree. Called from finishLanding after the export commit.
+func (s *Server) mergeRootToMain(nodeID string) error {
+	if s.repo == nil {
+		return nil
+	}
+	ib, err := s.db.GetIntegrationBranch(nodeID)
+	if err != nil || ib == nil || ib.Status != "open" {
+		return err
+	}
+	target := s.repo.DefaultBranch()
+	if target == "" {
+		return fmt.Errorf("cannot determine default branch to land %s into", nodeID)
+	}
+	if target == ib.Branch {
+		// The integration target is already the default branch; nothing to merge.
+		return s.db.CloseIntegrationBranch(nodeID)
+	}
+	if err := s.repo.Checkout(target); err != nil {
+		return err
+	}
+	if err := s.repo.MergeNoFF(ib.Branch, fmt.Sprintf("Land %s into %s", nodeID, target)); err != nil {
+		return err
+	}
+	if err := s.repo.DeleteBranch(ib.Branch); err != nil {
+		return err
+	}
+	return s.db.CloseIntegrationBranch(nodeID)
+}
 
 // ensureIntegrationBranch records (creating if needed) the integration target for
 // a root node. It is idempotent and a no-op outside a git work tree.

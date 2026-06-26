@@ -112,6 +112,17 @@ func (r *Repo) Checkout(name string) error {
 	return err
 }
 
+// DefaultBranch returns the repo's main line: "main" if it exists, else
+// "master", else "" — the merge target for root land_to_main (ADR 0058).
+func (r *Repo) DefaultBranch() string {
+	for _, b := range []string{"main", "master"} {
+		if _, err := r.run("show-ref", "--verify", "--quiet", "refs/heads/"+b); err == nil {
+			return b
+		}
+	}
+	return ""
+}
+
 // MergeNoFF merges branch into the current branch with a merge commit
 // (--no-ff), preserving the feature boundary (ADR 0058).
 func (r *Repo) MergeNoFF(branch, message string) error {

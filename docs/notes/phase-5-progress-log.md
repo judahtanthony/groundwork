@@ -58,3 +58,8 @@ Autonomous execution of the Phase 5 leaf chain (ADRs 0054–0058) on
   path) — distinct from land_to_main, no main merge. Endpoint
   POST /tickets/{id}/land-to-parent. Tests: child lands to integration branch (not
   main), HEAD advances, child done; errors without a target.
+- **T-1081** gated root land_to_main merge and cleanup (ADR 0058) — `finishLanding`
+  now, for a root with an open integration branch, merges it into the default
+  branch (`--no-ff`), deletes the branch, and closes the record (`DefaultBranch`
+  git helper). No-op for ordinary nodes. Completes the integration stream → ADR
+  0058 Implemented: Partial. Test: end-to-end root land merges + cleans up.

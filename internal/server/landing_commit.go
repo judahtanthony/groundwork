@@ -31,7 +31,12 @@ func (s *Server) completeLanding(w http.ResponseWriter, id, reason string) bool 
 // own response surface. completeLanding wraps this for the JSON handlers.
 func (s *Server) finishLanding(id, reason string) error {
 	s.ratify(id, "land", reason)
-	return s.commitLanding(id)
+	if err := s.commitLanding(id); err != nil {
+		return err
+	}
+	// For a root with an integration branch, landing to main merges that branch
+	// and cleans it up (ADR 0058); a no-op for ordinary nodes.
+	return s.mergeRootToMain(id)
 }
 
 // commitLanding regenerates the node's Markdown export (now status=done) and, in a
