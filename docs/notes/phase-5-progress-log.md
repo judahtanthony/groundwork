@@ -76,3 +76,8 @@ Autonomous execution of the Phase 5 leaf chain (ADRs 0054–0058) on
   otherwise deny. Maps gate actions → envelope vocabulary. Completes the claim stream
   → ADR 0056 Implemented: Partial. Tests: human bypass, within→allow, crossing→exception,
   wrong-role/no-envelope→deny. (Live scheduler/runtime wiring is Phase 6.)
+- **T-1084** completion-summary record (ADR 0047/0057) — new `internal/completion`
+  package (Summary: outcome/changed/validation/decisions/assumptions/risks/canon +
+  `completion.yaml` sidecar) and SQLite mirror (`completion_summaries`, migration
+  0007). `gw ticket summary set/show`. The unit the bulk bundle aggregates. Tests:
+  sidecar round-trip + mirror.
