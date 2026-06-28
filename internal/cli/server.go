@@ -47,11 +47,30 @@ func runServer(ctx *Context, args []string) error {
 
 	// Cold start: rebuild nodes from committed exports when the store is empty
 	// (recovery.md). Then reconcile any runs/leases left by a previous process.
-	if has, err := db.HasTickets(); err == nil && !has {
+	hadTickets, _ := db.HasTickets()
+	if !hadTickets {
 		if n, err := importExports(db, p.TicketsDir()); err == nil && n > 0 {
 			ctx.Stderr.Write([]byte("gw: imported " + strconv.Itoa(n) + " ticket(s) from exports\n"))
 		}
 	}
+
+	// Enable filesystem write-through now that the store reflects files (ADR 0053):
+	// from here, durable mutations rewrite their sidecars before reporting success.
+	db.SetExportDir(p.TicketsDir())
+
+	// A store that SURVIVED a restart may hold durable mutations that never reached
+	// files (a crash between SQLite commit and the sidecar write). Surface that as
+	// recovery_needed rather than silently trusting SQLite (ADR 0053). A freshly
+	// rebuilt store matches its files by construction, so skip the check then.
+	if hadTickets {
+		if drep, err := db.DetectFileDivergence(); err != nil {
+			return &Error{Code: "recovery_error", Message: err.Error()}
+		} else if len(drep.Diverged) > 0 {
+			ctx.Stderr.Write([]byte("gw: warning: " + strconv.Itoa(len(drep.Diverged)) +
+				" ticket(s) diverge from their sidecars (unexported durable mutation); flagged recovery_needed — rebuild from files to repair\n"))
+		}
+	}
+
 	if rep, err := db.ReconcileStartup(); err != nil {
 		return &Error{Code: "recovery_error", Message: err.Error()}
 	} else if rep.InterruptedRuns > 0 || rep.ReleasedLeases > 0 {

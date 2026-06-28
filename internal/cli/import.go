@@ -58,6 +58,14 @@ func importExports(db *sqlite.DB, dir string) (int, error) {
 		return 0, err
 	}
 
+	// Import IS the rebuild of files into the store; disable write-through for its
+	// duration so projecting imported rows back never rewrites the very sidecars
+	// being read (ADR 0053).
+	if saved := db.ExportDir(); saved != "" {
+		db.SetExportDir("")
+		defer db.SetExportDir(saved)
+	}
+
 	type entry struct {
 		t    *ticket.Ticket
 		deps []string

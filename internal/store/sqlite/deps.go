@@ -52,7 +52,7 @@ func (db *DB) AddDependency(fromID, toID, actor string) error {
 	if fromID == toID {
 		return ErrSelfDependency
 	}
-	return db.withTx(func(tx *sql.Tx) error {
+	if err := db.withTx(func(tx *sql.Tx) error {
 		if err := mustExist(tx, fromID); err != nil {
 			return err
 		}
@@ -83,13 +83,17 @@ func (db *DB) AddDependency(fromID, toID, actor string) error {
 		return appendAudit(tx, actor, "dependency.added", "ticket", fromID, map[string]any{
 			"depends_on": toID,
 		})
-	})
+	}); err != nil {
+		return err
+	}
+	// The edge lives on the from node's depends_on; rewrite its sidecar (ADR 0053).
+	return db.writeThrough(fromID)
 }
 
 // RemoveDependency deletes the edge fromID -> toID if present, appending an
 // audit event when a row is removed.
 func (db *DB) RemoveDependency(fromID, toID, actor string) error {
-	return db.withTx(func(tx *sql.Tx) error {
+	if err := db.withTx(func(tx *sql.Tx) error {
 		res, err := tx.Exec(`DELETE FROM dependencies WHERE from_id=? AND to_id=?`, fromID, toID)
 		if err != nil {
 			return err
@@ -100,7 +104,10 @@ func (db *DB) RemoveDependency(fromID, toID, actor string) error {
 		return appendAudit(tx, actor, "dependency.removed", "ticket", fromID, map[string]any{
 			"depends_on": toID,
 		})
-	})
+	}); err != nil {
+		return err
+	}
+	return db.writeThrough(fromID)
 }
 
 // --- helpers ---

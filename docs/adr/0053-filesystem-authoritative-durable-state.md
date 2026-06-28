@@ -1,7 +1,7 @@
 # ADR 0053: Filesystem-Authoritative Durable State
 
 Status: Accepted
-Implemented: Not started
+Implemented: Partial
 
 ## Context
 

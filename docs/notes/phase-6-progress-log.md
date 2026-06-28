@@ -54,3 +54,18 @@ at each step.
   (`POST /tickets/{id}/decision|input`), client, and CLI (`gw ticket decision|input`).
   Tests: node/edge/record/blocked-transition created; required work_type+statement; input
   request creates no ticket and no edge and leaves status unchanged.
+- **T-1059** file-authoritative durable ticket state (ADR 0053) — store-level filesystem
+  write-through, opt-in via `SetExportDir`: `CreateTicket`/`UpdateTicket`/`TransitionTicket`/
+  `TriageTicket`/`AddDependency`/`RemoveDependency`/`Reparent`/`AppendDecision` and the
+  decompose propose/accept/reject paths now rewrite the affected node's sidecar
+  (ticket.md + decisions.ndjson) before reporting success. Pending human-gated approvals
+  emit a paired durable `approval_requested` record (correlated by approval id) on
+  `Request` and are resolved in place on `Decide`, so they survive rebuild and reproject
+  via T-1054 without phantoms. `DetectFileDivergence` compares each ticket's canonical
+  export to its committed sidecar at startup and appends a non-destructive `recovery_needed`
+  to the node's sidecar rather than silently trusting SQLite. Wired into `gw server` boot
+  (import → enable write-through → divergence check → reconcile → queue rebuild) and CLI
+  `openStore`; import disables write-through for its own duration. Tests: purge/rebuild
+  preserves tickets/statuses/deps/decisions; divergence flags an unexported mutation
+  (idempotently); pending approval emits + resolves its durable record. ADR 0051/0053 →
+  Implemented: Partial.

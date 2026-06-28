@@ -4,7 +4,7 @@ kind: epic
 node_type: null
 work_type: technical_design
 title: Implement durable async handoff and decision routing
-status: todo
+status: in_progress
 assignee: null
 requested_actor: null
 priority: 0.6

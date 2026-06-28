@@ -51,7 +51,7 @@ func (db *DB) Reparent(id, newParentID, actor string) error {
 	}
 
 	oldParent := node.ParentID
-	return db.withTx(func(tx *sql.Tx) error {
+	if err := db.withTx(func(tx *sql.Tx) error {
 		res, err := tx.Exec(`UPDATE tickets SET parent_id=?, updated_at=? WHERE id=?`,
 			nullStr(newParentID), encoding.Now(), id)
 		if err != nil {
@@ -64,5 +64,8 @@ func (db *DB) Reparent(id, newParentID, actor string) error {
 			"from": oldParent,
 			"to":   newParentID,
 		})
-	})
+	}); err != nil {
+		return err
+	}
+	return db.writeThrough(id)
 }

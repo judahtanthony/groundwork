@@ -31,6 +31,11 @@ func (db *DB) AppendDecision(rec decision.Record) (decision.Record, error) {
 	if err != nil {
 		return decision.Record{}, err
 	}
+	// A new durable decision record is the explainer for a blocker (ADR 0051);
+	// flush the ticket's sidecar so it survives a rebuild (ADR 0053).
+	if err := db.writeThrough(rec.TicketID); err != nil {
+		return decision.Record{}, err
+	}
 	return rec, nil
 }
 
@@ -66,6 +71,41 @@ func insertDecision(tx *sql.Tx, rec decision.Record) error {
 			status=excluded.status, doc_json=excluded.doc_json, created_at=excluded.created_at`,
 		rec.TicketID, rec.Sequence, rec.ID, rec.EventType, rec.Status, string(doc), created)
 	return err
+}
+
+// ResolveDecisionRequest marks a pending durable request (paired to a runtime
+// handle via decisionID) as decided, so it no longer reprojects a live queue row
+// on rebuild (ADR 0051). It updates the matching record's status and decided
+// fields in place and flushes the sidecar. A no-op when no matching pending
+// record exists (e.g. an auto-approved approval that emitted no durable request).
+func (db *DB) ResolveDecisionRequest(ticketID, decisionID, status, decidedBy string) error {
+	var seq int
+	var doc string
+	err := db.QueryRow(`SELECT seq, doc_json FROM decisions
+		WHERE ticket_id=? AND decision_id=? AND status=? ORDER BY seq DESC LIMIT 1`,
+		ticketID, decisionID, decision.StatusPending).Scan(&seq, &doc)
+	if err == sql.ErrNoRows {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	var rec decision.Record
+	if err := json.Unmarshal([]byte(doc), &rec); err != nil {
+		return err
+	}
+	rec.Status = status
+	rec.DecidedBy = decidedBy
+	rec.DecidedAt = encoding.Now()
+	newDoc, err := json.Marshal(&rec)
+	if err != nil {
+		return err
+	}
+	if _, err := db.Exec(`UPDATE decisions SET status=?, doc_json=? WHERE ticket_id=? AND seq=?`,
+		status, string(newDoc), ticketID, seq); err != nil {
+		return err
+	}
+	return db.writeThrough(ticketID)
 }
 
 // ListDecisions returns a ticket's decision records in append (sequence) order.
