@@ -67,6 +67,19 @@ func (s *Server) AuthorizeEnvelopedClaim(nodeID, action, workType string, a *act
 	return ClaimException, appr, nil
 }
 
+// AuthorizeAIClaim is the scheduler-facing entry point (ADR 0056): it computes
+// the claim-time risk class for the action and runs the envelope-aware claim
+// composition with no diff yet (planned scope governs at claim; actual scope is
+// enforced once the runtime supplies the diff, T-1091). It returns the outcome.
+func (s *Server) AuthorizeAIClaim(nodeID, action, workType string, a *actor.Actor) (ClaimOutcome, error) {
+	class := risk.ClassLow
+	if s.approvals != nil {
+		class = s.approvals.policies.Evaluate(policy.Action{Type: action, Actor: a, WorkType: workType}).RiskClass
+	}
+	outcome, _, err := s.AuthorizeEnvelopedClaim(nodeID, action, workType, a, class, nil)
+	return outcome, err
+}
+
 // raiseEnvelopeException opens a human-gated exception approval for an action that
 // exceeds its envelope, linked to the node and the governing envelope.
 func (s *Server) raiseEnvelopeException(nodeID, envID, action string, a *actor.Actor) (*sqlite.Approval, error) {

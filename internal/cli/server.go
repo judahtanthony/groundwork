@@ -144,6 +144,9 @@ func runServer(ctx *Context, args []string) error {
 	srv.SetScheduler(sched)
 	srv.SetBus(bus)
 	srv.SetApprovals(server.NewApprovalService(db, policies, registry))
+	// Route AI claims through the envelope-aware authorizer (ADR 0056): trust AND
+	// the active envelope gate the claim, and boundary crossings raise exceptions.
+	sched.SetEnvelopeGate(envelopeGate{srv})
 
 	sigCtx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
@@ -178,4 +181,23 @@ func (w worktreeProvider) Diff(runID, base string) ([]string, string, error) {
 
 func (w worktreeProvider) Checkpoint(runID, message string) (string, error) {
 	return w.m.Checkpoint(runID, message)
+}
+
+// envelopeGate adapts the coordinator's envelope-aware claim authorization to the
+// scheduler's gate seam (ADR 0056), keeping the scheduler free of a server import.
+type envelopeGate struct{ srv *server.Server }
+
+func (g envelopeGate) AuthorizeAIClaim(nodeID, action, workType string, a *actor.Actor) (scheduler.ClaimDecision, error) {
+	outcome, err := g.srv.AuthorizeAIClaim(nodeID, action, workType, a)
+	if err != nil {
+		return scheduler.ClaimDeny, err
+	}
+	switch outcome {
+	case server.ClaimAllow:
+		return scheduler.ClaimAllow, nil
+	case server.ClaimException:
+		return scheduler.ClaimException, nil
+	default:
+		return scheduler.ClaimDeny, nil
+	}
 }

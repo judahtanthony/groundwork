@@ -36,6 +36,23 @@ type Config struct {
 	TicketsDir     string // tickets dir for completion sidecars; "" disables auto-summary
 }
 
+// ClaimDecision is the result of envelope-aware AI claim authorization.
+type ClaimDecision int
+
+const (
+	ClaimDeny      ClaimDecision = iota // not authorized (trust or envelope denies)
+	ClaimAllow                          // trust AND envelope permit the claim
+	ClaimException                      // a boundary crossing raised a human approval
+)
+
+// EnvelopeGate composes trust policy with the active ancestor envelope for an AI
+// claim (ADR 0056). It is implemented by the coordinator (which owns envelopes)
+// and injected so the scheduler stays free of a server dependency. When unset,
+// the scheduler falls back to trust-only authorization (no envelope governance).
+type EnvelopeGate interface {
+	AuthorizeAIClaim(nodeID, action, workType string, a *actor.Actor) (ClaimDecision, error)
+}
+
 // Scheduler owns scheduling decisions and supervises runs.
 type Scheduler struct {
 	db       *sqlite.DB
@@ -44,11 +61,17 @@ type Scheduler struct {
 	rt       runtime.Runtime
 	bus      *eventbus.Hub
 	cfg      Config
+	envGate  EnvelopeGate
 
 	mu     sync.Mutex
 	active map[string]bool // ticketID -> in-flight in this process
 	wg     sync.WaitGroup
 }
+
+// SetEnvelopeGate installs the envelope-aware claim authorizer (ADR 0056). With
+// it set, AI claims require trust AND an active envelope, and boundary crossings
+// raise human exceptions instead of dispatching.
+func (s *Scheduler) SetEnvelopeGate(g EnvelopeGate) { s.envGate = g }
 
 // New builds a scheduler. bus may be nil (events are then only persisted).
 func New(db *sqlite.DB, policies *policy.Set, registry *actor.Registry, rt runtime.Runtime, bus *eventbus.Hub, cfg Config) *Scheduler {
@@ -189,6 +212,24 @@ func (s *Scheduler) selectActor(tk *ticket.Ticket) (*actor.Actor, run.Mode, stri
 			continue // scheduler dispatches to AI runtimes; humans claim via CLI
 		}
 		if !a.CanClaim(tk.WorkType) {
+			continue
+		}
+		// Envelope-aware path (ADR 0056): trust AND the active ancestor envelope
+		// must permit the claim; a boundary crossing raises a human exception and is
+		// not dispatched. Falls back to trust-only when no gate is installed.
+		if s.envGate != nil {
+			d, err := s.envGate.AuthorizeAIClaim(tk.ID, actionType, tk.WorkType, a)
+			if err != nil {
+				s.publish(eventbus.Event{Type: "scheduler.error", TicketID: tk.ID, Message: "claim authz: " + err.Error()})
+				continue
+			}
+			if d == ClaimAllow {
+				return a, mode, actionType
+			}
+			if d == ClaimException {
+				s.publish(eventbus.Event{Type: "claim.exception", TicketID: tk.ID,
+					Message: "AI claim exceeds envelope; raised exception approval"})
+			}
 			continue
 		}
 		action := policy.Action{Type: actionType, Actor: a, WorkType: tk.WorkType, Scope: risk.Scope{}}

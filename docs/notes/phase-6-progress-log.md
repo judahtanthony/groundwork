@@ -160,3 +160,13 @@ at each step.
   (contract/SOPs) per the ADR. `gw context` renders the new sections (pending blockers,
   completion summary, ⚠ stale/missing cues). Tests: durable memory in the brief with a
   stale-summary signal, and missing-summary detection at review.
+- **T-1090** route scheduler AI claims through envelope-aware authz (ADR 0056) — the
+  scheduler gains an optional `EnvelopeGate` seam (`ClaimDecision`: allow/deny/exception);
+  `selectActor` routes AI candidates through it instead of the trust-only
+  `policies.AuthorizeClaim` when installed — allow dispatches, deny skips, and a boundary
+  crossing publishes `claim.exception` without dispatching (the human exception approval was
+  already opened by `AuthorizeEnvelopedClaim`). The gate stays free of a server import; the
+  CLI wires an `envelopeGate` adapter over the coordinator's new `Server.AuthorizeAIClaim`
+  (computes claim-time risk class, runs the AND-composition with no diff yet). Default-deny
+  for no-envelope nodes is preserved. Tests: gate allow dispatches even when trust-only would
+  not, deny blocks, and exception does not dispatch.

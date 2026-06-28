@@ -4,7 +4,7 @@ kind: ticket
 node_type: leaf
 work_type: technical_implementation
 title: Route scheduler AI claims through envelope-aware authorization
-status: todo
+status: done
 assignee: null
 requested_actor: null
 priority: 0.55
