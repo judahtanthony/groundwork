@@ -47,6 +47,13 @@ func (s *Server) LandToParent(childID string) (*sqlite.IntegrationBranch, error)
 	if ib == nil {
 		return nil, errNoIntegrationTarget
 	}
+	// Enforce the validation gate before committing to the integration branch, the
+	// same "no failing results" bar land_to_main applies (ADR 0058): land_to_parent
+	// is a lighter landing level, not an unguarded one. M2 supplies no required
+	// checks, so this blocks children with a failing validation result.
+	if _, err := s.db.CheckValidationGate(childID, nil, false); err != nil {
+		return nil, err
+	}
 	if s.repo != nil {
 		if cur, _ := s.repo.CurrentBranch(); cur != ib.Branch {
 			if err := s.repo.Checkout(ib.Branch); err != nil {

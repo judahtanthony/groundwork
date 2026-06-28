@@ -130,9 +130,20 @@ func (r *Repo) MergeNoFF(branch, message string) error {
 	return err
 }
 
-// DeleteBranch removes a branch (git branch -D).
+// MergeAbort aborts an in-progress merge, restoring the work tree and index to
+// the pre-merge state (git merge --abort). Used to recover from a conflicted
+// root land_to_main so a failed merge never leaves the tree mid-conflict (ADR 0058).
+func (r *Repo) MergeAbort() error {
+	_, err := r.run("merge", "--abort")
+	return err
+}
+
+// DeleteBranch removes a branch with the safe `git branch -d`, which refuses to
+// delete a branch that is not fully merged. Callers delete only after a
+// successful merge (ADR 0058), so a refusal here is a real signal that work would
+// be lost — it surfaces as a loud error rather than a silent force-delete.
 func (r *Repo) DeleteBranch(name string) error {
-	_, err := r.run("branch", "-D", name)
+	_, err := r.run("branch", "-d", name)
 	return err
 }
 

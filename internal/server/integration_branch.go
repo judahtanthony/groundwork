@@ -37,7 +37,13 @@ func (s *Server) mergeRootToMain(nodeID string) error {
 		return err
 	}
 	if err := s.repo.MergeNoFF(ib.Branch, fmt.Sprintf("Land %s into %s", nodeID, target)); err != nil {
-		return err
+		// A conflicted merge must not leave the work tree mid-conflict: abort to
+		// restore the pre-merge state, then surface the conflict (ADR 0058). The
+		// integration branch stays open so the human can resolve and retry.
+		if abErr := s.repo.MergeAbort(); abErr != nil {
+			return fmt.Errorf("merge of %s into %s failed (%v) and the abort also failed (%v); resolve the git state manually", ib.Branch, target, err, abErr)
+		}
+		return fmt.Errorf("merge of %s into %s failed and was aborted; resolve conflicts and retry land_to_main: %w", ib.Branch, target, err)
 	}
 	if err := s.repo.DeleteBranch(ib.Branch); err != nil {
 		return err
@@ -58,10 +64,19 @@ func (s *Server) ensureIntegrationBranch(nodeID string) error {
 	if err != nil {
 		return err
 	}
+	// Refuse to set up an integration target from a detached HEAD: we can neither
+	// adopt it as a branch nor safely assume the operator's intent (they may be
+	// mid-rebase or on a bare checkout). The human should check out a branch first.
+	if cur == "HEAD" {
+		return fmt.Errorf("cannot set up an integration branch for %s from a detached HEAD; check out a branch first", nodeID)
+	}
 	branch := cur
 	if isDefaultBranch(cur) {
 		// Don't land root work directly on the default branch: start a dedicated
-		// integration branch from HEAD.
+		// integration branch from HEAD. `checkout -b` carries any in-flight work onto
+		// the new branch (the operator's WIP becomes part of the feature), so no
+		// dirty-tree guard here — and .groundwork/ is intentionally always
+		// uncommitted, which would make such a guard misfire on every approval.
 		branch = integrationBranchName(nodeID, s.ticketTitle(nodeID))
 		if err := s.repo.CreateAndCheckout(branch); err != nil {
 			return err
@@ -83,7 +98,7 @@ func (s *Server) ticketTitle(nodeID string) string {
 
 func isDefaultBranch(b string) bool {
 	switch b {
-	case "", "main", "master", "HEAD":
+	case "", "main", "master":
 		return true
 	}
 	return false

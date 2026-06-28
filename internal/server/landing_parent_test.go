@@ -1,12 +1,14 @@
 package server
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
 
 	"groundwork/internal/approval"
 	"groundwork/internal/envelope"
+	"groundwork/internal/store/sqlite"
 	"groundwork/internal/ticket"
 )
 
@@ -57,6 +59,46 @@ func TestLandToParentCommitsToIntegrationBranch(t *testing.T) {
 	}
 	if c, _ := db.GetTicket(child.ID); c.Status != ticket.StatusDone {
 		t.Errorf("child status = %s, want done", c.Status)
+	}
+}
+
+// A child with a failing validation result must not land to its integration
+// branch: land_to_parent enforces the same validation gate as land_to_main, so a
+// lighter landing level cannot be used to commit work over a red check (H2/ADR 0058).
+func TestLandToParentBlockedByFailingValidation(t *testing.T) {
+	srv, db, root := newGitServer(t)
+	parent := &ticket.Ticket{Title: "feature", NodeType: ticket.NodeComposite, Status: ticket.StatusTodo, WorkType: "technical_design"}
+	if err := db.CreateTicket(parent, "tester"); err != nil {
+		t.Fatal(err)
+	}
+	appr, err := srv.ProposeEnvelope(parent.ID, &envelope.Envelope{
+		ApprovedActions: []string{envelope.ActionExecuteChildren, envelope.ActionLandChildToParent},
+		AllowedRoles:    []string{"coding"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := srv.recordDecision(appr.ID, approval.StatusApproved, ""); err != nil {
+		t.Fatal(err)
+	}
+
+	child := &ticket.Ticket{ParentID: parent.ID, Title: "child", NodeType: ticket.NodeLeaf, Status: ticket.StatusInProgress, WorkType: "technical_implementation"}
+	if err := db.CreateTicket(child, "tester"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.RecordValidation(sqlite.ValidationResult{TicketID: child.ID, Name: "go test", Status: sqlite.ValidationFail}); err != nil {
+		t.Fatal(err)
+	}
+
+	before := runGit(t, root, "rev-parse", "HEAD")
+	if _, err := srv.LandToParent(child.ID); !errors.Is(err, sqlite.ErrValidationGate) {
+		t.Fatalf("LandToParent err = %v, want ErrValidationGate", err)
+	}
+	if after := runGit(t, root, "rev-parse", "HEAD"); after != before {
+		t.Error("HEAD advanced despite a failing validation; gate did not block the commit")
+	}
+	if c, _ := db.GetTicket(child.ID); c.Status == ticket.StatusDone {
+		t.Error("child marked done despite a failing validation")
 	}
 }
 

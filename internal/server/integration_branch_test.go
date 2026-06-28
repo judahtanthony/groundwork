@@ -21,6 +21,23 @@ func TestSlugify(t *testing.T) {
 	}
 }
 
+// Setting up an integration target from a detached HEAD is refused: we can
+// neither adopt it as a branch nor guess the operator's intent (M4/ADR 0058).
+func TestEnsureIntegrationBranchRefusesDetachedHEAD(t *testing.T) {
+	srv, db, root := newGitServer(t)
+	parent := &ticket.Ticket{Title: "feature", NodeType: ticket.NodeComposite, Status: ticket.StatusTodo, WorkType: "technical_design"}
+	if err := db.CreateTicket(parent, "tester"); err != nil {
+		t.Fatal(err)
+	}
+	runGit(t, root, "checkout", "--detach", "HEAD")
+	if err := srv.ensureIntegrationBranch(parent.ID); err == nil {
+		t.Fatal("expected refusal to create an integration branch from a detached HEAD")
+	}
+	if ib, _ := db.GetIntegrationBranch(parent.ID); ib != nil {
+		t.Errorf("recorded an integration branch %+v from a detached HEAD", ib)
+	}
+}
+
 // Approving a root envelope on the default branch starts and records a
 // gw/root/<id>-<slug> integration target (ADR 0058).
 func TestEnsureIntegrationBranchOnEnvelopeApproval(t *testing.T) {

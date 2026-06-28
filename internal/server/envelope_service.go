@@ -84,9 +84,14 @@ func (s *Server) setEnvelopeStatus(id string, status envelope.Status) error {
 	if err != nil {
 		return err
 	}
-	if err := s.db.SetEnvelopeStatus(id, status); err != nil {
+	// Write the authoritative sidecar before the SQLite mirror, matching
+	// activateEnvelope's order (ADR 0040/0054): the file is the source of truth, so
+	// if the mirror write fails the sidecar already reflects the new status and a
+	// rebuild reconciles the mirror — never the reverse, which would leave the
+	// authoritative file stale behind a changed mirror.
+	e.Status = status
+	if err := envelope.Write(s.proj.TicketsDir(), e); err != nil {
 		return err
 	}
-	e.Status = status
-	return envelope.Write(s.proj.TicketsDir(), e)
+	return s.db.SetEnvelopeStatus(id, status)
 }
