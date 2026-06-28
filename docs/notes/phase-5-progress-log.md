@@ -97,3 +97,40 @@ All 16 leaves landed on `phase-5-bounded-autonomy`; streams: role-aware actors,
 authority gate (0038), envelopes (0054), integration/landing (0058), envelope-aware
 claim (0056), bulk review (0057). Build/vet/full test suite green throughout. Phase 5
 epic (T-1066) closure + merge to main await the human top-level review.
+
+## Review fixes (post-implementation adversarial review)
+Addressed an external adversarial review of the branch before merge. Batches A–C,
+build/vet/full suite green throughout; failure-path tests added per fix.
+
+- **Batch A — security/correctness.** H1: `authorize()` enforced the human-only gate
+  only when no required actor/role was set, so once T-1067 auto-populated `RequiredRoles`
+  an ai_agent holding that role could decide a human-gated approval — now require_human is
+  enforced first and independently (a role only narrows *which human*). H2: `LandToParent`
+  skipped the validation gate — extracted `CheckValidationGate` and applied it. H3:
+  `mergeRootToMain` left a conflicted merge mid-flight — added `MergeAbort` + abort/surface,
+  preserving the branch + record. M1: `finishLanding` committed the root export on the
+  current branch before merging — now checks out the integration branch first so the export
+  can't orphan. M3: `setEnvelopeStatus` wrote the mirror before the authoritative sidecar —
+  flipped to sidecar-first. M4: detached HEAD was misclassified as the default branch — now
+  refused explicitly. L1: `DeleteBranch` uses the safe `-d`.
+- **Batch B — robustness.** M2: `activateEnvelope` is idempotent (a retried activation
+  reconciles instead of allocating a duplicate). M5: unknown/empty approved-action
+  vocabulary rejected at propose + activation (`envelope.ValidateActions`); `envelopeActionFor`
+  returns "" for unknown gate actions. L2: `ReviewBundle` seeds the subtree with the root so
+  the root's own exceptions count. L3: `GetActiveEnvelopeForNode` overlays the status column.
+- **Batch C — entry point, docs, cleanup.** Added the manual-mode envelope creation entry
+  point: `gw envelope propose` + `POST /api/v1/tickets/:id/envelope` (decision: add now).
+  Documented two intentional v1 limitations in ADR 0056 — empty-change-set file scope is
+  permissive, and `require_review`/`escalation.*` triggers are recorded but diff-dependent,
+  so their enforcement is deferred to Phase 6. Cleanup: extracted the shared
+  self-then-ancestor walk (`nearestInChain`) and used `slices.Contains` in the envelope
+  matchers.
+
+### Declined (with rationale)
+- **L4 (empty files → allowed):** intentional v1 behavior, not a bug — there are no diffs
+  pre-runtime, so file scope is best-effort until Phase 6 (documented in ADR 0056).
+- **L5 (require_review / escalation triggers inert):** deferred to Phase 6, which supplies
+  the real diff those triggers key off (documented in ADR 0056).
+- **M4 dirty-tree guard:** dropped — `.groundwork/` is intentionally always uncommitted and
+  `git checkout -b` safely carries WIP onto the new branch, so the guard would misfire on
+  every approval without adding safety.

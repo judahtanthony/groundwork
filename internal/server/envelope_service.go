@@ -8,7 +8,9 @@ package server
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"net/http"
 
 	"groundwork/internal/approval"
 	"groundwork/internal/encoding"
@@ -16,6 +18,26 @@ import (
 	"groundwork/internal/policy"
 	"groundwork/internal/store/sqlite"
 )
+
+// handleEnvelopePropose opens a human-gated approve_envelope approval carrying the
+// posted draft boundary (ADR 0054). The body is the draft envelope JSON; node_id
+// is taken from the path. Approving the returned approval activates the envelope.
+func (s *Server) handleEnvelopePropose(w http.ResponseWriter, r *http.Request) {
+	var draft envelope.Envelope
+	if !decodeJSON(w, r, &draft) {
+		return
+	}
+	appr, err := s.ProposeEnvelope(r.PathValue("id"), &draft)
+	if err != nil {
+		if errors.Is(err, envelope.ErrInvalidActions) {
+			writeError(w, http.StatusBadRequest, "invalid_actions", err.Error())
+			return
+		}
+		s.writeMutationError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusCreated, appr)
+}
 
 // ProposeEnvelope opens a human-gated approve_envelope approval for nodeID,
 // carrying the draft boundary. Activation happens on approval (recordDecision).

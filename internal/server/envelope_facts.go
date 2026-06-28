@@ -14,19 +14,7 @@ import (
 // activeAncestorEnvelope returns the active envelope nearest to nodeID (self,
 // then closest ancestor), or (nil, nil) when none is active in the chain.
 func (s *Server) activeAncestorEnvelope(nodeID string) (*envelope.Envelope, error) {
-	if e, err := s.db.GetActiveEnvelopeForNode(nodeID); err != nil || e != nil {
-		return e, err
-	}
-	ancestors, err := s.db.Ancestors(nodeID)
-	if err != nil {
-		return nil, err
-	}
-	for i := len(ancestors) - 1; i >= 0; i-- { // nearest parent first
-		if e, err := s.db.GetActiveEnvelopeForNode(ancestors[i].ID); err != nil || e != nil {
-			return e, err
-		}
-	}
-	return nil, nil
+	return nearestInChain(s, nodeID, s.db.GetActiveEnvelopeForNode)
 }
 
 // envelopeFacts computes the ADR 0056 gate inputs for an action on nodeID: the

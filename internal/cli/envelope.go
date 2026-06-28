@@ -14,8 +14,18 @@ import (
 func newEnvelopeCmd() *Command {
 	return &Command{
 		Name:  "envelope",
-		Usage: "Inspect and revoke approval envelopes",
+		Usage: "Propose, inspect, and revoke approval envelopes",
 		Sub: []*Command{
+			{Name: "propose", Usage: "Propose an envelope for a node (requires the coordinator)", Args: "<node-id>", Run: runEnvelopePropose, Flags: []FlagDoc{
+				{"--action", "approved action: decompose_children|execute_children|land_children_to_parent|replan_within_goal (repeatable)"},
+				{"--role", "allowed actor role (repeatable)"},
+				{"--work-type", "allowed work type for planning (repeatable)"},
+				{"--allow", "scope: allowed file glob (repeatable)"},
+				{"--deny", "scope: denied file glob (repeatable)"},
+				{"--risk-ceiling", "max risk class the envelope authorizes (low|medium|high)"},
+				{"--max-depth", "max decomposition depth"},
+				{"--max-children", "max children per node"},
+			}},
 			{Name: "list", Usage: "List envelopes", Run: runEnvelopeList, Flags: []FlagDoc{
 				{"--status", "filter by status (active|revoked|superseded)"},
 			}},
@@ -23,6 +33,53 @@ func newEnvelopeCmd() *Command {
 			{Name: "revoke", Usage: "Revoke an envelope by id", Args: "<envelope-id>", Run: runEnvelopeRevoke},
 		},
 	}
+}
+
+// runEnvelopePropose opens a human-gated approve_envelope approval carrying the
+// drafted boundary, through the coordinator so the proposal flows through policy
+// and the running server's state/SSE stay coherent (ADR 0054/0031). Approving the
+// returned approval (gw approval approve) activates the envelope.
+func runEnvelopePropose(ctx *Context, args []string) error {
+	fs := ctx.NewFlagSet("gw envelope propose")
+	var actions, roles, workTypes, allow, deny stringSlice
+	var riskCeiling string
+	var maxDepth, maxChildren int
+	fs.Var(&actions, "action", "approved action (repeatable)")
+	fs.Var(&roles, "role", "allowed actor role (repeatable)")
+	fs.Var(&workTypes, "work-type", "allowed work type (repeatable)")
+	fs.Var(&allow, "allow", "scope allow glob (repeatable)")
+	fs.Var(&deny, "deny", "scope deny glob (repeatable)")
+	fs.StringVar(&riskCeiling, "risk-ceiling", "", "max risk class (low|medium|high)")
+	fs.IntVar(&maxDepth, "max-depth", 0, "max decomposition depth")
+	fs.IntVar(&maxChildren, "max-children", 0, "max children per node")
+	pos, err := parseFlags(fs, args)
+	if err != nil {
+		return err
+	}
+	if len(pos) != 1 || len(actions) == 0 {
+		return &Error{Code: "invalid_args", Message: "usage: gw envelope propose <node-id> --action <action> [--action ...] [--role ...]"}
+	}
+	draft := &envelope.Envelope{
+		ApprovedActions: actions,
+		AllowedRoles:    roles,
+		RiskCeiling:     riskCeiling,
+		Planning:        envelope.Planning{MaxDepth: maxDepth, MaxChildren: maxChildren, AllowedWorkTypes: workTypes},
+		Scope:           envelope.Scope{Files: envelope.FileScope{Allow: allow, Deny: deny}},
+	}
+	c, err := ctx.requireCoordinator()
+	if err != nil {
+		return err
+	}
+	appr, err := c.ProposeEnvelope(pos[0], draft)
+	if err != nil {
+		return approvalError(err, pos[0])
+	}
+	if ctx.JSON {
+		return ctx.PrintJSON(appr)
+	}
+	fmt.Fprintf(ctx.Stdout, "Proposed envelope for %s — approval %s is pending.\n", pos[0], appr.ID)
+	fmt.Fprintf(ctx.Stdout, "Approve it with: gw approval approve %s\n", appr.ID)
+	return nil
 }
 
 func runEnvelopeList(ctx *Context, args []string) error {

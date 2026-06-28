@@ -88,6 +88,24 @@ any boundary crossing still surfaces for review.
 - Exception approvals become a distinct, parent-grouped queue in the inbox (Phase 4 UI
   extended) and CLI.
 
+## v1 limitations (diff-dependent enforcement deferred to Phase 6)
+
+Two parts of the envelope boundary are intentionally inert in v1 because they require a
+real change set, which only the Phase 6 runtime produces:
+
+- **File-scope on an empty change set is permissive.** `envelopeScopeAllows` returns true
+  when no files are presented (`PlannedScope`/changed files empty). Pre-runtime there is no
+  diff to check, so scope is best-effort: it constrains a claim *only* when a file set is
+  supplied. Full allow/deny enforcement arrives with the runtime diff (ADR 0046). This is a
+  deliberate v1 choice, not a gap to close before merge.
+- **`scope.files.require_review` and the `escalation.*` triggers are recorded but not yet
+  enforced.** They key off boundary-crossing facts derived from an actual diff
+  (unexpected files, contract change, validation failure, risk above ceiling, public-API
+  change). Until the runtime supplies those facts, only the static axes — approved action,
+  work type, role, risk ceiling, and (when a file set is present) file scope — gate a claim;
+  a crossing on a static axis still raises an exception. Wiring `require_review` and the
+  escalation triggers is Phase 6 work alongside the diff.
+
 ## Open Questions
 
 - Should `land_to_parent` reuse `land_to_main`'s gate type with a different target, or be a

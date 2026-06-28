@@ -25,6 +25,7 @@ POST /api/v1/tickets/:id/validations
 GET  /api/v1/tickets/:id/land/preview
 POST /api/v1/tickets/:id/land
 POST /api/v1/tickets/:id/land-to-parent
+POST /api/v1/tickets/:id/envelope
 GET  /api/v1/runs
 POST /api/v1/runs
 GET  /api/v1/runs/:id
@@ -65,6 +66,15 @@ or approval) and returns `400 not_a_repo` outside a git work tree.
 `POST /api/v1/tickets/:id/land-to-parent` lands a child onto its root integration
 branch (ADR 0058): it marks the child done and commits its export plus staged work
 to that branch — distinct from `land_to_main`, which is the human-gated root merge.
+It enforces the same validation gate as `land_to_main` (a child with a failing
+validation result is refused).
+`POST /api/v1/tickets/:id/envelope` proposes an approval envelope for the node
+(ADR 0054): the body is the draft envelope JSON (`approved_actions`,
+`allowed_roles`, `planning`, `scope`, `risk_ceiling`, …) and it opens a pending
+human-gated `approve_envelope` approval. Approving that approval activates the
+envelope (authoritative sidecar + mirror) and establishes the root integration
+branch. An empty or unrecognized `approved_actions` set returns `400 invalid_actions`.
+This is the production entry point for `gw envelope propose`.
 `POST /api/v1/tickets/:id/land` drives landing through the `land_to_main` approval
 gate (ADR 0028): policy auto-approves and lands immediately, otherwise it returns
 `{"landed": false, "approval": …}` for a human to approve (approving lands).

@@ -18,19 +18,7 @@ var errNoIntegrationTarget = errors.New("no integration target: approve a root e
 // integrationTargetFor returns the integration branch nearest to nodeID (self,
 // then closest ancestor), or (nil, nil) when none exists in the node's chain.
 func (s *Server) integrationTargetFor(nodeID string) (*sqlite.IntegrationBranch, error) {
-	if ib, err := s.db.GetIntegrationBranch(nodeID); err != nil || ib != nil {
-		return ib, err
-	}
-	ancestors, err := s.db.Ancestors(nodeID)
-	if err != nil {
-		return nil, err
-	}
-	for i := len(ancestors) - 1; i >= 0; i-- { // nearest parent first
-		if ib, err := s.db.GetIntegrationBranch(ancestors[i].ID); err != nil || ib != nil {
-			return ib, err
-		}
-	}
-	return nil, nil
+	return nearestInChain(s, nodeID, s.db.GetIntegrationBranch)
 }
 
 // LandToParent lands an in-progress child onto its root integration branch: mark

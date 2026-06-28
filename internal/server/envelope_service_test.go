@@ -1,11 +1,13 @@
 package server
 
 import (
+	"net/http"
 	"strings"
 	"testing"
 
 	"groundwork/internal/approval"
 	"groundwork/internal/envelope"
+	"groundwork/internal/store/sqlite"
 	"groundwork/internal/ticket"
 )
 
@@ -31,6 +33,35 @@ func TestApprovalsInboxShowsEnvelopeBoundary(t *testing.T) {
 		if !strings.Contains(body, want) {
 			t.Errorf("inbox missing %q", want)
 		}
+	}
+}
+
+// The propose endpoint opens a pending approve_envelope approval from a posted
+// draft, and rejects an unknown action vocabulary with 400 (ADR 0054).
+func TestEnvelopeProposeEndpoint(t *testing.T) {
+	srv, db := newTestServer(t)
+	parent := &ticket.Ticket{Title: "root", NodeType: ticket.NodeComposite, Status: ticket.StatusTodo, WorkType: "technical_design"}
+	if err := db.CreateTicket(parent, "tester"); err != nil {
+		t.Fatal(err)
+	}
+
+	var appr sqlite.Approval
+	code := req(t, srv, "POST", "/api/v1/tickets/"+parent.ID+"/envelope", map[string]any{
+		"approved_actions": []string{envelope.ActionExecuteChildren},
+		"allowed_roles":    []string{"coding"},
+	}, &appr)
+	if code != http.StatusCreated {
+		t.Fatalf("propose = %d, want 201", code)
+	}
+	if appr.Type != string(approval.TypeApproveEnvelope) || appr.Status != string(approval.StatusPending) {
+		t.Errorf("approval = %s/%s, want approve_envelope/pending", appr.Type, appr.Status)
+	}
+
+	code = req(t, srv, "POST", "/api/v1/tickets/"+parent.ID+"/envelope", map[string]any{
+		"approved_actions": []string{"land_to_main"},
+	}, nil)
+	if code != http.StatusBadRequest {
+		t.Errorf("propose with unknown action = %d, want 400", code)
 	}
 }
 

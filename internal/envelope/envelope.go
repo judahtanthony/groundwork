@@ -6,9 +6,11 @@
 package envelope
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 
 	"gopkg.in/yaml.v3"
 )
@@ -38,13 +40,17 @@ var KnownActions = []string{
 	ActionLandChildToParent, ActionReplanWithinGoal,
 }
 
+// ErrInvalidActions marks an envelope whose approved-action vocabulary is empty
+// or contains an unrecognized action; callers map it to a client (400) error.
+var ErrInvalidActions = errors.New("invalid envelope approved_actions")
+
 // ValidateActions rejects any approved action outside the known vocabulary, so a
 // malformed envelope is refused at activation rather than silently granting (or
 // failing to grant) an unrecognized action (ADR 0054/0056). An envelope granting
 // no actions is also rejected — it would authorize nothing.
 func ValidateActions(actions []string) error {
 	if len(actions) == 0 {
-		return fmt.Errorf("envelope grants no approved_actions")
+		return fmt.Errorf("%w: grants no approved_actions", ErrInvalidActions)
 	}
 	known := map[string]bool{}
 	for _, a := range KnownActions {
@@ -57,7 +63,7 @@ func ValidateActions(actions []string) error {
 		}
 	}
 	if len(unknown) > 0 {
-		return fmt.Errorf("unknown envelope approved_actions %v (known: %v)", unknown, KnownActions)
+		return fmt.Errorf("%w: unknown %v (known: %v)", ErrInvalidActions, unknown, KnownActions)
 	}
 	return nil
 }
@@ -115,32 +121,17 @@ type Envelope struct {
 
 // Allows reports whether the envelope grants the given approved action.
 func (e *Envelope) Allows(action string) bool {
-	for _, a := range e.ApprovedActions {
-		if a == action {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(e.ApprovedActions, action)
 }
 
 // AllowsRole reports whether the envelope permits the given actor role.
 func (e *Envelope) AllowsRole(role string) bool {
-	for _, r := range e.AllowedRoles {
-		if r == role {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(e.AllowedRoles, role)
 }
 
 // AllowsWorkType reports whether the work type is within the envelope's plan.
 func (e *Envelope) AllowsWorkType(workType string) bool {
-	for _, wt := range e.Planning.AllowedWorkTypes {
-		if wt == workType {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(e.Planning.AllowedWorkTypes, workType)
 }
 
 // SidecarPath returns the envelope sidecar path for a node under ticketsDir.

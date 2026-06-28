@@ -111,6 +111,16 @@ to stop. When the Phase 6 runtime lands, revocation also signals active runs to 
 and hand off (ADR 0047 blocked-run handoff). A superseding re-plan marks the old envelope
 `superseded` and links the replacement.
 
+### Surfaces (v1)
+
+- **Propose:** `gw envelope propose <node> --action … [--role … --work-type … --allow …
+  --deny … --risk-ceiling … --max-depth … --max-children …]`, served by
+  `POST /api/v1/tickets/:id/envelope`. It opens the human-gated `approve_envelope`
+  approval; approving it (the normal `gw approval approve`) activates the envelope and
+  establishes the root integration branch. This is the manual-mode entry point — envelope
+  creation does not require the Phase 6 planner.
+- **Inspect / revoke:** `gw envelope list|show|revoke`.
+
 ## Consequences
 
 - New durable record type (envelope) with a sidecar export and SQLite mirror; the approval
