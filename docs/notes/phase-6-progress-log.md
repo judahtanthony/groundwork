@@ -69,3 +69,12 @@ at each step.
   preserves tickets/statuses/deps/decisions; divergence flags an unexported mutation
   (idempotently); pending approval emits + resolves its durable record. ADR 0051/0053 →
   Implemented: Partial.
+- **T-0501** runtime interface + Codex adapter shell (ADR 0027) — new `runtime.Codex`
+  adapter behind the existing `Runtime` seam: `Config` (command/model/sandbox/args), a
+  `LaunchFunc` seam (the real process launcher slots in at T-0502 via `WithLauncher`), and
+  a records-only default launch so dispatch stays functional now. `runtime.Select` chooses
+  stub vs codex from `config.runtime` (unknown name errors loudly). Added a `model` project
+  config key; wired `gw server` boot to select the runtime from config instead of hardcoding
+  the stub. `Run` resolves the effective model from the coordinator's actor-selected Spec,
+  falling back to config. Tests: selector mapping + unknown, default command, launcher
+  delegation with actor config, model fallback, records-only shell sequence.

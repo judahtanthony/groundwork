@@ -105,7 +105,18 @@ func runServer(ctx *Context, args []string) error {
 
 	bus := eventbus.New(0)
 	defer bus.Close()
-	sched := scheduler.New(db, policies, registry, runtime.Stub{}, bus, scheduler.Config{
+
+	// Select the runtime adapter from config (ADR 0027): records-only stub or the
+	// Codex adapter. The Codex adapter runs in an isolated worktree per run.
+	rt, err := runtime.Select(p.Config.Runtime, runtime.Config{
+		Model:   p.Config.Model,
+		Sandbox: p.Config.Sandbox,
+	})
+	if err != nil {
+		return &Error{Code: "runtime_error", Message: err.Error()}
+	}
+	ctx.Stderr.Write([]byte("gw: runtime " + rt.Name() + "\n"))
+	sched := scheduler.New(db, policies, registry, rt, bus, scheduler.Config{
 		MaxConcurrency: p.Config.MaxConcurrency,
 		LeaseTTL:       p.Config.Lease.TTL.Duration(),
 		Heartbeat:      p.Config.Lease.Heartbeat.Duration(),

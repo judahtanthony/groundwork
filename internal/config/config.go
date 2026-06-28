@@ -17,6 +17,7 @@ const SchemaVersion = "groundwork_config/v1"
 type Config struct {
 	Schema         string `yaml:"schema"`
 	Runtime        string `yaml:"runtime"`
+	Model          string `yaml:"model"`
 	Server         Server `yaml:"server"`
 	MaxConcurrency int    `yaml:"max_concurrency"`
 	Lease          Lease  `yaml:"lease"`
@@ -51,6 +52,7 @@ func Defaults() Config {
 var knownKeys = map[string]bool{
 	"schema":          true,
 	"runtime":         true,
+	"model":           true,
 	"server":          true,
 	"max_concurrency": true,
 	"lease":           true,
