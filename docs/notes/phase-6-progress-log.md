@@ -89,3 +89,15 @@ at each step.
   base-diff isolates the run's own change, squash stages into the index, ref retention,
   and Manager provision/retain/teardown/reconcile (confirming `.groundwork/worktrees/`
   placement works inside the repo).
+- **T-0502** launch Codex in isolated worktree (ADR 0059) — `execLauncher` runs the
+  configured agent command with cwd = the run worktree, after `validateWorkspace` confirms
+  the cwd is a real directory contained within the worktree root (so the agent can never
+  run in the repo root or an arbitrary path); stdout/stderr stream as `output`/`stderr`
+  events and the exit code maps to produced/failed/interrupted. The Codex adapter gains
+  `WithExec()` (real launcher) and `WithWorkspace(provider, base)` — `Run` provisions the
+  run's worktree from the resolved base and sets the workspace before launch; the worktree
+  and its branch persist past the run for diff capture and landing. Wired `gw server` to
+  give the Codex adapter the exec launcher + a `worktree.Manager`-backed provider when the
+  project is a git work tree (else records-only). Tests: agent runs in the workspace and
+  streams output, non-zero exit errors, containment validation (empty/outside-root), and
+  provision-before-launch delegation.

@@ -4,7 +4,7 @@ kind: ticket
 node_type: leaf
 work_type: technical_implementation
 title: Launch Codex in isolated worktree
-status: todo
+status: done
 assignee: null
 requested_actor: null
 priority: 0.68

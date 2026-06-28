@@ -10,10 +10,12 @@ import (
 
 	"groundwork/internal/actor"
 	"groundwork/internal/eventbus"
+	"groundwork/internal/git"
 	"groundwork/internal/policy"
 	"groundwork/internal/runtime"
 	"groundwork/internal/scheduler"
 	"groundwork/internal/server"
+	"groundwork/internal/worktree"
 )
 
 func newServerCmd() *Command {
@@ -109,11 +111,23 @@ func runServer(ctx *Context, args []string) error {
 	// Select the runtime adapter from config (ADR 0027): records-only stub or the
 	// Codex adapter. The Codex adapter runs in an isolated worktree per run.
 	rt, err := runtime.Select(p.Config.Runtime, runtime.Config{
-		Model:   p.Config.Model,
-		Sandbox: p.Config.Sandbox,
+		Model:        p.Config.Model,
+		Sandbox:      p.Config.Sandbox,
+		WorktreeRoot: p.WorktreesDir(),
 	})
 	if err != nil {
 		return &Error{Code: "runtime_error", Message: err.Error()}
+	}
+	// The Codex adapter executes in an isolated git worktree per run (ADR 0059).
+	// When the project is a git work tree, give it the real process launcher and a
+	// worktree provider; otherwise it stays the records-only shell.
+	if codex, ok := rt.(*runtime.Codex); ok {
+		if repo, gerr := git.Open(p.Root); gerr == nil {
+			mgr := worktree.NewManager(repo, p.WorktreesDir())
+			rt = codex.WithExec().WithWorkspace(worktreeProvider{mgr}, nil)
+		} else {
+			ctx.Stderr.Write([]byte("gw: warning: project is not a git work tree; codex runs records-only\n"))
+		}
 	}
 	ctx.Stderr.Write([]byte("gw: runtime " + rt.Name() + "\n"))
 	sched := scheduler.New(db, policies, registry, rt, bus, scheduler.Config{
@@ -141,4 +155,16 @@ func runServer(ctx *Context, args []string) error {
 		return &Error{Code: "server_error", Message: err.Error()}
 	}
 	return nil
+}
+
+// worktreeProvider adapts worktree.Manager to runtime.WorkspaceProvider so the
+// Codex adapter can provision an isolated worktree per run (ADR 0059).
+type worktreeProvider struct{ m *worktree.Manager }
+
+func (w worktreeProvider) Provision(runID, base string) (string, error) {
+	p, err := w.m.Provision(runID, base)
+	if err != nil {
+		return "", err
+	}
+	return p.Path, nil
 }

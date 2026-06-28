@@ -1,0 +1,128 @@
+package runtime
+
+import (
+	"context"
+	"os"
+	"path/filepath"
+	"runtime"
+	"testing"
+)
+
+// writeScript creates an executable shell script that writes a file and prints
+// output, standing in for the codex agent CLI.
+func writeScript(t *testing.T, dir, body string) string {
+	t.Helper()
+	if runtime.GOOS == "windows" {
+		t.Skip("shell-script stub is POSIX-only")
+	}
+	path := filepath.Join(dir, "fake-codex.sh")
+	if err := os.WriteFile(path, []byte("#!/bin/sh\n"+body), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	return path
+}
+
+func TestExecLauncherRunsInWorkspaceAndStreams(t *testing.T) {
+	scriptDir := t.TempDir()
+	ws := t.TempDir()
+	script := writeScript(t, scriptDir, "echo starting; printf 'package x\\n' > feature.go; echo finished\n")
+
+	c := NewCodex(Config{Command: script}).WithExec()
+	var types, msgs []string
+	res, err := c.Run(context.Background(), Spec{RunID: "R-1", TicketID: "T-1", Workspace: ws},
+		func(e Event) { types = append(types, e.Type); msgs = append(msgs, e.Message) })
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	if res.Status != "produced" {
+		t.Fatalf("status = %q, want produced", res.Status)
+	}
+	// The agent ran with cwd = the workspace (the file landed there).
+	if _, err := os.Stat(filepath.Join(ws, "feature.go")); err != nil {
+		t.Fatalf("agent did not run in the workspace: %v", err)
+	}
+	// Output was streamed as events.
+	if !contains(types, "claimed") || !contains(types, "working") || !contains(types, "output") || !contains(types, "produced") {
+		t.Fatalf("event types = %v", types)
+	}
+	if !contains(msgs, "starting") || !contains(msgs, "finished") {
+		t.Fatalf("output not streamed: %v", msgs)
+	}
+}
+
+func TestExecLauncherFailingCommandReturnsError(t *testing.T) {
+	scriptDir := t.TempDir()
+	ws := t.TempDir()
+	script := writeScript(t, scriptDir, "echo oops 1>&2; exit 3\n")
+	c := NewCodex(Config{Command: script}).WithExec()
+	res, err := c.Run(context.Background(), Spec{RunID: "R-2", TicketID: "T-2", Workspace: ws}, nil)
+	if err == nil {
+		t.Fatal("expected error for non-zero exit")
+	}
+	if res.Status != "failed" {
+		t.Errorf("status = %q, want failed", res.Status)
+	}
+}
+
+func TestValidateWorkspaceContainment(t *testing.T) {
+	root := t.TempDir()
+	inside := filepath.Join(root, "R-1")
+	if err := os.MkdirAll(inside, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := validateWorkspace(inside, root); err != nil {
+		t.Errorf("contained workspace rejected: %v", err)
+	}
+	// Empty workspace is rejected.
+	if _, err := validateWorkspace("", root); err == nil {
+		t.Error("expected error for empty workspace")
+	}
+	// A workspace outside the worktree root is rejected (no agent in the repo root).
+	outside := t.TempDir()
+	if _, err := validateWorkspace(outside, root); err == nil {
+		t.Error("expected containment error for workspace outside the root")
+	}
+}
+
+// fakeProvider records the provisioning call and returns a prepared directory.
+type fakeProvider struct {
+	dir     string
+	gotRun  string
+	gotBase string
+}
+
+func (f *fakeProvider) Provision(runID, base string) (string, error) {
+	f.gotRun, f.gotBase = runID, base
+	return f.dir, nil
+}
+
+func TestCodexProvisionsWorkspaceBeforeLaunch(t *testing.T) {
+	ws := t.TempDir()
+	fp := &fakeProvider{dir: ws}
+	var launchedIn string
+	c := NewCodex(Config{}).
+		WithWorkspace(fp, func(spec Spec) string { return "deadbeef" }).
+		WithLauncher(func(ctx context.Context, spec Spec, sink Sink, cfg Config) (Result, error) {
+			launchedIn = spec.Workspace
+			return Result{Status: "produced"}, nil
+		})
+
+	if _, err := c.Run(context.Background(), Spec{RunID: "R-9", TicketID: "T-9"}, nil); err != nil {
+		t.Fatal(err)
+	}
+	if fp.gotRun != "R-9" || fp.gotBase != "deadbeef" {
+		t.Errorf("provider called with run=%q base=%q", fp.gotRun, fp.gotBase)
+	}
+	if launchedIn != ws {
+		t.Errorf("launcher workspace = %q, want provisioned %q", launchedIn, ws)
+	}
+}
+
+func contains(s []string, want string) bool {
+	for _, v := range s {
+		if v == want {
+			return true
+		}
+	}
+	return false
+}

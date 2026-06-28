@@ -80,10 +80,11 @@ func (m *Manager) Retain(runID string) error {
 	return m.repo.UpdateRef(RunRef(runID), branch)
 }
 
-// Teardown removes a run's worktree and deletes its branch. force discards an
-// uncommitted/un-landed worktree; callers that must not lose work call Retain
-// first (ADR 0059). It prunes stale metadata and tolerates an already-gone tree.
-func (m *Manager) Teardown(runID string, force bool) error {
+// RemoveWorktree removes a run's worktree directory but KEEPS its gw/run/<id>
+// branch, so the run's checkpoint commits survive for landing (squash) or resume
+// (ADR 0059/0015). force discards an uncommitted worktree. Tolerates an
+// already-gone directory and prunes stale metadata.
+func (m *Manager) RemoveWorktree(runID string, force bool) error {
 	path := m.Path(runID)
 	if _, err := os.Stat(path); err == nil {
 		if err := m.repo.WorktreeRemove(path, force); err != nil {
@@ -91,15 +92,26 @@ func (m *Manager) Teardown(runID string, force bool) error {
 		}
 	}
 	_ = m.repo.WorktreePrune()
+	return nil
+}
+
+// DeleteRunBranch force-deletes a run's branch (its content has squash-landed or
+// is retained under the run ref). A no-op when the branch is gone.
+func (m *Manager) DeleteRunBranch(runID string) error {
 	branch := RunBranch(runID)
 	if m.repo.BranchExists(branch) {
-		// The branch is throwaway (its content squash-lands or is retained as a
-		// ref); a force delete is intended here.
-		if err := m.repo.DeleteBranchForce(branch); err != nil {
-			return err
-		}
+		return m.repo.DeleteBranchForce(branch)
 	}
 	return nil
+}
+
+// Teardown fully removes a run's worktree and branch. force discards an
+// un-landed worktree; callers that must not lose work call Retain first (ADR 0059).
+func (m *Manager) Teardown(runID string, force bool) error {
+	if err := m.RemoveWorktree(runID, force); err != nil {
+		return err
+	}
+	return m.DeleteRunBranch(runID)
 }
 
 // List returns the run ids that currently have a worktree directory.
