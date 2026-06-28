@@ -8,8 +8,25 @@ package server
 import (
 	"net/http"
 
+	"groundwork/internal/resume"
 	"groundwork/internal/store/sqlite"
 )
+
+// handleTicketResume returns the durable resume packet for a node (ADR 0051): the
+// structured context a new run starts from instead of a live session.
+func (s *Server) handleTicketResume(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	if _, err := s.db.GetTicket(id); err != nil {
+		s.writeStoreError(w, err)
+		return
+	}
+	packet, err := resume.Assemble(s.db, id)
+	if err != nil {
+		s.writeStoreError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, packet)
+}
 
 // handleTicketRaiseDecision creates a decision work node, links the blocked
 // ticket to it, and records a durable decision_requested record (ADR 0052).

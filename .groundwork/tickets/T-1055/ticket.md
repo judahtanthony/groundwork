@@ -4,7 +4,7 @@ kind: ticket
 node_type: null
 work_type: technical_implementation
 title: Add blocked-run handoff outcomes and resume packets
-status: todo
+status: done
 assignee: null
 requested_actor: null
 priority: 0.5

@@ -86,6 +86,29 @@ func (db *DB) RaiseDecision(p RaiseDecisionParams) (string, decision.Record, err
 	return dt.ID, rec, nil
 }
 
+// RecordBlockedHandoff writes the durable blocker for an autonomous run that
+// exited blocked/escalated/input-required (ADR 0051), so the block survives a
+// rebuild and a later run can resume from it. The outcome maps to the durable
+// event type; the handoff summary explains the block for the next run.
+func (db *DB) RecordBlockedHandoff(ticketID, runID, outcome, statement, handoffSummary string) error {
+	eventType := decision.EventDecisionRequested
+	if outcome == "input_required" {
+		eventType = decision.EventInputRequested
+	}
+	if statement == "" {
+		statement = handoffSummary
+	}
+	if handoffSummary == "" {
+		handoffSummary = "run exited " + outcome
+	}
+	_, err := db.AppendDecision(decision.Record{
+		EventType: eventType, TicketID: ticketID, RunID: runID, Status: decision.StatusPending,
+		RequestedBy: "ai.codex.default", RequestedAt: encoding.Now(),
+		Statement: statement, HandoffSummary: handoffSummary,
+	})
+	return err
+}
+
 // RequestInput records a bounded local clarification needed only to continue the
 // current run (ADR 0052): a durable input_requested record with no work node and
 // no dependency edge. This is the small-uncertainty branch of the ladder — it

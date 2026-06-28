@@ -240,6 +240,29 @@ func runTicketInput(ctx *Context, args []string) error {
 	return nil
 }
 
+// runTicketResume prints a node's durable resume packet (ADR 0051): the context a
+// new run starts from instead of a live session.
+func runTicketResume(ctx *Context, args []string) error {
+	fs := ctx.NewFlagSet("gw ticket resume")
+	pos, err := parseFlags(fs, args)
+	if err != nil {
+		return err
+	}
+	if len(pos) < 1 {
+		return &Error{Code: "invalid_args", Message: "usage: gw ticket resume <id>"}
+	}
+	c, err := ctx.requireCoordinator()
+	if err != nil {
+		return err
+	}
+	packet, err := c.ResumePacket(pos[0])
+	if err != nil {
+		return approvalError(err, pos[0])
+	}
+	fmt.Fprintln(ctx.Stdout, string(packet))
+	return nil
+}
+
 func approvalError(err error, id string) error {
 	if errors.Is(err, sqlite.ErrNotFound) {
 		return &Error{Code: "not_found", Message: fmt.Sprintf("approval %q not found", id)}

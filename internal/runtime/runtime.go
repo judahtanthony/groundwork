@@ -27,10 +27,40 @@ type Spec struct {
 	Workspace string
 }
 
+// Run outcomes (ADR 0051). A run ends in exactly one. Produced/Completed reach
+// review; Blocked/InputRequired/Escalated/Rework end the run durably so capacity
+// moves elsewhere; Cancelled/Interrupted are off-ramps.
+const (
+	OutcomeProduced      = "produced"       // work produced, awaiting its gate (-> review)
+	OutcomeCompleted     = "completed"      // nothing more to do
+	OutcomeBlocked       = "blocked"        // durable blocker; needs a decision/dependency
+	OutcomeInputRequired = "input_required" // a bounded clarification is needed to continue
+	OutcomeEscalated     = "escalated"      // exceeded scope/affordance; needs re-plan/approval
+	OutcomeRework        = "rework"         // self-identified as needing rework
+	OutcomeCancelled     = "cancelled"      // cancelled by a client
+	OutcomeInterrupted   = "interrupted"    // killed mid-run (crash/ctx cancel)
+)
+
+// IsBlockedOutcome reports whether an outcome should move the ticket to blocked
+// with a durable handoff rather than to review (ADR 0051).
+func IsBlockedOutcome(status string) bool {
+	switch status {
+	case OutcomeBlocked, OutcomeInputRequired, OutcomeEscalated:
+		return true
+	}
+	return false
+}
+
 // Result summarizes a completed attempt.
 type Result struct {
-	Status      string // outcome hint, e.g. "produced"
+	Status      string // one of the Outcome* values
 	LastMessage string
+	// HandoffSummary explains a blocked/escalated exit so a later run can resume
+	// without the original session (ADR 0051/0047). Required for blocked outcomes.
+	HandoffSummary string
+	// Statement is the question/decision a blocked or input-required run is waiting
+	// on, recorded on the durable blocker.
+	Statement string
 	// ChangedFiles is the run's changed-file set (worktree diff vs base, ADR 0059).
 	// It is the authoritative diff for gate inputs: validation template selection,
 	// envelope file-scope, and escalation triggers. Empty for a no-change run.

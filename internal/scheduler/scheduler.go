@@ -244,8 +244,22 @@ func (s *Scheduler) supervise(ctx context.Context, r *sqlite.Run, ticketID, acto
 		}
 	}
 
+	// The run itself completed; the lease is released regardless of outcome so
+	// capacity returns to the scheduler (ADR 0051).
 	s.cleanup("complete run", r.ID, ticketID, s.db.SetRunStatus(r.ID, run.StatusCompleted, actorID))
 	s.cleanup("release lease", r.ID, ticketID, s.db.ReleaseLease(ticketID, r.ID))
+
+	// A blocked/escalated/input-required outcome ends with a durable handoff and
+	// moves the ticket to blocked — not review — so a later run can resume from
+	// durable state and the scheduler spends capacity elsewhere (ADR 0051).
+	if runtime.IsBlockedOutcome(res.Status) {
+		s.cleanup("record handoff", r.ID, ticketID,
+			s.db.RecordBlockedHandoff(ticketID, r.ID, res.Status, res.Statement, res.HandoffSummary))
+		s.cleanup("transition to blocked", r.ID, ticketID, s.db.TransitionTicket(ticketID, ticket.StatusBlocked, actorID))
+		s.publish(eventbus.Event{Type: "run.blocked", RunID: r.ID, TicketID: ticketID, Message: res.HandoffSummary})
+		return
+	}
+
 	// Prepared work (leaf) or a decomposition proposal (composite) awaits review.
 	s.cleanup("transition to review", r.ID, ticketID, s.db.TransitionTicket(ticketID, ticket.StatusReview, actorID))
 	s.publish(eventbus.Event{Type: "run.completed", RunID: r.ID, TicketID: ticketID, Message: res.LastMessage})

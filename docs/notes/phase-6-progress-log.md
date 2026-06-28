@@ -131,3 +131,15 @@ at each step.
   end-to-end checkpoint→squash→retain→teardown, and a server `LandToParent` that squashes a
   run branch into the integration branch and reaps it. Completes E-0006; ADR 0059 →
   Implemented.
+- **T-1055** blocked-run handoff outcomes + resume packets (ADR 0051) — `runtime.Result`
+  gains the outcome vocabulary (produced/completed/blocked/input_required/escalated/rework/
+  cancelled/interrupted) plus `HandoffSummary`/`Statement`; `IsBlockedOutcome` drives the
+  scheduler: a blocked/escalated/input-required run releases its lease, writes a durable
+  blocker via `RecordBlockedHandoff` (input → input_requested, else decision_requested,
+  carrying the handoff summary), and moves the ticket to **blocked** (not review). New
+  `internal/resume.Assemble` builds the ADR 0051 resume packet from durable state — ticket
+  context, nearest ancestor contract, acceptance, dependency statuses, pending blockers vs
+  resolved decisions, handoff summary, captured changed files, validation state, and a
+  recommended next action. Exposed via `GET /tickets/{id}/resume`, client, and CLI
+  (`gw ticket resume`). Tests: packet assembly (blocked + clean), and scheduler blocked
+  routing (blocked status, durable handoff, lease released).

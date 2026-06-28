@@ -124,6 +124,7 @@ func ticketSubcommands() []*Command {
 		{Name: "escalate", Usage: "Escalate for re-plan (requires the coordinator)", Args: "<id>", Run: runTicketEscalate},
 		{Name: "decision", Usage: "Raise a consequential decision node for a blocked ticket (requires the coordinator)", Args: "<id>", Run: runTicketDecision},
 		{Name: "input", Usage: "Record a local input request without a work node (requires the coordinator)", Args: "<id>", Run: runTicketInput},
+		{Name: "resume", Usage: "Print a node's durable resume packet (requires the coordinator)", Args: "<id>", Run: runTicketResume},
 		{Name: "land", Usage: "Land an approved node through the validation gate (requires the coordinator)", Args: "<id>", Run: runTicketLand, Flags: []FlagDoc{
 			{"--all", "stage all changes before committing (like git commit -a)"},
 			{"--override", "land despite failing/missing validation (audited)"},

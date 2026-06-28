@@ -285,6 +285,16 @@ func (c *Client) RaiseDecision(blockedID string, p RaiseDecisionParams) (*RaiseD
 	return &out, nil
 }
 
+// ResumePacket returns the durable resume packet for a node (ADR 0051) as raw
+// JSON, so the CLI can print it without coupling to the server's packet type.
+func (c *Client) ResumePacket(ticketID string) (json.RawMessage, error) {
+	var out json.RawMessage
+	if err := c.do(http.MethodGet, "/api/v1/tickets/"+ticketID+"/resume", nil, &out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // RequestInput records a bounded local input request without a work node (ADR 0052).
 func (c *Client) RequestInput(ticketID, statement, requestedBy string) (*decision.Record, error) {
 	var out struct {
