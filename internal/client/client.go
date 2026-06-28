@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"time"
 
+	"groundwork/internal/decision"
 	"groundwork/internal/envelope"
 	"groundwork/internal/store/sqlite"
 	"groundwork/internal/ticket"
@@ -252,6 +253,48 @@ func (c *Client) EscalateTicket(id, reason string) (*sqlite.Approval, error) {
 		return nil, err
 	}
 	return &a, nil
+}
+
+// RaiseDecisionParams configures a consequential decision raised on a blocked
+// ticket (ADR 0052).
+type RaiseDecisionParams struct {
+	Title          string   `json:"title,omitempty"`
+	WorkType       string   `json:"work_type"`
+	RequestedActor string   `json:"requested_actor,omitempty"`
+	Statement      string   `json:"statement"`
+	Acceptance     []string `json:"acceptance,omitempty"`
+	RunID          string   `json:"run_id,omitempty"`
+	RequestedBy    string   `json:"requested_by,omitempty"`
+	Parent         string   `json:"parent,omitempty"`
+}
+
+// RaiseDecisionResult is the response from raising a decision.
+type RaiseDecisionResult struct {
+	BlockedTicket  string          `json:"blocked_ticket"`
+	DecisionTicket string          `json:"decision_ticket"`
+	Record         decision.Record `json:"record"`
+}
+
+// RaiseDecision creates a decision work node and links the blocked ticket to it
+// (ADR 0052).
+func (c *Client) RaiseDecision(blockedID string, p RaiseDecisionParams) (*RaiseDecisionResult, error) {
+	var out RaiseDecisionResult
+	if err := c.do(http.MethodPost, "/api/v1/tickets/"+blockedID+"/decision", p, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+// RequestInput records a bounded local input request without a work node (ADR 0052).
+func (c *Client) RequestInput(ticketID, statement, requestedBy string) (*decision.Record, error) {
+	var out struct {
+		Record decision.Record `json:"record"`
+	}
+	body := map[string]string{"statement": statement, "requested_by": requestedBy}
+	if err := c.do(http.MethodPost, "/api/v1/tickets/"+ticketID+"/input", body, &out); err != nil {
+		return nil, err
+	}
+	return &out.Record, nil
 }
 
 // ProposeEnvelope opens a human-gated approve_envelope approval for nodeID

@@ -44,3 +44,13 @@ at each step.
   into `gw server` boot after `ReconcileStartup`; idempotent. Tests (DB purge/rebuild):
   decompose/replan/land_to_main approval recreation + idempotence, input_required stays
   explained, and recovery_needed surfaced for stranded blocked/review tickets.
+- **T-1057** consequential decision ticket routing (ADR 0052) — new store
+  `RaiseDecision` composes existing durable primitives into the consequential branch of
+  the ladder: creates a `kind: decision` leaf work node (routed by `work_type`, parent
+  inherited), links the blocked ticket to it, appends a durable `decision_requested`
+  record pointing at the node, and transitions the blocked ticket to `blocked` — no
+  separate decision subsystem. `RequestInput` is the small-uncertainty branch: a durable
+  `input_requested` record with no node and no edge. Exposed via API
+  (`POST /tickets/{id}/decision|input`), client, and CLI (`gw ticket decision|input`).
+  Tests: node/edge/record/blocked-transition created; required work_type+statement; input
+  request creates no ticket and no edge and leaves status unchanged.
