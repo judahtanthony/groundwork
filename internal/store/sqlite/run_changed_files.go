@@ -61,6 +61,21 @@ func (db *DB) ChangedFilesForNode(nodeID string) ([]string, error) {
 	return nil, rows.Err()
 }
 
+// LatestRunIDForNode returns the most recent run id for a node, or "" when the
+// node has no runs. Used by landing to locate the run's gw/run/<id> branch to
+// squash (ADR 0059).
+func (db *DB) LatestRunIDForNode(nodeID string) (string, error) {
+	var id string
+	err := db.QueryRow(`SELECT id FROM runs WHERE ticket_id=? ORDER BY started_at DESC, id DESC LIMIT 1`, nodeID).Scan(&id)
+	if err == sql.ErrNoRows {
+		return "", nil
+	}
+	if err != nil {
+		return "", err
+	}
+	return id, nil
+}
+
 func decodeStringList(doc string) ([]string, error) {
 	if doc == "" {
 		return nil, nil

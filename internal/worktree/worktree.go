@@ -92,6 +92,31 @@ func (m *Manager) Diff(runID, base string) (files []string, diff string, err err
 	return files, diff, nil
 }
 
+// Checkpoint commits the run worktree's current work as a WIP checkpoint on its
+// gw/run/<run-id> branch (ADR 0015), so the work is durable on the branch for
+// landing (squash) and resume. Returns the commit sha, or "" when there is
+// nothing to commit. It never touches main or the integration branch.
+func (m *Manager) Checkpoint(runID, message string) (string, error) {
+	wt, err := git.Open(m.Path(runID))
+	if err != nil {
+		return "", err
+	}
+	if err := wt.AddAll(); err != nil {
+		return "", err
+	}
+	staged, err := wt.HasStagedChanges()
+	if err != nil {
+		return "", err
+	}
+	if !staged {
+		return "", nil
+	}
+	if message == "" {
+		message = "wip checkpoint " + runID
+	}
+	return wt.Commit(message)
+}
+
 // Retain saves the run branch's current tip under refs/groundwork/runs/<run-id>
 // so the WIP checkpoint chain survives teardown (ADR 0015). A no-op when the
 // branch does not exist.

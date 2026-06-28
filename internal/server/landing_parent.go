@@ -7,10 +7,12 @@ package server
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 
 	"groundwork/internal/store/sqlite"
 	"groundwork/internal/ticket"
+	"groundwork/internal/worktree"
 )
 
 var errNoIntegrationTarget = errors.New("no integration target: approve a root envelope first")
@@ -52,10 +54,60 @@ func (s *Server) LandToParent(childID string) (*sqlite.IntegrationBranch, error)
 	if err := s.db.TransitionTicket(childID, ticket.StatusDone, ownerActor); err != nil {
 		return nil, err
 	}
+	// When the child ran in an isolated worktree, squash its gw/run/<id> branch
+	// into the integration branch's index (ADR 0015/0059); commitLanding then makes
+	// the single curated landing commit (squashed code + refreshed sidecar). Without
+	// a run branch (manual/human work in the single tree) this is a no-op and the
+	// working-tree commit path is used unchanged (ADR 0058).
+	runID, err := s.squashRunBranch(childID)
+	if err != nil {
+		return nil, err
+	}
 	if err := s.commitLanding(childID); err != nil {
 		return nil, err
 	}
+	// Retain the WIP checkpoint chain under the run ref, then tear down the run
+	// branch and worktree now that the work has landed (ADR 0015/0059).
+	if runID != "" {
+		s.cleanupLandedRun(childID, runID)
+	}
 	return ib, nil
+}
+
+// squashRunBranch squash-merges the node's latest run branch into the currently
+// checked-out integration branch's index, returning the run id (or "" when the
+// node has no run branch to squash). A squash conflict is surfaced after resetting
+// the index so the tree is not left mid-conflict.
+func (s *Server) squashRunBranch(nodeID string) (string, error) {
+	if s.repo == nil {
+		return "", nil
+	}
+	runID, err := s.db.LatestRunIDForNode(nodeID)
+	if err != nil || runID == "" {
+		return "", err
+	}
+	branch := worktree.RunBranch(runID)
+	if !s.repo.BranchExists(branch) {
+		return "", nil
+	}
+	if err := s.repo.MergeSquash(branch); err != nil {
+		_ = s.repo.ResetHard("HEAD")
+		return "", fmt.Errorf("squash %s into integration branch (resolve conflicts manually): %w", branch, err)
+	}
+	return runID, nil
+}
+
+// cleanupLandedRun retains the run's WIP chain under its ref and removes the run
+// branch and worktree after a successful landing (best-effort; failures surface
+// as audit events rather than failing the completed landing).
+func (s *Server) cleanupLandedRun(nodeID, runID string) {
+	mgr := worktree.NewManager(s.repo, s.proj.WorktreesDir())
+	if err := mgr.Retain(runID); err != nil {
+		_ = s.db.AppendAuditEvent(ownerActor, "run.cleanup_error", "run", runID, map[string]any{"op": "retain", "error": err.Error()})
+	}
+	if err := mgr.Teardown(runID, true); err != nil {
+		_ = s.db.AppendAuditEvent(ownerActor, "run.cleanup_error", "run", runID, map[string]any{"op": "teardown", "error": err.Error()})
+	}
 }
 
 // handleTicketLandToParent lands a child to its root integration target.

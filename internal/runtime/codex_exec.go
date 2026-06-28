@@ -22,6 +22,10 @@ type WorkspaceProvider interface {
 	// Diff returns the run's changed-file set and unified diff against base, used
 	// as the authoritative diff for gate inputs and run evidence.
 	Diff(runID, base string) (files []string, diff string, err error)
+	// Checkpoint commits the run's work on its gw/run/<id> branch so it is durable
+	// for landing and resume (ADR 0015). Returns the commit sha, or "" if nothing
+	// to commit.
+	Checkpoint(runID, message string) (string, error)
 }
 
 // BaseResolver returns the integration base commit/ref a run's worktree is cut

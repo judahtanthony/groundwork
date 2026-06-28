@@ -119,3 +119,15 @@ at each step.
   the latest run's diff for gate inputs (consumed by T-1091); the shared-index land-preview
   path is untouched. Tests: worktree diff captures add/modify/delete and empty runs, store
   round-trip + latest-non-empty selection, and adapter capture into the Result.
+- **T-0504** run checkpoints + landing squash (ADR 0015/0059) — `worktree.Manager.Checkpoint`
+  commits the run worktree's work as a WIP commit on its `gw/run/<id>` branch (never on
+  main/integration); the Codex adapter checkpoints after capturing the diff. `LandToParent`
+  now squashes the node's run branch into the checked-out integration branch
+  (`squashRunBranch`: `git merge --squash` with a hard-reset recovery on conflict), the
+  existing commit path makes the single curated landing commit (squashed code + sidecar),
+  then `cleanupLandedRun` retains the WIP chain under `refs/groundwork/runs/<id>` and tears
+  down the run branch + worktree. Manual single-tree landings (no run branch) are unchanged.
+  Added `git.ResetHard` and `LatestRunIDForNode`. Tests: checkpoint commits + empty no-op,
+  end-to-end checkpoint→squash→retain→teardown, and a server `LandToParent` that squashes a
+  run branch into the integration branch and reaps it. Completes E-0006; ADR 0059 →
+  Implemented.

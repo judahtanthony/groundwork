@@ -115,6 +115,14 @@ func (c *Codex) Run(ctx context.Context, spec Spec, sink Sink) (Result, error) {
 			emit(sink, Event{Type: "diff", Message: "captured changed files",
 				Payload: map[string]any{"changed_files": len(files)}})
 		}
+		// Commit the work as a checkpoint on the run branch so it is durable for
+		// landing (squash) and resume (ADR 0015). Diff already staged the worktree.
+		if sha, cerr := c.workspace.Checkpoint(spec.RunID, "checkpoint "+spec.TicketID); cerr != nil {
+			emit(sink, Event{Type: "run.error", Message: "checkpoint: " + cerr.Error()})
+		} else if sha != "" {
+			emit(sink, Event{Type: "checkpoint", Message: sha,
+				Payload: map[string]any{"branch": "gw/run/" + spec.RunID}})
+		}
 	}
 	return res, nil
 }

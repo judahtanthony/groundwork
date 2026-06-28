@@ -174,3 +174,7 @@ func (w worktreeProvider) Provision(runID, base string) (string, error) {
 func (w worktreeProvider) Diff(runID, base string) ([]string, string, error) {
 	return w.m.Diff(runID, base)
 }
+
+func (w worktreeProvider) Checkpoint(runID, message string) (string, error) {
+	return w.m.Checkpoint(runID, message)
+}

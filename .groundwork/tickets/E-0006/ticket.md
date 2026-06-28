@@ -4,7 +4,7 @@ kind: epic
 node_type: composite
 work_type: null
 title: Implement Codex runtime adapter
-status: in_progress
+status: done
 assignee: null
 requested_actor: null
 priority: 0.58

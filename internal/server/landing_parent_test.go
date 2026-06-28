@@ -8,8 +8,10 @@ import (
 
 	"groundwork/internal/approval"
 	"groundwork/internal/envelope"
+	"groundwork/internal/git"
 	"groundwork/internal/store/sqlite"
 	"groundwork/internal/ticket"
+	"groundwork/internal/worktree"
 )
 
 // A child lands to its root integration branch (not main): it becomes done and a
@@ -111,5 +113,80 @@ func TestLandToParentWithoutTargetErrors(t *testing.T) {
 	}
 	if _, err := srv.LandToParent(tk.ID); err == nil {
 		t.Error("expected error landing without an integration target")
+	}
+}
+
+// A child that ran in an isolated worktree lands by squashing its gw/run/<id>
+// branch into the integration branch — one curated commit, the run branch torn
+// down, and the WIP chain retained under the run ref (T-0504, ADR 0015/0059).
+func TestLandToParentSquashesRunBranch(t *testing.T) {
+	srv, db, root := newGitServer(t)
+	parent := &ticket.Ticket{Title: "feature", NodeType: ticket.NodeComposite, Status: ticket.StatusTodo, WorkType: "technical_design"}
+	if err := db.CreateTicket(parent, "tester"); err != nil {
+		t.Fatal(err)
+	}
+	appr, err := srv.ProposeEnvelope(parent.ID, &envelope.Envelope{
+		ApprovedActions: []string{envelope.ActionExecuteChildren, envelope.ActionLandChildToParent},
+		AllowedRoles:    []string{"coding"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := srv.recordDecision(appr.ID, approval.StatusApproved, ""); err != nil {
+		t.Fatal(err)
+	}
+	ib, _ := db.GetIntegrationBranch(parent.ID)
+
+	child := &ticket.Ticket{ParentID: parent.ID, Title: "child", NodeType: ticket.NodeLeaf, Status: ticket.StatusInProgress, WorkType: "technical_implementation"}
+	if err := db.CreateTicket(child, "tester"); err != nil {
+		t.Fatal(err)
+	}
+
+	// Simulate a Codex run: a run row + an isolated worktree on gw/run/<id> from the
+	// integration branch, with a checkpoint commit carrying the run's work.
+	runID := "R-100"
+	if _, err := db.Exec(`INSERT INTO runs
+		(id, ticket_id, actor_id, actor_snapshot_json, mode, runtime, model, status, workspace_path, started_at, updated_at)
+		VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
+		runID, child.ID, "ai.codex.default", "{}", "implementation", "codex", "m", "completed", "", "2026-06-28T10:00:00Z", "2026-06-28T10:00:00Z"); err != nil {
+		t.Fatal(err)
+	}
+	repo, err := git.Open(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	mgr := worktree.NewManager(repo, filepath.Join(root, ".groundwork", "worktrees"))
+	p, err := mgr.Provision(runID, ib.Branch)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(p.Path, "feature.go"), []byte("package x\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := mgr.Checkpoint(runID, "wip"); err != nil {
+		t.Fatal(err)
+	}
+
+	before := runGit(t, root, "rev-parse", ib.Branch)
+	if _, err := srv.LandToParent(child.ID); err != nil {
+		t.Fatal(err)
+	}
+
+	// One squashed commit advanced the integration branch and the run's file landed.
+	if after := runGit(t, root, "rev-parse", ib.Branch); after == before {
+		t.Error("integration branch did not advance")
+	}
+	if _, err := os.Stat(filepath.Join(root, "feature.go")); err != nil {
+		t.Errorf("squashed run file not on the integration branch: %v", err)
+	}
+	if c, _ := db.GetTicket(child.ID); c.Status != ticket.StatusDone {
+		t.Errorf("child status = %s, want done", c.Status)
+	}
+	// The throwaway run branch is gone; its WIP chain is retained under the run ref.
+	if repo.BranchExists(worktree.RunBranch(runID)) {
+		t.Error("run branch not torn down after land")
+	}
+	if err := repo.DeleteRef(worktree.RunRef(runID)); err != nil {
+		t.Errorf("run WIP chain not retained under ref: %v", err)
 	}
 }

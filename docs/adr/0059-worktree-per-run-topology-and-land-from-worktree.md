@@ -1,7 +1,7 @@
 # ADR 0059: Worktree-Per-Run Topology And Land-From-Worktree Integration
 
 Status: Accepted
-Implemented: Not started
+Implemented: Implemented
 
 Concretizes the Phase 6 worktree trajectory sketched by
 [ADR 0045](0045-node-branching-and-parent-integration.md) (node branching) and the

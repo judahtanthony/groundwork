@@ -170,6 +170,64 @@ func has(s []string, want string) bool {
 	return false
 }
 
+func TestCheckpointAndSquashLand(t *testing.T) {
+	r, dir := initRepo(t)
+	m := NewManager(r, filepath.Join(dir, ".groundwork", "worktrees"))
+	p, err := m.Provision("R-c", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// The run produces two files; checkpoint commits them on the run branch.
+	if err := os.WriteFile(filepath.Join(p.Path, "feature.go"), []byte("package x\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(p.Path, "feature_test.go"), []byte("package x\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	sha, err := m.Checkpoint("R-c", "wip")
+	if err != nil || sha == "" {
+		t.Fatalf("Checkpoint: sha=%q err=%v", sha, err)
+	}
+	// Nothing new to commit → empty sha, no error.
+	sha2, err := m.Checkpoint("R-c", "wip2")
+	if err != nil || sha2 != "" {
+		t.Fatalf("second Checkpoint: sha=%q err=%v, want empty", sha2, err)
+	}
+
+	// Land: squash the run branch into the main working tree's index, then commit
+	// one curated landing commit (the integration branch is the checked-out default).
+	if err := r.MergeSquash(RunBranch("R-c")); err != nil {
+		t.Fatalf("MergeSquash: %v", err)
+	}
+	landSha, err := r.Commit("Land R-c (squashed)")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The integration branch now has both files in a single squashed commit.
+	if _, err := os.Stat(filepath.Join(dir, "feature.go")); err != nil {
+		t.Fatalf("squashed file missing on integration branch: %v", err)
+	}
+	if landSha == "" {
+		t.Fatal("expected a landing commit sha")
+	}
+
+	// Retain the WIP chain, then tear down the run branch + worktree.
+	if err := m.Retain("R-c"); err != nil {
+		t.Fatal(err)
+	}
+	if err := m.Teardown("R-c", true); err != nil {
+		t.Fatal(err)
+	}
+	if r.BranchExists(RunBranch("R-c")) {
+		t.Error("run branch not deleted after land")
+	}
+	// The WIP chain survives under the run ref.
+	if err := r.DeleteRef(RunRef("R-c")); err != nil {
+		t.Errorf("run ref not retained: %v", err)
+	}
+}
+
 func TestReconcileReclaimsOrphans(t *testing.T) {
 	r, dir := initRepo(t)
 	m := NewManager(r, filepath.Join(dir, ".groundwork", "worktrees"))

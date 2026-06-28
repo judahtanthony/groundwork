@@ -86,9 +86,10 @@ func TestValidateWorkspaceContainment(t *testing.T) {
 
 // fakeProvider records the provisioning call and returns a prepared directory.
 type fakeProvider struct {
-	dir     string
-	gotRun  string
-	gotBase string
+	dir          string
+	gotRun       string
+	gotBase      string
+	checkpointed bool
 }
 
 func (f *fakeProvider) Provision(runID, base string) (string, error) {
@@ -98,6 +99,11 @@ func (f *fakeProvider) Provision(runID, base string) (string, error) {
 
 func (f *fakeProvider) Diff(runID, base string) ([]string, string, error) {
 	return []string{"feature.go"}, "diff --git a/feature.go b/feature.go\n", nil
+}
+
+func (f *fakeProvider) Checkpoint(runID, message string) (string, error) {
+	f.checkpointed = true
+	return "abc123", nil
 }
 
 func TestCodexProvisionsWorkspaceBeforeLaunch(t *testing.T) {
@@ -124,6 +130,10 @@ func TestCodexProvisionsWorkspaceBeforeLaunch(t *testing.T) {
 	// The run's changed-file set is captured from the worktree after launch.
 	if len(res.ChangedFiles) != 1 || res.ChangedFiles[0] != "feature.go" {
 		t.Errorf("ChangedFiles = %v, want [feature.go]", res.ChangedFiles)
+	}
+	// The work is checkpointed on the run branch for landing/resume.
+	if !fp.checkpointed {
+		t.Error("expected a checkpoint commit after the run")
 	}
 }
 
