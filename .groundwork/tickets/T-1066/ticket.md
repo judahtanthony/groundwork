@@ -4,7 +4,7 @@ kind: epic
 node_type: null
 work_type: technical_design
 title: 'Phase 5: Bounded autonomy and bulk review'
-status: todo
+status: done
 assignee: null
 requested_actor: null
 priority: 0.62
@@ -15,7 +15,7 @@ parent: G-0001
 depends_on:
     - T-1060
 created_at: "2026-06-24T22:22:42Z"
-updated_at: "2026-06-25T20:24:08Z"
+updated_at: "2026-06-28T19:18:36Z"
 ---
 
 ## Problem
