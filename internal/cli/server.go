@@ -59,6 +59,16 @@ func runServer(ctx *Context, args []string) error {
 			" run(s), released " + strconv.Itoa(rep.ReleasedLeases) + " lease(s)\n"))
 	}
 
+	// Rebuild live approval/decision queues from durable ticket records, and
+	// surface recovery_needed for any stranded blocked/review/rework ticket
+	// (ADR 0051). Safe to run every boot; idempotent.
+	if qrep, err := db.RebuildDurableQueues(); err != nil {
+		return &Error{Code: "recovery_error", Message: err.Error()}
+	} else if qrep.ApprovalsRecreated > 0 || qrep.RecoveryNeeded > 0 {
+		ctx.Stderr.Write([]byte("gw: recovery recreated " + strconv.Itoa(qrep.ApprovalsRecreated) +
+			" approval(s), flagged " + strconv.Itoa(qrep.RecoveryNeeded) + " recovery_needed\n"))
+	}
+
 	// Load policy and the actor registry for scheduling decisions. Missing or
 	// invalid files surface as warnings/errors rather than silently disabling
 	// gates.

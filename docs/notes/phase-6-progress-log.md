@@ -34,3 +34,13 @@ at each step.
   + one-line-per-record, validate required fields, unknown-field rejection, sidecar
   write/read/empty-removal, store append/seq/pending/import-preserves-seq, and a CLI
   import→re-export byte-stability round-trip.
+- **T-1054** rebuild live queues from durable records (ADR 0051) — new
+  `RebuildDurableQueues` (store) projects pending durable records into live queues at
+  startup and surfaces stranded tickets: pass 1 recreates an `approvals` row (fresh A-id
+  runtime handle) for each pending `approval_requested` record lacking a live row;
+  `input_requested`/`decision_requested` records stay the durable explainer for a blocked
+  ticket (no extra table). Pass 2 appends a `recovery_needed` record to any
+  blocked/review/rework ticket with no durable explainer and no pending approval. Wired
+  into `gw server` boot after `ReconcileStartup`; idempotent. Tests (DB purge/rebuild):
+  decompose/replan/land_to_main approval recreation + idempotence, input_required stays
+  explained, and recovery_needed surfaced for stranded blocked/review tickets.
