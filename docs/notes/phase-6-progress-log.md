@@ -101,3 +101,11 @@ at each step.
   project is a git work tree (else records-only). Tests: agent runs in the workspace and
   streams output, non-zero exit errors, containment validation (empty/outside-root), and
   provision-before-launch delegation.
+- **T-0503** stream runtime events to store + JSONL (ADR 0027) — the scheduler's run-event
+  sink now mirrors each event to a per-run `events.ndjson` (`appendRunEventLog`, canonical
+  one-line-per-event under `.groundwork/runs/<run-id>/`, tier-1 ignored) alongside the
+  existing SQLite `run_events` projection; a log failure publishes `run.error` but never
+  fails the run. Added `RunLogDir` to scheduler config and wired `gw server` to pass
+  `RunsDir()` and the configured model. Run records already carry actor_id/runtime/model
+  (ADR 0027). Test: a dispatched run persists events to SQLite and events.ndjson and the
+  run record carries actor/runtime/model.

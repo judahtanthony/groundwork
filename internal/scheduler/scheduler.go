@@ -30,6 +30,7 @@ type Config struct {
 	Heartbeat      time.Duration
 	TickInterval   time.Duration
 	Model          string
+	RunLogDir      string // per-run events.ndjson root (.groundwork/runs); "" disables
 }
 
 // Scheduler owns scheduling decisions and supervises runs.
@@ -209,6 +210,11 @@ func (s *Scheduler) supervise(ctx context.Context, r *sqlite.Run, ticketID, acto
 
 	sink := func(ev runtime.Event) {
 		_, _ = s.db.AppendRunEvent(r.ID, ev.Type, ev.Message, ev.Payload)
+		// Mirror to the per-run events.ndjson (ADR 0027); a log failure is observable
+		// but never fails the run.
+		if err := appendRunEventLog(s.cfg.RunLogDir, r.ID, ev); err != nil {
+			s.publish(eventbus.Event{Type: "run.error", RunID: r.ID, TicketID: ticketID, Message: "events.ndjson: " + err.Error()})
+		}
 		s.publish(eventbus.Event{Type: "run." + ev.Type, RunID: r.ID, TicketID: ticketID, Message: ev.Message})
 	}
 	spec := runtime.Spec{RunID: r.ID, TicketID: ticketID, Mode: r.Mode, ActorID: actorID,

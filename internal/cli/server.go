@@ -135,6 +135,8 @@ func runServer(ctx *Context, args []string) error {
 		LeaseTTL:       p.Config.Lease.TTL.Duration(),
 		Heartbeat:      p.Config.Lease.Heartbeat.Duration(),
 		TickInterval:   time.Second,
+		Model:          p.Config.Model,
+		RunLogDir:      p.RunsDir(),
 	})
 
 	srv := server.New(db, p, Version)
