@@ -31,6 +31,41 @@ type Summary struct {
 	CreatedAt    string           `yaml:"created_at" json:"created_at,omitempty"`
 }
 
+// Stale reports whether a summary no longer reflects the node's current state
+// (ADR 0047): the node was sent back to rework after the summary, or the run's
+// changed-file set diverged from what the summary recorded. The reason is "" when
+// the summary is current. A nil summary is not stale (there is nothing to age).
+func Stale(s *Summary, currentChanged []string, status string) (bool, string) {
+	if s == nil {
+		return false, ""
+	}
+	if status == "rework" {
+		return true, "node returned to rework after the summary was written"
+	}
+	if !equalSet(s.Changed, currentChanged) {
+		return true, "changed-file set diverged from the summary"
+	}
+	return false, ""
+}
+
+// equalSet compares two file lists as sets (order-independent).
+func equalSet(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	seen := make(map[string]int, len(a))
+	for _, x := range a {
+		seen[x]++
+	}
+	for _, y := range b {
+		seen[y]--
+		if seen[y] < 0 {
+			return false
+		}
+	}
+	return true
+}
+
 // SidecarPath returns the completion-summary sidecar path for a node.
 func SidecarPath(ticketsDir, nodeID string) string {
 	return filepath.Join(ticketsDir, nodeID, "completion.yaml")

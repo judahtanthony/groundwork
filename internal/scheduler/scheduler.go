@@ -14,6 +14,8 @@ import (
 	"time"
 
 	"groundwork/internal/actor"
+	"groundwork/internal/completion"
+	"groundwork/internal/encoding"
 	"groundwork/internal/eventbus"
 	"groundwork/internal/policy"
 	"groundwork/internal/risk"
@@ -31,6 +33,7 @@ type Config struct {
 	TickInterval   time.Duration
 	Model          string
 	RunLogDir      string // per-run events.ndjson root (.groundwork/runs); "" disables
+	TicketsDir     string // tickets dir for completion sidecars; "" disables auto-summary
 }
 
 // Scheduler owns scheduling decisions and supervises runs.
@@ -244,25 +247,59 @@ func (s *Scheduler) supervise(ctx context.Context, r *sqlite.Run, ticketID, acto
 		}
 	}
 
-	// The run itself completed; the lease is released regardless of outcome so
-	// capacity returns to the scheduler (ADR 0051).
 	s.cleanup("complete run", r.ID, ticketID, s.db.SetRunStatus(r.ID, run.StatusCompleted, actorID))
-	s.cleanup("release lease", r.ID, ticketID, s.db.ReleaseLease(ticketID, r.ID))
 
 	// A blocked/escalated/input-required outcome ends with a durable handoff and
 	// moves the ticket to blocked — not review — so a later run can resume from
-	// durable state and the scheduler spends capacity elsewhere (ADR 0051).
+	// durable state and the scheduler spends capacity elsewhere (ADR 0051). The
+	// handoff summary is written BEFORE the lease is released (ADR 0047).
 	if runtime.IsBlockedOutcome(res.Status) {
 		s.cleanup("record handoff", r.ID, ticketID,
 			s.db.RecordBlockedHandoff(ticketID, r.ID, res.Status, res.Statement, res.HandoffSummary))
+		s.cleanup("release lease", r.ID, ticketID, s.db.ReleaseLease(ticketID, r.ID))
 		s.cleanup("transition to blocked", r.ID, ticketID, s.db.TransitionTicket(ticketID, ticket.StatusBlocked, actorID))
 		s.publish(eventbus.Event{Type: "run.blocked", RunID: r.ID, TicketID: ticketID, Message: res.HandoffSummary})
 		return
 	}
 
+	// A runtime-produced result must carry a completion summary before review/
+	// landing (ADR 0047): write one from the run's evidence when none exists.
+	s.cleanup("write completion summary", r.ID, ticketID, s.writeCompletionSummary(ticketID, res))
+
+	s.cleanup("release lease", r.ID, ticketID, s.db.ReleaseLease(ticketID, r.ID))
 	// Prepared work (leaf) or a decomposition proposal (composite) awaits review.
 	s.cleanup("transition to review", r.ID, ticketID, s.db.TransitionTicket(ticketID, ticket.StatusReview, actorID))
 	s.publish(eventbus.Event{Type: "run.completed", RunID: r.ID, TicketID: ticketID, Message: res.LastMessage})
+}
+
+// writeCompletionSummary auto-generates a node's completion summary from a
+// produced run's evidence (changed files, validation, outcome) when none exists,
+// so runtime-produced results always carry the summary review/landing requires
+// (ADR 0047). A pre-existing (e.g. human-authored) summary is left untouched.
+func (s *Scheduler) writeCompletionSummary(ticketID string, res runtime.Result) error {
+	if s.cfg.TicketsDir == "" {
+		return nil
+	}
+	if _, ok, err := completion.Read(s.cfg.TicketsDir, ticketID); err != nil {
+		return err
+	} else if ok {
+		return nil
+	}
+	sum := &completion.Summary{
+		NodeID: ticketID, Outcome: res.Status, Changed: res.ChangedFiles, CreatedAt: encoding.Now(),
+	}
+	if res.LastMessage != "" {
+		sum.Decisions = []string{res.LastMessage}
+	}
+	if vals, err := s.db.ListValidationsForTicket(ticketID); err == nil {
+		for _, v := range vals {
+			sum.Validation = append(sum.Validation, completion.ValidationLine{Command: v.Name, Status: string(v.Status)})
+		}
+	}
+	if err := completion.Write(s.cfg.TicketsDir, sum); err != nil {
+		return err
+	}
+	return s.db.UpsertCompletionSummary(sum)
 }
 
 // cleanup publishes a run.error event when a best-effort post-run state change

@@ -137,6 +137,7 @@ func runServer(ctx *Context, args []string) error {
 		TickInterval:   time.Second,
 		Model:          p.Config.Model,
 		RunLogDir:      p.RunsDir(),
+		TicketsDir:     p.TicketsDir(),
 	})
 
 	srv := server.New(db, p, Version)

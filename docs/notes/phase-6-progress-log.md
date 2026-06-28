@@ -143,3 +143,12 @@ at each step.
   recommended next action. Exposed via `GET /tickets/{id}/resume`, client, and CLI
   (`gw ticket resume`). Tests: packet assembly (blocked + clean), and scheduler blocked
   routing (blocked status, durable handoff, lease released).
+- **T-1058** completion + blocked-run handoff summaries (ADR 0047) — the scheduler
+  auto-writes a node's completion summary (sidecar + SQLite mirror) from a produced run's
+  evidence (changed files, validation, outcome) when none exists, so runtime-produced
+  results always carry the summary review/landing requires; a pre-existing human summary is
+  left untouched. Reordered the blocked path so the durable handoff summary is written
+  before the lease is released. `completion.Stale` detects staleness (node returned to
+  rework, or the changed-file set diverged from the summary); `Server.SummaryStale` surfaces
+  it for review/context. Added `TicketsDir` to scheduler config (wired in boot). Tests:
+  staleness cases, auto-summary on produced + mirror, and existing-summary preservation.

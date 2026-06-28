@@ -8,9 +8,31 @@ package server
 import (
 	"net/http"
 
+	"groundwork/internal/completion"
 	"groundwork/internal/resume"
 	"groundwork/internal/store/sqlite"
 )
+
+// SummaryStale reports whether a node's completion summary no longer reflects its
+// current state (ADR 0047): the node returned to rework, or its captured
+// changed-file set diverged from the summary. The reason is "" when current or
+// when there is no summary.
+func (s *Server) SummaryStale(nodeID string) (bool, string, error) {
+	sum, ok, err := completion.Read(s.proj.TicketsDir(), nodeID)
+	if err != nil || !ok {
+		return false, "", err
+	}
+	files, err := s.db.ChangedFilesForNode(nodeID)
+	if err != nil {
+		return false, "", err
+	}
+	t, err := s.db.GetTicket(nodeID)
+	if err != nil {
+		return false, "", err
+	}
+	stale, reason := completion.Stale(sum, files, string(t.Status))
+	return stale, reason, nil
+}
 
 // handleTicketResume returns the durable resume packet for a node (ADR 0051): the
 // structured context a new run starts from instead of a live session.
