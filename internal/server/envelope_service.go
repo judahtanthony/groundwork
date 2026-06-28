@@ -26,6 +26,11 @@ func (s *Server) ProposeEnvelope(nodeID string, draft *envelope.Envelope) (*sqli
 	if _, err := s.db.GetTicket(nodeID); err != nil {
 		return nil, err
 	}
+	// Reject an unknown/empty action vocabulary up front, so the human is never
+	// asked to approve a boundary that could not activate (M5/ADR 0054).
+	if err := envelope.ValidateActions(draft.ApprovedActions); err != nil {
+		return nil, err
+	}
 	draft.NodeID = nodeID
 	draftJSON, err := json.Marshal(draft)
 	if err != nil {
@@ -45,9 +50,24 @@ func (s *Server) ProposeEnvelope(nodeID string, draft *envelope.Envelope) (*sqli
 // materializes the draft (from action JSON) as an active envelope — authoritative
 // sidecar plus SQLite mirror.
 func (s *Server) activateEnvelope(actionJSON, nodeID, decidedBy string) error {
+	// Idempotent recovery: activation runs after the approval is already committed
+	// approved, across three stores (sidecar, mirror, integration branch). If a
+	// prior attempt partially failed and is retried, an already-active envelope for
+	// the node means the boundary is materialized — only reconcile the (idempotent)
+	// integration branch, never allocate a duplicate envelope id + orphan sidecar (M2).
+	if existing, err := s.db.GetActiveEnvelopeForNode(nodeID); err != nil {
+		return err
+	} else if existing != nil {
+		return s.ensureIntegrationBranch(nodeID)
+	}
 	var draft envelope.Envelope
 	if err := json.Unmarshal([]byte(actionJSON), &draft); err != nil {
 		return fmt.Errorf("envelope draft: %w", err)
+	}
+	// Reject a draft granting unknown (or no) approved actions before persisting it,
+	// so an active envelope never carries an unrecognized grant (M5/ADR 0054).
+	if err := envelope.ValidateActions(draft.ApprovedActions); err != nil {
+		return err
 	}
 	id, err := s.db.NextEnvelopeID()
 	if err != nil {
@@ -58,6 +78,8 @@ func (s *Server) activateEnvelope(actionJSON, nodeID, decidedBy string) error {
 	draft.Status = envelope.StatusActive
 	draft.ApprovedBy = decidedBy
 	draft.ApprovedAt = encoding.Now()
+	// Authoritative sidecar first, then the mirror (ADR 0040/0054): a rebuild
+	// reconciles the mirror from the sidecar if the mirror write fails.
 	if err := envelope.Write(s.proj.TicketsDir(), &draft); err != nil {
 		return err
 	}

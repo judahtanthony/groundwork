@@ -67,17 +67,24 @@ func (db *DB) GetEnvelope(id string) (*envelope.Envelope, error) {
 }
 
 // GetActiveEnvelopeForNode returns the active envelope attached directly to
-// nodeID, or (nil, nil) when the node has none.
+// nodeID, or (nil, nil) when the node has none. The status column is overlaid
+// onto the doc projection (as in GetEnvelope) so the returned status always
+// reflects the authoritative column, never a stale doc_json blob.
 func (db *DB) GetActiveEnvelopeForNode(nodeID string) (*envelope.Envelope, error) {
-	var doc string
-	err := db.QueryRow(`SELECT doc_json FROM envelopes WHERE node_id = ? AND status = 'active'`, nodeID).Scan(&doc)
+	var doc, status string
+	err := db.QueryRow(`SELECT doc_json, status FROM envelopes WHERE node_id = ? AND status = 'active'`, nodeID).Scan(&doc, &status)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
 	if err != nil {
 		return nil, err
 	}
-	return envelopeFromDoc(doc)
+	e, err := envelopeFromDoc(doc)
+	if err != nil {
+		return nil, err
+	}
+	e.Status = envelope.Status(status)
+	return e, nil
 }
 
 // ListEnvelopes returns all envelopes newest-first, optionally filtered by status.

@@ -6,6 +6,7 @@
 package envelope
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 
@@ -30,6 +31,36 @@ const (
 	ActionLandChildToParent = "land_children_to_parent"
 	ActionReplanWithinGoal  = "replan_within_goal"
 )
+
+// KnownActions is the full approved-action vocabulary an envelope may grant.
+var KnownActions = []string{
+	ActionDecomposeChildren, ActionExecuteChildren,
+	ActionLandChildToParent, ActionReplanWithinGoal,
+}
+
+// ValidateActions rejects any approved action outside the known vocabulary, so a
+// malformed envelope is refused at activation rather than silently granting (or
+// failing to grant) an unrecognized action (ADR 0054/0056). An envelope granting
+// no actions is also rejected — it would authorize nothing.
+func ValidateActions(actions []string) error {
+	if len(actions) == 0 {
+		return fmt.Errorf("envelope grants no approved_actions")
+	}
+	known := map[string]bool{}
+	for _, a := range KnownActions {
+		known[a] = true
+	}
+	var unknown []string
+	for _, a := range actions {
+		if !known[a] {
+			unknown = append(unknown, a)
+		}
+	}
+	if len(unknown) > 0 {
+		return fmt.Errorf("unknown envelope approved_actions %v (known: %v)", unknown, KnownActions)
+	}
+	return nil
+}
 
 // Planning bounds dynamic decomposition inside the envelope.
 type Planning struct {

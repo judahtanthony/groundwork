@@ -35,8 +35,10 @@ func (db *DB) ReviewBundle(nodeID string) (*ReviewBundle, error) {
 		return nil, err
 	}
 
-	// Collect leaf descendants and the full subtree id set.
-	subtree := map[string]bool{}
+	// Collect leaf descendants and the full subtree id set. The root node is part
+	// of its own subtree, so an exception raised against the root itself is counted
+	// in unresolved exceptions and the recommendation (L2/ADR 0057).
+	subtree := map[string]bool{nodeID: true}
 	var leaves []*ticket.Ticket
 	var walk func(id string) error
 	walk = func(id string) error {

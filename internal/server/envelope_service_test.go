@@ -34,6 +34,57 @@ func TestApprovalsInboxShowsEnvelopeBoundary(t *testing.T) {
 	}
 }
 
+// An envelope draft granting an unknown approved action is refused at propose
+// time, so the human is never asked to approve a boundary that cannot activate
+// (M5/ADR 0054).
+func TestProposeEnvelopeRejectsUnknownAction(t *testing.T) {
+	srv, db := newTestServer(t)
+	parent := &ticket.Ticket{Title: "root", NodeType: ticket.NodeComposite, Status: ticket.StatusTodo, WorkType: "technical_design"}
+	if err := db.CreateTicket(parent, "tester"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := srv.ProposeEnvelope(parent.ID, &envelope.Envelope{
+		ApprovedActions: []string{"land_to_main"}, // not an envelope-grantable action
+		AllowedRoles:    []string{"coding"},
+	}); err == nil {
+		t.Fatal("ProposeEnvelope accepted an unknown approved action; want refusal")
+	}
+	if _, err := srv.ProposeEnvelope(parent.ID, &envelope.Envelope{AllowedRoles: []string{"coding"}}); err == nil {
+		t.Fatal("ProposeEnvelope accepted an empty action set; want refusal")
+	}
+}
+
+// Re-approving an already-activated envelope (a retried activation) does not
+// allocate a second envelope: activation is idempotent (M2/ADR 0054).
+func TestActivateEnvelopeIsIdempotent(t *testing.T) {
+	srv, db := newTestServer(t)
+	parent := &ticket.Ticket{Title: "root", NodeType: ticket.NodeComposite, Status: ticket.StatusTodo, WorkType: "technical_design"}
+	if err := db.CreateTicket(parent, "tester"); err != nil {
+		t.Fatal(err)
+	}
+	draft := &envelope.Envelope{ApprovedActions: []string{envelope.ActionExecuteChildren}, AllowedRoles: []string{"coding"}}
+	appr, err := srv.ProposeEnvelope(parent.ID, draft)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := srv.recordDecision(appr.ID, approval.StatusApproved, ""); err != nil {
+		t.Fatal(err)
+	}
+	first, _ := db.GetActiveEnvelopeForNode(parent.ID)
+	if first == nil {
+		t.Fatal("no active envelope after approval")
+	}
+	// A retried activation (same approval action JSON) must be a no-op, not a
+	// duplicate envelope.
+	if err := srv.activateEnvelope(appr.ActionJSON, parent.ID, ownerActor); err != nil {
+		t.Fatalf("retried activation errored: %v", err)
+	}
+	again, _ := db.GetActiveEnvelopeForNode(parent.ID)
+	if again == nil || again.ID != first.ID {
+		t.Errorf("activation not idempotent: first=%v again=%v", first, again)
+	}
+}
+
 // Proposing an envelope opens a pending approve_envelope approval; approving it
 // materializes an active envelope (mirror + authoritative sidecar). Revoking
 // clears the active envelope. (ADR 0054)

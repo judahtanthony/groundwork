@@ -80,7 +80,11 @@ func (s *Server) raiseEnvelopeException(nodeID, envID, action string, a *actor.A
 }
 
 // envelopeActionFor maps a gate action (execute/decompose/land_to_parent/replan)
-// to the envelope's approved-action vocabulary (ADR 0054/0056).
+// to the envelope's approved-action vocabulary (ADR 0054/0056). An unrecognized
+// gate action maps to "" — no envelope grant matches it, so it is never
+// authorized by an envelope. The raw gate action is deliberately NOT passed
+// through, so the gate and envelope vocabularies stay decoupled and a future gate
+// action can never silently match an envelope grant by name collision.
 func envelopeActionFor(gateAction string) string {
 	switch gateAction {
 	case "execute":
@@ -92,7 +96,7 @@ func envelopeActionFor(gateAction string) string {
 	case "replan":
 		return envelope.ActionReplanWithinGoal
 	}
-	return gateAction
+	return ""
 }
 
 // firstRole returns an actor's primary role, or "" (the v1 AI role actors hold a

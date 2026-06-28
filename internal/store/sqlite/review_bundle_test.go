@@ -61,3 +61,26 @@ func TestReviewBundle(t *testing.T) {
 		t.Errorf("with exception: rec=%s unresolved=%d, want hold/1", b.Recommendation, len(b.UnresolvedExceptions))
 	}
 }
+
+// An exception raised against the root node itself (not a descendant) is counted
+// in the bundle: the root is part of its own subtree (L2/ADR 0057).
+func TestReviewBundleCountsRootOwnException(t *testing.T) {
+	db := openTestDB(t)
+	root := &ticket.Ticket{Title: "feature", NodeType: ticket.NodeComposite, Status: ticket.StatusTodo, WorkType: "technical_design"}
+	if err := db.CreateTicket(root, "tester"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.CreateApproval(CreateApprovalParams{
+		TicketID: root.ID, Type: approval.TypeException, RiskClass: "medium",
+		Summary: "root exceeds envelope", Status: approval.StatusPending, RequestedByActor: "ai.coding.codex",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	b, err := db.ReviewBundle(root.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if b.Recommendation != "hold" || len(b.UnresolvedExceptions) != 1 {
+		t.Errorf("root-own exception: rec=%s unresolved=%d, want hold/1", b.Recommendation, len(b.UnresolvedExceptions))
+	}
+}
