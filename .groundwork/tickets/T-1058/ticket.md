@@ -4,14 +4,15 @@ kind: ticket
 node_type: null
 work_type: technical_implementation
 title: Require completion and blocked-run handoff summaries
-status: backlog
+status: todo
 assignee: null
 requested_actor: null
 priority: 0.5
 labels:
     - async-agents
 parent: T-1052
-depends_on: []
+depends_on:
+    - T-1055
 created_at: "2026-06-24T17:43:39Z"
 updated_at: "2026-06-24T17:43:39Z"
 ---

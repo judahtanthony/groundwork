@@ -4,7 +4,7 @@ kind: ticket
 node_type: null
 work_type: technical_implementation
 title: Make durable ticket state file-authoritative
-status: backlog
+status: todo
 assignee: null
 requested_actor: null
 priority: 0.5
@@ -12,7 +12,8 @@ labels:
     - async-agents
     - source-of-truth
 parent: T-1052
-depends_on: []
+depends_on:
+    - T-1053
 created_at: "2026-06-24T18:05:11Z"
 updated_at: "2026-06-24T18:05:11Z"
 ---

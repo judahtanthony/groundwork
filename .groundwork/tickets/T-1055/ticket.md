@@ -4,14 +4,16 @@ kind: ticket
 node_type: null
 work_type: technical_implementation
 title: Add blocked-run handoff outcomes and resume packets
-status: backlog
+status: todo
 assignee: null
 requested_actor: null
 priority: 0.5
 labels:
     - async-agents
 parent: T-1052
-depends_on: []
+depends_on:
+    - T-1053
+    - T-0503
 created_at: "2026-06-24T17:43:26Z"
 updated_at: "2026-06-24T17:43:26Z"
 ---

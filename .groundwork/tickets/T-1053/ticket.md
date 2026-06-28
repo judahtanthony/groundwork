@@ -4,10 +4,10 @@ kind: ticket
 node_type: null
 work_type: technical_implementation
 title: Add deterministic ticket decision sidecar import/export
-status: backlog
+status: todo
 assignee: null
 requested_actor: null
-priority: 0.5
+priority: 0.75
 labels:
     - async-agents
 parent: T-1052
