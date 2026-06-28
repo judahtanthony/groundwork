@@ -22,8 +22,10 @@
               <div class="title">{{.Summary}}</div>
               <div class="meta">{{.ID}} · {{.GateReason}} · risk {{.RiskClass}}{{if ne .RiskScore "—"}} ({{.RiskScore}}){{end}} · {{.Reversible}}</div>
               <div class="meta">ticket {{.TicketID}} — {{.TicketTitle}} [{{.TicketStatus}}{{if ne .TicketWorkType "—"}} · {{.TicketWorkType}}{{end}}]</div>
+              {{if .Boundary}}<div class="meta">envelope boundary: {{.Boundary}}</div>{{end}}
               <div class="meta">requested by {{.RequestedBy}} · required actors {{.RequiredActors}} · required roles {{.RequiredRoles}} · {{.Created}}</div>
               {{if .Landing}}
+              <div class="meta"><a href="/review/{{.TicketID}}">open review bundle →</a></div>
               <details class="gw-preview">
                 <summary>Preview landing diff</summary>
                 {{if not $.Data.Preview.RepoAvailable}}

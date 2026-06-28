@@ -94,6 +94,9 @@ func buildRoot() *Command {
 			newRunCmd(),
 			newApprovalCmd(),
 			newValidationCmd(),
+			newPolicyCmd(),
+			newEnvelopeCmd(),
+			newReviewCmd(),
 			newServerCmd(),
 			newExportCmd(),
 			newDoctorCmd(),
@@ -116,6 +119,7 @@ func ticketSubcommands() []*Command {
 		newTicketTreeCmd(),
 		newContextCmd(),
 		newTicketLinkCmd(),
+		newTicketSummaryCmd(),
 		{Name: "decompose", Usage: "Propose a decomposition (requires the coordinator)", Args: "<id>", Run: runTicketDecompose},
 		{Name: "escalate", Usage: "Escalate for re-plan (requires the coordinator)", Args: "<id>", Run: runTicketEscalate},
 		{Name: "land", Usage: "Land an approved node through the validation gate (requires the coordinator)", Args: "<id>", Run: runTicketLand, Flags: []FlagDoc{

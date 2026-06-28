@@ -1,10 +1,12 @@
 schema: groundwork_actors/v1
 
 actors:
+  # The single local owner satisfies every role in v1 (ADR 0055); roles can map
+  # to separate humans later without changing the workflow model.
   - id: human.owner
     type: human
     display_name: Owner
-    roles: [owner]
+    roles: [owner, planner, coding, reviewer]
     capabilities:
       work_types: ["*"]
       approve: ["*"]
@@ -27,3 +29,50 @@ actors:
     limits:
       max_risk_class: medium
     sandbox: workspace-write
+
+  # Role-specific AI actors for bounded autonomy (ADR 0055). The planner proposes
+  # decomposition/envelopes; the coding actor implements scoped child leaves; the
+  # reviewer inspects diffs/validation/summaries and records advisory findings but
+  # never decides a human-gated approval (the human gate is never bypassed).
+  - id: ai.planner.codex
+    type: ai_agent
+    display_name: Codex Planner
+    runtime: codex
+    model: default
+    roles: [planner]
+    capabilities:
+      work_types:
+        - technical_design
+    limits:
+      max_risk_class: medium
+    sandbox: workspace-write
+
+  - id: ai.coding.codex
+    type: ai_agent
+    display_name: Codex Coding
+    runtime: codex
+    model: default
+    roles: [coding, implementer]
+    capabilities:
+      work_types:
+        - technical_implementation
+        - test_implementation
+        - documentation
+    limits:
+      max_risk_class: medium
+    sandbox: workspace-write
+
+  - id: ai.reviewer.codex
+    type: ai_agent
+    display_name: Codex Reviewer
+    runtime: codex
+    model: default
+    roles: [reviewer]
+    capabilities:
+      review:
+        - technical_implementation
+        - test_implementation
+        - documentation
+    limits:
+      max_risk_class: medium
+    sandbox: read-only

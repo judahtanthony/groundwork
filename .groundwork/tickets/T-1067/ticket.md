@@ -1,20 +1,20 @@
 ---
 id: T-1067
 kind: ticket
-node_type: null
-work_type: technical_design
+node_type: leaf
+work_type: technical_implementation
 title: Define planner, coding, and reviewer AI actors
-status: backlog
-assignee: null
+status: done
+assignee: human.owner
 requested_actor: null
-priority: 0.68
+priority: 0.61
 labels:
     - phase-5
     - autonomy
 parent: T-1066
 depends_on: []
 created_at: "2026-06-24T22:23:00Z"
-updated_at: "2026-06-24T22:23:00Z"
+updated_at: "2026-06-25T20:46:56Z"
 ---
 
 ## Problem

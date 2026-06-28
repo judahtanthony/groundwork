@@ -34,6 +34,27 @@ func TestEvaluateReversibilityFloorForcesCritical(t *testing.T) {
 	}
 }
 
+// An irreversible action is passable when a rule explicitly opts in via
+// when.reversible:false (ADR 0038): reversibility is a loosenable highest bar,
+// not a structural short-circuit. An unqualified auto rule still cannot pass it.
+func TestEvaluateIrreversibleOptInAutoApproves(t *testing.T) {
+	irreversible := Action{Type: "execute", Scope: risk.Scope{Files: []string{"db/migrate.sql"}, External: true}}
+
+	optIn := &Set{Trust: &TrustPolicy{AutoApprove: []Rule{{
+		ID: "trusted-irreversible", When: Match{Reversible: boolPtr(false)},
+	}}}}
+	if d := optIn.Evaluate(irreversible); d.Outcome != OutcomeAutoApprove || d.RuleID != "trusted-irreversible" {
+		t.Errorf("opt-in rule: outcome=%s rule=%q, want auto_approve/trusted-irreversible", d.Outcome, d.RuleID)
+	}
+	// A reversible-only rule must NOT pass an irreversible action.
+	revOnly := &Set{Trust: &TrustPolicy{AutoApprove: []Rule{{
+		ID: "rev-only", When: Match{Reversible: boolPtr(true)},
+	}}}}
+	if d := revOnly.Evaluate(irreversible); d.Outcome != OutcomeRequireHuman {
+		t.Errorf("reversible-only rule: outcome=%s, want require_human", d.Outcome)
+	}
+}
+
 func TestEvaluateRequireHumanBeatsAutoApprove(t *testing.T) {
 	set := &Set{Trust: &TrustPolicy{
 		AutoApprove:  []Rule{{ID: "docs", When: Match{Files: []string{"**/*.md"}}}},
@@ -42,6 +63,72 @@ func TestEvaluateRequireHumanBeatsAutoApprove(t *testing.T) {
 	d := set.Evaluate(Action{Type: "land_to_main", Scope: risk.Scope{Files: []string{"README.md"}}})
 	if d.Outcome != OutcomeRequireHuman || d.RuleID != "land" {
 		t.Fatalf("got %s/%s, want require_human/land", d.Outcome, d.RuleID)
+	}
+}
+
+func TestEvaluateRequireHumanCarriesRequiredRoles(t *testing.T) {
+	set := &Set{Trust: &TrustPolicy{
+		RequireHuman: []Rule{{
+			ID: "land-needs-staff", When: Match{ActionTypes: []string{"land_to_main"}},
+			RequireRoles: []string{"staff_engineer"},
+		}},
+	}}
+	d := set.Evaluate(Action{Type: "land_to_main", Scope: risk.Scope{Files: []string{"README.md"}}})
+	if d.Outcome != OutcomeRequireHuman || d.RuleID != "land-needs-staff" {
+		t.Fatalf("outcome=%v rule=%q, want require_human/land-needs-staff", d.Outcome, d.RuleID)
+	}
+	if len(d.RequiredRoles) != 1 || d.RequiredRoles[0] != "staff_engineer" {
+		t.Errorf("required roles = %v, want [staff_engineer]", d.RequiredRoles)
+	}
+}
+
+// Role is a live policy input: a role-scoped rule matches only actors that hold
+// the role (ADR 0055).
+// Authority-elevation actions are ordinary gated actions that default to
+// require_human with no autonomy config (ADR 0038).
+func TestEvaluateAuthorityElevationDefaultsHuman(t *testing.T) {
+	set := &Set{}
+	for _, at := range []string{"amend_policy", "elevate_autonomy"} {
+		d := set.Evaluate(Action{Type: at, Scope: risk.Scope{Files: []string{"README.md"}}})
+		if d.Outcome != OutcomeRequireHuman {
+			t.Errorf("%s outcome = %s, want require_human", at, d.Outcome)
+		}
+	}
+}
+
+func TestEvaluateRoleScopedRuleMatchesByRole(t *testing.T) {
+	set := &Set{Trust: &TrustPolicy{
+		RequireHuman: []Rule{{ID: "coding-gate", When: Match{Roles: []string{"coding"}}}},
+	}}
+	coder := &actor.Actor{ID: "ai.coding.codex", Type: actor.TypeAIAgent, Roles: []string{"coding"}}
+	planner := &actor.Actor{ID: "ai.planner.codex", Type: actor.TypeAIAgent, Roles: []string{"planner"}}
+	if d := set.Evaluate(Action{Type: "execute", Actor: coder, Scope: risk.Scope{Files: []string{"README.md"}}}); d.RuleID != "coding-gate" {
+		t.Errorf("coding actor: rule=%q, want coding-gate", d.RuleID)
+	}
+	if d := set.Evaluate(Action{Type: "execute", Actor: planner, Scope: risk.Scope{Files: []string{"README.md"}}}); d.RuleID == "coding-gate" {
+		t.Errorf("planner actor matched coding-only rule")
+	}
+}
+
+// An elevated autonomy level guarded by AutonomyRequires applies only when its
+// prerequisites are met; otherwise it falls back to require_human (ADR 0038).
+func TestEvaluateEarnedAutonomyRequirements(t *testing.T) {
+	set := &Set{Autonomy: &AutonomyPolicy{Actions: map[string]AutonomyAction{
+		"execute": {Default: "require_human", ByWorkType: map[string]AutonomyByWorkType{
+			"documentation": {Level: "auto", Requires: AutonomyRequires{Validations: []string{"go"}}},
+		}},
+	}}}
+	base := Action{Type: "execute", WorkType: "documentation", Scope: risk.Scope{Files: []string{"docs/x.md"}}}
+
+	// Prerequisite unmet -> elevation does not apply.
+	if d := set.Evaluate(base); d.Outcome != OutcomeRequireHuman {
+		t.Errorf("unmet requires: outcome=%s, want require_human", d.Outcome)
+	}
+	// Prerequisite met -> elevation applies.
+	met := base
+	met.PassedValidations = []string{"go"}
+	if d := set.Evaluate(met); d.Outcome != OutcomeAutoApprove {
+		t.Errorf("met requires: outcome=%s, want auto_approve", d.Outcome)
 	}
 }
 

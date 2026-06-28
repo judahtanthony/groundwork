@@ -40,6 +40,10 @@ type Match struct {
 	MaxDiffLines       int      `yaml:"max_diff_lines,omitempty"`
 	CwdWithinWorkspace *bool    `yaml:"cwd_within_workspace,omitempty"`
 	Network            *bool    `yaml:"network,omitempty"`
+	// WithinEnvelope matches the coordinator-computed fact that an action sits
+	// inside an approved parent/root envelope (ADR 0056), so allow_claim rules can
+	// require bounded-autonomy authorization.
+	WithinEnvelope *bool `yaml:"within_envelope,omitempty"`
 }
 
 // ReviewAllowedBy names who may review/decide for an auto_approve rule that
@@ -57,6 +61,11 @@ type Rule struct {
 	When            Match            `yaml:"when"`
 	Actions         []string         `yaml:"actions,omitempty"`
 	ReviewAllowedBy *ReviewAllowedBy `yaml:"review_allowed_by,omitempty"`
+	// RequireRoles names the approver role(s) a matching require_human rule
+	// demands (ADR 0055/0048): the approval then records which role was required
+	// and why. In v1 the owner satisfies every role; this keeps the record honest
+	// for later multi-human identity.
+	RequireRoles []string `yaml:"require_roles,omitempty"`
 }
 
 // TrustPolicy is the ordered, first-match trust rule set.

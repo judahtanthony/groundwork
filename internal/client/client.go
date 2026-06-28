@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"time"
 
+	"groundwork/internal/envelope"
 	"groundwork/internal/store/sqlite"
 	"groundwork/internal/ticket"
 )
@@ -248,6 +249,17 @@ func (c *Client) LandTicket(ticketID string, override bool) (*LandResult, error)
 func (c *Client) EscalateTicket(id, reason string) (*sqlite.Approval, error) {
 	var a sqlite.Approval
 	if err := c.do(http.MethodPost, "/api/v1/tickets/"+id+"/escalate", map[string]string{"reason": reason}, &a); err != nil {
+		return nil, err
+	}
+	return &a, nil
+}
+
+// ProposeEnvelope opens a human-gated approve_envelope approval for nodeID
+// carrying the draft boundary (ADR 0054). Approving the returned approval
+// activates the envelope.
+func (c *Client) ProposeEnvelope(nodeID string, draft *envelope.Envelope) (*sqlite.Approval, error) {
+	var a sqlite.Approval
+	if err := c.do(http.MethodPost, "/api/v1/tickets/"+nodeID+"/envelope", draft, &a); err != nil {
 		return nil, err
 	}
 	return &a, nil

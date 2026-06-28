@@ -65,6 +65,66 @@ func TestRequestAutoApprovesDocs(t *testing.T) {
 	}
 }
 
+// reviewerRoleActorsYAML gives an AI agent the reviewer role and a human a
+// non-matching role, to probe the human-gate vs. required-role interaction (H1).
+const reviewerRoleActorsYAML = `schema: groundwork_actors/v1
+actors:
+  - id: human.owner
+    type: human
+    display_name: Owner
+    roles: [owner, reviewer]
+  - id: ai.reviewer.codex
+    type: ai_agent
+    display_name: Reviewer Bot
+    runtime: codex
+    roles: [reviewer]
+`
+
+// A human-gated approval that also names a required role must NOT be decidable by
+// an AI actor that merely holds that role: require_human is enforced first and
+// independently of the role constraint (ADR 0028/0055; regression from T-1067
+// which began auto-populating RequiredRoles from the firing rule). The required
+// role only narrows *which human* may decide.
+func TestHumanGatedApprovalRejectsAIWithRequiredRole(t *testing.T) {
+	db, err := sqlite.Open(t.TempDir() + "/state.sqlite")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { db.Close() })
+	if err := db.Migrate(); err != nil {
+		t.Fatal(err)
+	}
+	reg, _, err := actor.Parse([]byte(reviewerRoleActorsYAML))
+	if err != nil {
+		t.Fatal(err)
+	}
+	svc := NewApprovalService(db, &policy.Set{}, reg)
+
+	tk := &ticket.Ticket{Title: "boundary", Status: ticket.StatusInProgress}
+	if err := db.CreateTicket(tk, "tester"); err != nil {
+		t.Fatal(err)
+	}
+	score := 0
+	rev := true
+	a, err := db.CreateApproval(sqlite.CreateApprovalParams{
+		TicketID: tk.ID, Type: approval.TypeApproveEnvelope, Status: approval.StatusPending,
+		RiskClass: string(risk.ClassLow), RiskScore: &score, Reversible: &rev,
+		Summary: "approve envelope", RequiredRoles: []string{"reviewer"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// The AI agent holds the reviewer role but must still be refused.
+	if _, err := svc.Decide(a.ID, approval.StatusApproved, "ai.reviewer.codex", "lgtm"); err == nil {
+		t.Fatal("AI actor with required role decided a human-gated approval; want refusal")
+	}
+	// The human (also holding the role) may decide it.
+	if _, err := svc.Decide(a.ID, approval.StatusApproved, "human.owner", "approved"); err != nil {
+		t.Fatalf("human with required role refused: %v", err)
+	}
+}
+
 func TestRequestLandingStaysHuman(t *testing.T) {
 	svc, db := requestService(t)
 	tk := &ticket.Ticket{Title: "feature", Status: ticket.StatusInProgress}

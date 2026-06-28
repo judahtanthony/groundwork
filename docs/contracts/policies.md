@@ -44,6 +44,11 @@ require_human:
   - id: decomposition_v1
     when:
       action_types: [decompose]
+  - id: ci_config_requires_staff       # require_roles records which role must approve (ADR 0055)
+    when:
+      action_types: [land_to_main]
+      files: [".github/workflows/**"]
+    require_roles: [staff_engineer]
 allow_claim:
   - id: default_codex_medium_risk
     when:

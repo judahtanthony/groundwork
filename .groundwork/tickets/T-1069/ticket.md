@@ -1,20 +1,20 @@
 ---
 id: T-1069
 kind: ticket
-node_type: null
+node_type: composite
 work_type: technical_implementation
 title: Add envelope-aware allow_claim policy
-status: backlog
+status: done
 assignee: null
 requested_actor: null
-priority: 0.64
+priority: 0.45
 labels:
     - phase-5
     - autonomy
 parent: T-1066
 depends_on: []
 created_at: "2026-06-24T22:23:00Z"
-updated_at: "2026-06-24T22:23:00Z"
+updated_at: "2026-06-26T01:26:57Z"
 ---
 
 ## Problem
@@ -25,3 +25,11 @@ Extend claim authorization so AI agents can claim work only when both trust poli
 
 - AI claims outside approved envelopes remain denied by default.
 - Policy explanations identify the matching envelope and trust rule or the reason no claim was allowed.
+
+## Design / Contract
+
+_No contract recorded._
+
+## Escalations
+
+_No escalations._

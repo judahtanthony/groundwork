@@ -93,6 +93,60 @@ func (r *Repo) CurrentBranch() (string, error) {
 	return strings.TrimSpace(out), nil
 }
 
+// HeadCommit returns the current HEAD commit SHA.
+func (r *Repo) HeadCommit() (string, error) {
+	out, err := r.run("rev-parse", "HEAD")
+	return strings.TrimSpace(out), err
+}
+
+// CreateAndCheckout creates a new branch at HEAD and checks it out (git checkout
+// -b). Used to start a root integration branch from the default branch (ADR 0058).
+func (r *Repo) CreateAndCheckout(name string) error {
+	_, err := r.run("checkout", "-b", name)
+	return err
+}
+
+// Checkout switches to an existing branch.
+func (r *Repo) Checkout(name string) error {
+	_, err := r.run("checkout", name)
+	return err
+}
+
+// DefaultBranch returns the repo's main line: "main" if it exists, else
+// "master", else "" — the merge target for root land_to_main (ADR 0058).
+func (r *Repo) DefaultBranch() string {
+	for _, b := range []string{"main", "master"} {
+		if _, err := r.run("show-ref", "--verify", "--quiet", "refs/heads/"+b); err == nil {
+			return b
+		}
+	}
+	return ""
+}
+
+// MergeNoFF merges branch into the current branch with a merge commit
+// (--no-ff), preserving the feature boundary (ADR 0058).
+func (r *Repo) MergeNoFF(branch, message string) error {
+	_, err := r.run("merge", "--no-ff", "-m", message, branch)
+	return err
+}
+
+// MergeAbort aborts an in-progress merge, restoring the work tree and index to
+// the pre-merge state (git merge --abort). Used to recover from a conflicted
+// root land_to_main so a failed merge never leaves the tree mid-conflict (ADR 0058).
+func (r *Repo) MergeAbort() error {
+	_, err := r.run("merge", "--abort")
+	return err
+}
+
+// DeleteBranch removes a branch with the safe `git branch -d`, which refuses to
+// delete a branch that is not fully merged. Callers delete only after a
+// successful merge (ADR 0058), so a refusal here is a real signal that work would
+// be lost — it surfaces as a loud error rather than a silent force-delete.
+func (r *Repo) DeleteBranch(name string) error {
+	_, err := r.run("branch", "-d", name)
+	return err
+}
+
 // AddAll stages every change in the work tree (git add -A): modified, deleted,
 // and new files, honoring .gitignore. It is the `git commit -a`-style convenience
 // for landing (ADR 0034).

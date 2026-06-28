@@ -36,12 +36,25 @@ const (
 	TypeLandToMain Type = "land_to_main"
 	TypeDecompose  Type = "decompose"
 	TypeReplan     Type = "replan"
+	// Authority-elevation as first-class gated actions (ADR 0038): amending policy
+	// or raising an autonomy level are ordinary gated actions, default
+	// require_human, rather than human-only carve-outs in code. This makes
+	// delegating the "improvement" layer expressible without enabling it.
+	TypeAmendPolicy     Type = "amend_policy"
+	TypeElevateAutonomy Type = "elevate_autonomy"
+	// TypeApproveEnvelope approves a parent/root approval envelope (ADR 0054): a
+	// bounded boundary for child planning/execution/land-to-parent. Human-gated.
+	TypeApproveEnvelope Type = "approve_envelope"
+	// TypeException is raised when an in-trust AI action falls outside its approved
+	// envelope (ADR 0056): the boundary crossing is held for a human decision.
+	TypeException Type = "exception"
 )
 
 // Valid reports whether t is a recognized approval type.
 func (t Type) Valid() bool {
 	switch t {
-	case TypeExecute, TypeLandToMain, TypeDecompose, TypeReplan:
+	case TypeExecute, TypeLandToMain, TypeDecompose, TypeReplan,
+		TypeAmendPolicy, TypeElevateAutonomy, TypeApproveEnvelope, TypeException:
 		return true
 	}
 	return false

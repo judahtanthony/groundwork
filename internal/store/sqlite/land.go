@@ -24,13 +24,12 @@ type LandResult struct {
 	Failed  []string // checks whose latest result failed
 }
 
-// Land lands an approved node: it enforces the validation gate (every required
-// check must have a passing result and none may be failing, unless override),
-// then transitions approved -> landing -> done and squashes the latest run's WIP
-// checkpoints (ADR 0015). requiredChecks come from the validation policy applied
-// to the node's changed files (the file set is supplied by the Phase 4 runtime;
-// in M2 it is typically empty, so the gate enforces "no failing results").
-func (db *DB) Land(ticketID string, requiredChecks []string, override bool, actor string) (*LandResult, error) {
+// CheckValidationGate enforces the validation gate without transitioning the
+// node: every required check must have a passing result and none may be failing,
+// unless override. It returns a populated *LandResult and ErrValidationGate when
+// blocked, else (nil, nil). Shared by land_to_main (db.Land) and land_to_parent
+// (ADR 0058) so neither landing level can commit work over failing validation.
+func (db *DB) CheckValidationGate(ticketID string, requiredChecks []string, override bool) (*LandResult, error) {
 	results, err := db.ListValidationsForTicket(ticketID)
 	if err != nil {
 		return nil, err
@@ -55,9 +54,22 @@ func (db *DB) Land(ticketID string, requiredChecks []string, override bool, acto
 		return &LandResult{Missing: missing, Failed: failed},
 			fmt.Errorf("%w: missing=%v failed=%v", ErrValidationGate, missing, failed)
 	}
+	return nil, nil
+}
+
+// Land lands an approved node: it enforces the validation gate (every required
+// check must have a passing result and none may be failing, unless override),
+// then transitions approved -> landing -> done and squashes the latest run's WIP
+// checkpoints (ADR 0015). requiredChecks come from the validation policy applied
+// to the node's changed files (the file set is supplied by the Phase 4 runtime;
+// in M2 it is typically empty, so the gate enforces "no failing results").
+func (db *DB) Land(ticketID string, requiredChecks []string, override bool, actor string) (*LandResult, error) {
+	if lr, err := db.CheckValidationGate(ticketID, requiredChecks, override); err != nil {
+		return lr, err
+	}
 
 	var latestRun string
-	err = db.withTx(func(tx *sql.Tx) error {
+	err := db.withTx(func(tx *sql.Tx) error {
 		var status string
 		if err := tx.QueryRow(`SELECT status FROM tickets WHERE id=?`, ticketID).Scan(&status); err != nil {
 			if err == sql.ErrNoRows {

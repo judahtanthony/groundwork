@@ -31,7 +31,41 @@ func (s *Server) completeLanding(w http.ResponseWriter, id, reason string) bool 
 // own response surface. completeLanding wraps this for the JSON handlers.
 func (s *Server) finishLanding(id, reason string) error {
 	s.ratify(id, "land", reason)
-	return s.commitLanding(id)
+	// For a root that owns an open integration branch, the export commit must land
+	// on that branch — not whatever the operator has drifted to — so it is included
+	// in the merge to main below; otherwise the root's export commit orphans on the
+	// wrong branch (M1/ADR 0058). A no-op for ordinary nodes and non-git projects.
+	if err := s.checkoutRootIntegrationBranch(id); err != nil {
+		return err
+	}
+	if err := s.commitLanding(id); err != nil {
+		return err
+	}
+	// For a root with an integration branch, landing to main merges that branch
+	// and cleans it up (ADR 0058); a no-op for ordinary nodes.
+	return s.mergeRootToMain(id)
+}
+
+// checkoutRootIntegrationBranch checks out a root node's open integration branch
+// when one exists, so the root's landing export is committed there before the
+// merge to main (M1/ADR 0058). It is a no-op outside a git work tree, for nodes
+// without an open integration branch, or when already on the branch.
+func (s *Server) checkoutRootIntegrationBranch(nodeID string) error {
+	if s.repo == nil {
+		return nil
+	}
+	ib, err := s.db.GetIntegrationBranch(nodeID)
+	if err != nil || ib == nil || ib.Status != "open" {
+		return err
+	}
+	cur, err := s.repo.CurrentBranch()
+	if err != nil {
+		return err
+	}
+	if cur != ib.Branch {
+		return s.repo.Checkout(ib.Branch)
+	}
+	return nil
 }
 
 // commitLanding regenerates the node's Markdown export (now status=done) and, in a

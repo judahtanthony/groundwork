@@ -17,6 +17,18 @@ type Action struct {
 	DiffLines          int    // 0 when unknown
 	CwdWithinWorkspace bool
 	Scope              risk.Scope
+	// Earned-autonomy requirement facts (ADR 0038): what the node actually has, so
+	// an elevated autonomy level guarded by AutonomyRequires only applies when its
+	// prerequisites are met. Empty keeps elevation conservatively gated.
+	SatisfiedSOPs     []string
+	PassedValidations []string
+	// Bounded-autonomy envelope facts (ADR 0056), computed by the coordinator from
+	// the active ancestor envelope before evaluation. WithinEnvelope is true only
+	// when the action, work type, role, scope, and risk all sit inside the boundary.
+	ActorRole      string
+	EnvelopeID     string
+	WithinEnvelope bool
+	PlannedScope   []string
 }
 
 // Outcome is a gate decision result.
@@ -39,6 +51,10 @@ type Decision struct {
 	RiskScore  int
 	Reversible bool
 	Reasons    []string
+	// RequiredRoles is the approver role(s) the firing require_human rule demands
+	// (ADR 0055). Empty when no rule named one; the approval records it so the
+	// gate decision is explainable and ready for multi-human identity.
+	RequiredRoles []string
 }
 
 // classify computes the risk score, class, and reversibility for an action. An
@@ -54,37 +70,57 @@ func classify(a Action) (risk.Class, int, bool, []string) {
 }
 
 // Evaluate decides whether a gated action (execute, land_to_main, decompose, …)
-// may proceed automatically or needs a human. Composition order (ADR 0028):
-// reversibility floor → first-match require_human → first-match auto_approve →
-// autonomy default. Earlier steps cannot be loosened by later ones.
+// may proceed automatically or needs a human. Composition order (ADR 0028/0038):
+// first-match require_human → first-match auto_approve → autonomy default, with
+// irreversibility as the highest bar threaded *through* evaluation rather than a
+// pre-policy short-circuit. The reversibility verdict is always computed and
+// surfaced (an invariant), but an irreversible action is passable only by an
+// auto_approve rule that explicitly opts in (when.reversible: false); absent such
+// a rule it resolves to require_human — identical to the former floor. Earlier
+// steps cannot be loosened by later ones.
 func (s *Set) Evaluate(a Action) Decision {
 	class, score, reversible, reasons := classify(a)
 	d := Decision{RiskClass: class, RiskScore: score, Reversible: reversible, Reasons: reasons}
 
-	// 1. Reversibility floor: irreversible is forced critical, human-required.
-	if !reversible {
-		d.Outcome = OutcomeRequireHuman
-		return d
-	}
-
 	if s.Trust != nil {
-		// 2. require_human wins over any auto path.
+		// require_human wins over any auto path.
 		if r := firstMatch(s.Trust.RequireHuman, a, class, reversible); r != nil {
 			d.Outcome = OutcomeRequireHuman
 			d.RuleID = r.ID
+			d.RequiredRoles = r.RequireRoles
 			return d
 		}
-		// 3. auto_approve.
-		if r := firstMatch(s.Trust.AutoApprove, a, class, reversible); r != nil {
+		// auto_approve. Irreversibility is the highest bar: an irreversible action
+		// auto-approves only via a rule that explicitly opts in (when.reversible:
+		// false), never via an unqualified or reversible-only rule.
+		for i := range s.Trust.AutoApprove {
+			r := &s.Trust.AutoApprove[i]
+			if !matches(&r.When, a, class, reversible) {
+				continue
+			}
+			if !reversible && !ruleOptsIntoIrreversible(r) {
+				continue
+			}
 			d.Outcome = OutcomeAutoApprove
 			d.RuleID = r.ID
 			return d
 		}
 	}
 
-	// 4. Autonomy default for this action (with per-work-type elevation).
+	// Defaults. An irreversible action holds at require_human regardless of the
+	// autonomy level (ADR 0038): only an explicit opt-in rule above can pass it.
+	if !reversible {
+		d.Outcome = OutcomeRequireHuman
+		return d
+	}
 	d.Outcome = s.autonomyOutcome(a)
 	return d
+}
+
+// ruleOptsIntoIrreversible reports whether a rule explicitly authorizes
+// irreversible actions by constraining its match to when.reversible: false.
+func ruleOptsIntoIrreversible(r *Rule) bool {
+	return r.When.Reversible != nil && !*r.When.Reversible
 }
 
 // AuthorizeClaim decides whether the actor may claim/act on the node. It scans
@@ -114,6 +150,7 @@ func (s *Set) AuthorizeClaim(a Action) Decision {
 // outcome. reviewer behaves as human-required until reviewer agents land.
 func (s *Set) autonomyOutcome(a Action) Outcome {
 	level := "require_human"
+	var requires AutonomyRequires // only per-work-type elevation carries prerequisites
 	if s.Autonomy != nil {
 		if act, ok := s.Autonomy.Actions[a.Type]; ok {
 			if act.Default != "" {
@@ -121,13 +158,31 @@ func (s *Set) autonomyOutcome(a Action) Outcome {
 			}
 			if by, ok := act.ByWorkType[a.WorkType]; ok && by.Level != "" {
 				level = by.Level
+				requires = by.Requires
 			}
 		}
 	}
-	if level == "auto" {
+	// An elevated level only applies when its earned-autonomy prerequisites are
+	// met (ADR 0038); otherwise it falls back to require_human.
+	if level == "auto" && requirementsMet(requires, a) {
 		return OutcomeAutoApprove
 	}
 	return OutcomeRequireHuman
+}
+
+// requirementsMet reports whether the node satisfies an elevated level's
+// AutonomyRequires: the named SOP is present and every required validation has
+// passed. Absent requirements are trivially met (back-compat for default-auto).
+func requirementsMet(req AutonomyRequires, a Action) bool {
+	if req.SOP != "" && !inList(a.SatisfiedSOPs, req.SOP) {
+		return false
+	}
+	for _, v := range req.Validations {
+		if !inList(a.PassedValidations, v) {
+			return false
+		}
+	}
+	return true
 }
 
 // firstMatch returns the first rule whose predicate matches, or nil.
@@ -210,6 +265,9 @@ func matches(m *Match, a Action, class risk.Class, reversible bool) bool {
 	if m.CwdWithinWorkspace != nil && a.CwdWithinWorkspace != *m.CwdWithinWorkspace {
 		return false
 	}
+	if m.WithinEnvelope != nil && a.WithinEnvelope != *m.WithinEnvelope {
+		return false
+	}
 	return true
 }
 
@@ -247,6 +305,12 @@ func commandCategoryMatch(categories []string, scope risk.Scope) bool {
 }
 
 // anyFileMatch reports whether any file matches any glob pattern.
+// FilesMatch reports whether any file matches any glob pattern (the same
+// glob semantics the gate uses). Exported for envelope scope checks (ADR 0056).
+func FilesMatch(patterns, files []string) bool {
+	return anyFileMatch(patterns, files)
+}
+
 func anyFileMatch(patterns, files []string) bool {
 	for _, p := range patterns {
 		re := globToRegexp(p)

@@ -101,6 +101,12 @@ func (s *Server) recordDecision(id string, to approval.Status, reason string) (*
 			return nil, &landCommitError{id: a.TicketID, err: err}
 		}
 	}
+	// Approving an approve_envelope gate materializes the boundary (ADR 0054).
+	if to == approval.StatusApproved && approval.Type(a.Type) == approval.TypeApproveEnvelope {
+		if err := s.activateEnvelope(a.ActionJSON, a.TicketID, ownerActor); err != nil {
+			return nil, err
+		}
+	}
 	return a, nil
 }
 
@@ -193,10 +199,18 @@ func (s *ApprovalService) Request(p RequestParams) (*sqlite.Approval, error) {
 	d := s.policies.Evaluate(p.Action)
 	score, reversible := d.RiskScore, d.Reversible
 
+	// The required approver role is taken from the explicit request, else from the
+	// role the firing require_human rule demanded (ADR 0055), so the approval is
+	// honest about which role was required and why.
+	requiredRoles := p.RequiredRoles
+	if len(requiredRoles) == 0 {
+		requiredRoles = d.RequiredRoles
+	}
+
 	params := sqlite.CreateApprovalParams{
 		RunID: p.RunID, TicketID: p.TicketID, Type: p.Type, RiskClass: string(d.RiskClass),
 		RiskScore: &score, Reversible: &reversible, Summary: p.Summary, ActionJSON: p.ActionJSON,
-		RequestedByActor: actorID(p.Action.Actor), RequiredActors: p.RequiredActors, RequiredRoles: p.RequiredRoles,
+		RequestedByActor: actorID(p.Action.Actor), RequiredActors: p.RequiredActors, RequiredRoles: requiredRoles,
 	}
 	if d.Outcome == policy.OutcomeAutoApprove {
 		params.Status = approval.StatusApproved
@@ -279,20 +293,20 @@ func (s *ApprovalService) authorize(a *sqlite.Approval, decidedBy string) error 
 	if !ok {
 		return fmt.Errorf("deciding actor %q is not in the registry", decidedBy)
 	}
+	// v1 human gate: a human-gated action may only be decided by a human actor,
+	// enforced FIRST and independently of any required actor/role constraints. This
+	// keeps require_human un-bypassable even when the firing rule also named a
+	// required role (ADR 0028/0055): a required role narrows *which* human may
+	// decide, it never admits an AI actor that merely holds the role. Auto-approved
+	// gates never reach Decide.
+	if humanGated(approval.Type(a.Type)) && dec.Type != actor.TypeHuman {
+		return fmt.Errorf("approval %s is human-gated; actor %q (%s) may not decide it", a.ID, dec.ID, dec.Type)
+	}
 	if len(a.RequiredActors) > 0 && !actor.AnyIDMatch(a.RequiredActors, dec.ID) {
 		return fmt.Errorf("actor %q is not permitted to decide approval %s", dec.ID, a.ID)
 	}
 	if len(a.RequiredRoles) > 0 && !dec.HasAnyRole(a.RequiredRoles) {
 		return fmt.Errorf("actor %q lacks a required role to decide approval %s", dec.ID, a.ID)
-	}
-	// v1 human gate: with no explicit actor/role constraints, a human-gated action
-	// may only be decided by a human actor. This keeps require_human un-bypassable
-	// at the record level when future AI chat/reviewer adapters call Decide
-	// (ADR 0028). Auto-approved gates never reach Decide.
-	if len(a.RequiredActors) == 0 && len(a.RequiredRoles) == 0 && humanGated(approval.Type(a.Type)) {
-		if dec.Type != actor.TypeHuman {
-			return fmt.Errorf("approval %s is human-gated; actor %q (%s) may not decide it", a.ID, dec.ID, dec.Type)
-		}
 	}
 	return nil
 }
@@ -300,7 +314,9 @@ func (s *ApprovalService) authorize(a *sqlite.Approval, decidedBy string) error 
 // humanGated reports whether an approval type is human-required in v1.
 func humanGated(t approval.Type) bool {
 	switch t {
-	case approval.TypeDecompose, approval.TypeReplan, approval.TypeLandToMain:
+	case approval.TypeDecompose, approval.TypeReplan, approval.TypeLandToMain,
+		approval.TypeAmendPolicy, approval.TypeElevateAutonomy, approval.TypeApproveEnvelope,
+		approval.TypeException:
 		return true
 	}
 	return false
