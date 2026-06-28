@@ -78,3 +78,14 @@ at each step.
   the stub. `Run` resolves the effective model from the coordinator's actor-selected Spec,
   falling back to config. Tests: selector mapping + unknown, default command, launcher
   delegation with actor config, model fallback, records-only shell sequence.
+- **T-0506** per-run git worktree primitives + lifecycle (ADR 0059) — `internal/git`
+  gains `WorktreeAdd`/`WorktreeRemove`/`WorktreeList`/`WorktreePrune`, `MergeSquash`,
+  `DiffNameOnly`/`DiffRange` (three-dot base diff), `UpdateRef`/`DeleteRef` (the
+  `refs/groundwork/runs/<id>` retention namespace), `BranchExists`, and
+  `DeleteBranchForce`. New `internal/worktree.Manager` provisions `gw/run/<run-id>` from a
+  base commit under `.groundwork/worktrees/<run-id>` (`Project.WorktreesDir()`), retains the
+  WIP chain under the run ref before teardown so nothing is dropped, and `Reconcile`s
+  orphaned worktrees against the live run set. Tests: add/list/remove, prune orphan,
+  base-diff isolates the run's own change, squash stages into the index, ref retention,
+  and Manager provision/retain/teardown/reconcile (confirming `.groundwork/worktrees/`
+  placement works inside the repo).

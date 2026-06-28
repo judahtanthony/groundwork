@@ -4,7 +4,7 @@ kind: ticket
 node_type: leaf
 work_type: technical_implementation
 title: Add per-run git worktree primitives and lifecycle
-status: todo
+status: done
 assignee: null
 requested_actor: null
 priority: 0.72

@@ -147,6 +147,15 @@ func (r *Repo) DeleteBranch(name string) error {
 	return err
 }
 
+// DeleteBranchForce removes a branch with `git branch -D`, regardless of merge
+// state. It is for throwaway run branches (gw/run/<id>) whose content has been
+// squash-landed or retained under a ref (ADR 0059); callers that must not lose
+// work retain the branch tip first.
+func (r *Repo) DeleteBranchForce(name string) error {
+	_, err := r.run("branch", "-D", name)
+	return err
+}
+
 // AddAll stages every change in the work tree (git add -A): modified, deleted,
 // and new files, honoring .gitignore. It is the `git commit -a`-style convenience
 // for landing (ADR 0034).
