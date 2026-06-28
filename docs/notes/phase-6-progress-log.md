@@ -22,3 +22,15 @@ at each step.
   the Phase 6 tree (validated: parents/deps resolve, no cycles).
 
 ## Landed leaves
+
+- **T-1053** ticket decision sidecar import/export (ADR 0051/0053) — new
+  `internal/decision` package: the durable `Record` type (full decision-records.md
+  shape), canonical NDJSON encode/decode (compact, fixed key order, sequence-ordered,
+  byte-stable), and `decisions.ndjson` sidecar read/write (optional — removed when no
+  records). Added a SQLite projection (`decisions` table, migration 0008;
+  `AppendDecision`/`ImportDecision`/`ListDecisions`/`ListPendingDecisions`/`HasDecisions`)
+  with the sidecar authoritative. Wired `gw export` to write the sidecar from the store
+  and `gw ticket import` to project it back. Tests: encode/decode round-trip + determinism
+  + one-line-per-record, validate required fields, unknown-field rejection, sidecar
+  write/read/empty-removal, store append/seq/pending/import-preserves-seq, and a CLI
+  import→re-export byte-stability round-trip.
