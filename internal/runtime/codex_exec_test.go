@@ -96,6 +96,10 @@ func (f *fakeProvider) Provision(runID, base string) (string, error) {
 	return f.dir, nil
 }
 
+func (f *fakeProvider) Diff(runID, base string) ([]string, string, error) {
+	return []string{"feature.go"}, "diff --git a/feature.go b/feature.go\n", nil
+}
+
 func TestCodexProvisionsWorkspaceBeforeLaunch(t *testing.T) {
 	ws := t.TempDir()
 	fp := &fakeProvider{dir: ws}
@@ -107,7 +111,8 @@ func TestCodexProvisionsWorkspaceBeforeLaunch(t *testing.T) {
 			return Result{Status: "produced"}, nil
 		})
 
-	if _, err := c.Run(context.Background(), Spec{RunID: "R-9", TicketID: "T-9"}, nil); err != nil {
+	res, err := c.Run(context.Background(), Spec{RunID: "R-9", TicketID: "T-9"}, nil)
+	if err != nil {
 		t.Fatal(err)
 	}
 	if fp.gotRun != "R-9" || fp.gotBase != "deadbeef" {
@@ -115,6 +120,10 @@ func TestCodexProvisionsWorkspaceBeforeLaunch(t *testing.T) {
 	}
 	if launchedIn != ws {
 		t.Errorf("launcher workspace = %q, want provisioned %q", launchedIn, ws)
+	}
+	// The run's changed-file set is captured from the worktree after launch.
+	if len(res.ChangedFiles) != 1 || res.ChangedFiles[0] != "feature.go" {
+		t.Errorf("ChangedFiles = %v, want [feature.go]", res.ChangedFiles)
 	}
 }
 

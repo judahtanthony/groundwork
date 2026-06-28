@@ -170,3 +170,7 @@ func (w worktreeProvider) Provision(runID, base string) (string, error) {
 	}
 	return p.Path, nil
 }
+
+func (w worktreeProvider) Diff(runID, base string) ([]string, string, error) {
+	return w.m.Diff(runID, base)
+}

@@ -19,6 +19,19 @@ type runEventLine struct {
 	Payload map[string]any `json:"payload,omitempty"`
 }
 
+// writeRunDiff persists a run's full unified diff as evidence under
+// <dir>/<runID>/diff.patch (ADR 0059). A blank dir or diff is a no-op.
+func writeRunDiff(dir, runID, diff string) error {
+	if dir == "" || diff == "" {
+		return nil
+	}
+	runDir := filepath.Join(dir, runID)
+	if err := os.MkdirAll(runDir, 0o755); err != nil {
+		return err
+	}
+	return os.WriteFile(filepath.Join(runDir, "diff.patch"), []byte(diff), 0o644)
+}
+
 // appendRunEventLog appends one event to <dir>/<runID>/events.ndjson, creating
 // the run directory as needed. A blank dir disables the local log (e.g. tests).
 func appendRunEventLog(dir, runID string, ev runtime.Event) error {

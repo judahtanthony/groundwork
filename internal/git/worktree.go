@@ -113,6 +113,34 @@ func (r *Repo) DiffRange(base, ref string) (string, error) {
 	return r.run("diff", base+"..."+ref)
 }
 
+// DiffCachedNameOnly returns the paths in the index that differ from base. Used
+// to capture a run's changed-file set from its worktree before checkpoints are
+// committed (the index is staged first via AddAll). base "" means HEAD.
+func (r *Repo) DiffCachedNameOnly(base string) ([]string, error) {
+	if base == "" {
+		base = "HEAD"
+	}
+	out, err := r.run("diff", "--cached", "--name-only", base)
+	if err != nil {
+		return nil, err
+	}
+	var files []string
+	for _, l := range strings.Split(strings.TrimSpace(out), "\n") {
+		if l = strings.TrimSpace(l); l != "" {
+			files = append(files, l)
+		}
+	}
+	return files, nil
+}
+
+// DiffCached returns the unified diff of the index against base ("" means HEAD).
+func (r *Repo) DiffCached(base string) (string, error) {
+	if base == "" {
+		base = "HEAD"
+	}
+	return r.run("diff", "--cached", base)
+}
+
 // UpdateRef points ref at commit (`git update-ref`). Used to retain a run's WIP
 // checkpoint chain under refs/groundwork/runs/<run-id> after landing (ADR 0015).
 func (r *Repo) UpdateRef(ref, commit string) error {

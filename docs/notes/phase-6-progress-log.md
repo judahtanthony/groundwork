@@ -109,3 +109,13 @@ at each step.
   `RunsDir()` and the configured model. Run records already carry actor_id/runtime/model
   (ADR 0027). Test: a dispatched run persists events to SQLite and events.ndjson and the
   run record carries actor/runtime/model.
+- **T-0507** capture run changed-file set from worktree (ADR 0059) — `worktree.Manager.Diff`
+  stages the run worktree and diffs its index against the base (`git diff --cached` via new
+  `git.DiffCachedNameOnly`/`DiffCached`), so the changed-file set is captured whether or not
+  checkpoints are committed. `runtime.Result` gains `ChangedFiles` + `Diff`; the Codex
+  adapter captures them after a successful launch and emits a `diff` event. The scheduler
+  records the changed-file set on the run (`runs.changed_files_json`, migration 0009) and
+  writes the full diff to `.groundwork/runs/<id>/diff.patch`. `ChangedFilesForNode` exposes
+  the latest run's diff for gate inputs (consumed by T-1091); the shared-index land-preview
+  path is untouched. Tests: worktree diff captures add/modify/delete and empty runs, store
+  round-trip + latest-non-empty selection, and adapter capture into the Result.

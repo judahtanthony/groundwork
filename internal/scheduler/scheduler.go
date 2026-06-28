@@ -235,6 +235,15 @@ func (s *Scheduler) supervise(ctx context.Context, r *sqlite.Run, ticketID, acto
 		return
 	}
 
+	// Record the run's changed-file set (the authoritative diff for gate inputs,
+	// ADR 0059) and persist the full diff as run evidence.
+	if res.ChangedFiles != nil || res.Diff != "" {
+		s.cleanup("record changed files", r.ID, ticketID, s.db.SetRunChangedFiles(r.ID, res.ChangedFiles))
+		if res.Diff != "" {
+			s.cleanup("write diff artifact", r.ID, ticketID, writeRunDiff(s.cfg.RunLogDir, r.ID, res.Diff))
+		}
+	}
+
 	s.cleanup("complete run", r.ID, ticketID, s.db.SetRunStatus(r.ID, run.StatusCompleted, actorID))
 	s.cleanup("release lease", r.ID, ticketID, s.db.ReleaseLease(ticketID, r.ID))
 	// Prepared work (leaf) or a decomposition proposal (composite) awaits review.

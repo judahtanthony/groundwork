@@ -12,12 +12,16 @@ import (
 	"sync"
 )
 
-// WorkspaceProvider provisions and removes the isolated tree a run executes in
-// (ADR 0059). It is satisfied by internal/worktree.Manager (adapted at wiring
-// time); the runtime depends only on this seam so it stays testable.
+// WorkspaceProvider provisions the isolated tree a run executes in and captures
+// its changed-file set (ADR 0059). It is satisfied by internal/worktree.Manager
+// (adapted at wiring time); the runtime depends only on this seam so it stays
+// testable.
 type WorkspaceProvider interface {
 	// Provision creates the run's isolated worktree from base and returns its path.
 	Provision(runID, base string) (string, error)
+	// Diff returns the run's changed-file set and unified diff against base, used
+	// as the authoritative diff for gate inputs and run evidence.
+	Diff(runID, base string) (files []string, diff string, err error)
 }
 
 // BaseResolver returns the integration base commit/ref a run's worktree is cut

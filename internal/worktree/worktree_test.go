@@ -105,6 +105,71 @@ func TestRetainKeepsWIPBeforeTeardown(t *testing.T) {
 	}
 }
 
+func TestManagerDiffCapturesChanges(t *testing.T) {
+	r, dir := initRepo(t)
+	m := NewManager(r, filepath.Join(dir, ".groundwork", "worktrees"))
+	p, err := m.Provision("R-d", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Empty run: no changes captured.
+	files, diff, err := m.Diff("R-d", p.Base)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(files) != 0 || diff != "" {
+		t.Fatalf("empty run: files=%v diff=%q", files, diff)
+	}
+
+	// Add a new file, modify the base file, delete... base.txt removed.
+	if err := os.WriteFile(filepath.Join(p.Path, "feature.go"), []byte("package x\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(p.Path, "base.txt"), []byte("changed\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	files, diff, err = m.Diff("R-d", p.Base)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !has(files, "feature.go") || !has(files, "base.txt") {
+		t.Fatalf("changed files = %v, want feature.go and base.txt", files)
+	}
+	if diff == "" {
+		t.Error("expected a non-empty unified diff")
+	}
+}
+
+func TestManagerDiffCapturesDeletion(t *testing.T) {
+	r, dir := initRepo(t)
+	m := NewManager(r, filepath.Join(dir, ".groundwork", "worktrees"))
+	p, err := m.Provision("R-del", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Remove(filepath.Join(p.Path, "base.txt")); err != nil {
+		t.Fatal(err)
+	}
+	files, _, err := m.Diff("R-del", p.Base)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !has(files, "base.txt") {
+		t.Fatalf("deletion not captured: %v", files)
+	}
+}
+
+func has(s []string, want string) bool {
+	for _, v := range s {
+		if v == want {
+			return true
+		}
+	}
+	return false
+}
+
 func TestReconcileReclaimsOrphans(t *testing.T) {
 	r, dir := initRepo(t)
 	m := NewManager(r, filepath.Join(dir, ".groundwork", "worktrees"))

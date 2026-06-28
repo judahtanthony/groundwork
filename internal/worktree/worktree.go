@@ -69,6 +69,29 @@ func (m *Manager) Provision(runID, base string) (*Provisioned, error) {
 	return &Provisioned{RunID: runID, Path: path, Branch: branch, Base: base}, nil
 }
 
+// Diff captures the run's changed-file set and unified diff against base from its
+// worktree (ADR 0059). It stages the worktree (so new files count) then diffs the
+// index against base, so it works whether or not checkpoints have been committed.
+// base "" compares against the worktree HEAD (the provisioned base commit).
+func (m *Manager) Diff(runID, base string) (files []string, diff string, err error) {
+	wt, err := git.Open(m.Path(runID))
+	if err != nil {
+		return nil, "", err
+	}
+	if err := wt.AddAll(); err != nil {
+		return nil, "", err
+	}
+	files, err = wt.DiffCachedNameOnly(base)
+	if err != nil {
+		return nil, "", err
+	}
+	diff, err = wt.DiffCached(base)
+	if err != nil {
+		return nil, "", err
+	}
+	return files, diff, nil
+}
+
 // Retain saves the run branch's current tip under refs/groundwork/runs/<run-id>
 // so the WIP checkpoint chain survives teardown (ADR 0015). A no-op when the
 // branch does not exist.

@@ -31,6 +31,12 @@ type Spec struct {
 type Result struct {
 	Status      string // outcome hint, e.g. "produced"
 	LastMessage string
+	// ChangedFiles is the run's changed-file set (worktree diff vs base, ADR 0059).
+	// It is the authoritative diff for gate inputs: validation template selection,
+	// envelope file-scope, and escalation triggers. Empty for a no-change run.
+	ChangedFiles []string
+	// Diff is the run's unified diff against base — run evidence for human review.
+	Diff string
 }
 
 // Runtime executes one node attempt, emitting events to sink until done or ctx

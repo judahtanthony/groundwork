@@ -84,8 +84,8 @@ func (c *Codex) Run(ctx context.Context, spec Spec, sink Sink) (Result, error) {
 	// the agent executes against a private tree from a fixed base (ADR 0059). The
 	// worktree (and its gw/run/<id> branch) persists past the run for diff capture
 	// and landing; abandoned worktrees are reclaimed by recovery reconciliation.
+	base := ""
 	if c.workspace != nil {
-		base := ""
 		if c.base != nil {
 			base = c.base(spec)
 		}
@@ -97,7 +97,26 @@ func (c *Codex) Run(ctx context.Context, spec Spec, sink Sink) (Result, error) {
 		emit(sink, Event{Type: "worktree", Message: "provisioned " + path,
 			Payload: map[string]any{"branch": "gw/run/" + spec.RunID, "base": base}})
 	}
-	return c.launch(ctx, spec, sink, c.cfg)
+
+	res, err := c.launch(ctx, spec, sink, c.cfg)
+	if err != nil {
+		return res, err
+	}
+
+	// Capture the run's changed-file set from its worktree as the authoritative
+	// diff for gate inputs (ADR 0059) and as run evidence.
+	if c.workspace != nil {
+		files, diff, derr := c.workspace.Diff(spec.RunID, base)
+		if derr != nil {
+			emit(sink, Event{Type: "run.error", Message: "capture diff: " + derr.Error()})
+		} else {
+			res.ChangedFiles = files
+			res.Diff = diff
+			emit(sink, Event{Type: "diff", Message: "captured changed files",
+				Payload: map[string]any{"changed_files": len(files)}})
+		}
+	}
+	return res, nil
 }
 
 // recordsOnlyLaunch is the shell's default launcher: it emits the same synthetic
