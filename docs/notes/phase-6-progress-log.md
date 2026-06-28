@@ -152,3 +152,11 @@ at each step.
   rework, or the changed-file set diverged from the summary); `Server.SummaryStale` surfaces
   it for review/context. Added `TicketsDir` to scheduler config (wired in boot). Tests:
   staleness cases, auto-summary on produced + mirror, and existing-summary preservation.
+- **T-1056** extend context briefs with durable decisions + summaries (ADR 0051/0047) —
+  `contextbrief.Build` now carries pending blockers, recent resolved decisions (bounded to
+  the newest 5), the captured changed-file set, the completion summary, and a
+  staleness/missing signal (stale via `completion.Stale`; missing flagged for review/done
+  nodes). The brief already excludes raw transcripts, so it prefers these summaries + canon
+  (contract/SOPs) per the ADR. `gw context` renders the new sections (pending blockers,
+  completion summary, ⚠ stale/missing cues). Tests: durable memory in the brief with a
+  stale-summary signal, and missing-summary detection at review.

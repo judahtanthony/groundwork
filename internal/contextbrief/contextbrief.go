@@ -10,7 +10,9 @@ import (
 	"os"
 	"sort"
 
+	"groundwork/internal/completion"
 	"groundwork/internal/config"
+	"groundwork/internal/decision"
 	"groundwork/internal/store/sqlite"
 	"groundwork/internal/ticket"
 )
@@ -33,7 +35,23 @@ type Brief struct {
 	SOPs            []string `json:"sops"`
 	OpenEscalations []string `json:"open_escalations"`
 	Siblings        []Node   `json:"siblings,omitempty"`
+
+	// Durable operational memory (ADR 0051/0047): the brief prefers these summaries
+	// and canon over raw run transcripts.
+	PendingBlockers    []decision.Record   `json:"pending_blockers,omitempty"`
+	RecentDecisions    []decision.Record   `json:"recent_decisions,omitempty"`
+	ChangedFiles       []string            `json:"changed_files,omitempty"`
+	CompletionSummary  *completion.Summary `json:"completion_summary,omitempty"`
+	SummaryStale       bool                `json:"summary_stale,omitempty"`
+	SummaryStaleReason string              `json:"summary_stale_reason,omitempty"`
+	// SummaryMissing flags a node at review/done with no completion summary — a
+	// rework/recovery signal (ADR 0047).
+	SummaryMissing bool `json:"summary_missing,omitempty"`
 }
+
+// recentDecisionLimit caps the resolved decision history carried in a brief, so
+// the context stays bounded (newest kept).
+const recentDecisionLimit = 5
 
 // Build assembles the context brief for id. Escalations are always empty in
 // Phase 1 (escalation events are Phase 2); the field is present for stability.
@@ -83,6 +101,38 @@ func Build(db *sqlite.DB, p *config.Project, id string, includeSiblings bool) (*
 	}
 
 	b.SOPs = relevantSOPs(p, node)
+
+	// Durable decision records: pending blockers explain why the node waits; the
+	// most recent resolved decisions are durable rationale (ADR 0051).
+	recs, err := db.ListDecisions(id)
+	if err != nil {
+		return nil, err
+	}
+	var resolved []decision.Record
+	for _, r := range recs {
+		if r.Status == decision.StatusPending {
+			b.PendingBlockers = append(b.PendingBlockers, r)
+		} else {
+			resolved = append(resolved, r)
+		}
+	}
+	if n := len(resolved); n > recentDecisionLimit {
+		resolved = resolved[n-recentDecisionLimit:]
+	}
+	b.RecentDecisions = resolved
+
+	// Captured diff and completion summary, with a staleness/missing signal that
+	// surfaces as a rework/recovery cue (ADR 0047).
+	if files, ferr := db.ChangedFilesForNode(id); ferr == nil {
+		b.ChangedFiles = files
+	}
+	if sum, ok, serr := completion.Read(p.TicketsDir(), id); serr == nil && ok {
+		b.CompletionSummary = sum
+		stale, reason := completion.Stale(sum, b.ChangedFiles, string(node.Status))
+		b.SummaryStale, b.SummaryStaleReason = stale, reason
+	} else if node.Status == ticket.StatusReview || node.Status == ticket.StatusDone {
+		b.SummaryMissing = true
+	}
 
 	if includeSiblings && node.ParentID != "" {
 		sibs, err := db.ListChildren(node.ParentID)
