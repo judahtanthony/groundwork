@@ -191,3 +191,19 @@ at each step.
   worktree branches from the checkpoint and carries in-flight work forward, falling back to
   the integration base when there is nothing to resume. Tests: resume from branch then ref
   (work preserved), unknown run not resumable, and interrupted-run selection.
+- **T-1003** first Codex-assisted implementation ticket (capstone) — an end-to-end
+  integration test drives a real implementation ticket through the full Phase 6 substrate
+  with a deterministic scripted agent standing in for the codex CLI (no codex binary in CI):
+  the scheduler claims the node, the Codex adapter runs the agent in an isolated worktree,
+  captures the diff, checkpoints on the run branch, auto-writes a completion summary, and
+  moves the node to review. The test asserts the run is **tracked** (runtime=codex, actor,
+  completed, model) with the agent's `feature.go` captured on the run branch and in the
+  summary, then exercises the **human landing gate**: `RequestLanding` opens a pending
+  `land_to_main` approval that an AI actor cannot decide. Proves the runtime can safely
+  prepare work and that root landing stays human-gated.
+
+## Phase complete
+
+All Phase 6 leaves landed on `phase-6-durable-handoff-codex-runtime`; `go build ./... &&
+go vet ./... && go test ./...` green at every step. Epics done: T-1052 (durable handoff),
+E-0006 (Codex runtime), E-0012 (envelope/escalation activation), plus T-0904 and T-1003.
