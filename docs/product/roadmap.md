@@ -100,18 +100,23 @@ integration targets / landing levels).
 Add the runtime/backend execution substrate after the operator UI and bounded
 review model have reduced manual approval overhead.
 
-- Implement durable async handoff (ADR 0051) and filesystem-authoritative durable
-  state (ADR 0053): ticket-attached decision records, rebuildable live queues,
-  blocked-run handoff summaries, resume packets, and recovery-needed records for
-  missing durable context.
-- Replace the records-only runtime stub with the Codex adapter: isolated
-  worktrees, actor-configured launch, event streaming to SQLite/SSE/JSONL,
-  transcripts/artifacts, checkpoint commits, and squash at landing.
-- Use Groundwork for the first Codex-assisted implementation ticket (`T-1003`)
-  once the runtime can safely prepare work and hand off blockers.
-
-The live execution plan is represented by `T-1071`, with `T-1052` for durable
-handoff/state and `E-0006` for the Codex runtime.
+**Status: complete.** Durable async handoff (ADR 0051) and filesystem-authoritative
+durable state (ADR 0053) are implemented: ticket-attached `decisions.ndjson`
+sidecars, queue rebuild + recovery-needed detection, store-level write-through with
+divergence detection, consequential-decision routing (ADR 0052), blocked-run
+handoff/resume packets, completion-summary requirements + staleness, and durable
+context in briefs. The records-only stub is replaced by the Codex adapter (ADR 0027)
+running in isolated per-run worktrees (ADR 0059): config-selected launch, event
+streaming to SQLite + `events.ndjson`, worktree diff capture feeding gates, WIP
+checkpoints squashed into the integration branch at landing, and resume-from-
+checkpoint. The Phase 5 seams are activated: the scheduler routes AI claims through
+envelope-aware authorization (ADR 0056) and the envelope file-scope + escalation
+triggers are enforced against the real diff. A capstone end-to-end test drives an
+implementation ticket through the runtime with the human landing gate intact. A new
+ADR 0059 records the worktree-per-run topology. Decisions are recorded in ADR 0059
+and the existing ADRs 0051/0053/0052/0027/0015/0056. The live plan is `T-1071`, with
+`T-1052` (durable handoff/state), `E-0006` (Codex runtime), and `E-0012`
+(envelope/escalation activation).
 
 ## Phase 7+ Product Features Beyond V1
 
