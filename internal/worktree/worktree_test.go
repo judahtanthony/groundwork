@@ -228,6 +228,62 @@ func TestCheckpointAndSquashLand(t *testing.T) {
 	}
 }
 
+// TestCheckpointBaseResumesFromBranchThenRef proves a resuming run continues from
+// a prior run's checkpoint — its branch while it exists, then the retained run ref
+// after teardown — so interrupted in-flight work is not lost (T-0904, ADR 0015).
+func TestCheckpointBaseResumesFromBranchThenRef(t *testing.T) {
+	r, dir := initRepo(t)
+	m := NewManager(r, filepath.Join(dir, ".groundwork", "worktrees"))
+
+	// Prior run produced a checkpoint with in-flight work.
+	prior, err := m.Provision("R-1", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(prior.Path, "inflight.go"), []byte("package x\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := m.Checkpoint("R-1", "wip"); err != nil {
+		t.Fatal(err)
+	}
+
+	// While the branch exists, resume cuts from it.
+	base, ok := m.CheckpointBase("R-1")
+	if !ok || base != RunBranch("R-1") {
+		t.Fatalf("CheckpointBase = %q,%v; want the run branch", base, ok)
+	}
+
+	// The interrupted run is reconciled: its WIP is retained under the ref, the
+	// branch and worktree are removed.
+	if err := m.Retain("R-1"); err != nil {
+		t.Fatal(err)
+	}
+	if err := m.Teardown("R-1", true); err != nil {
+		t.Fatal(err)
+	}
+
+	// Now resume cuts from the retained ref instead.
+	base, ok = m.CheckpointBase("R-1")
+	if !ok || base != RunRef("R-1") {
+		t.Fatalf("after teardown CheckpointBase = %q,%v; want the run ref", base, ok)
+	}
+
+	// The resuming run's worktree branches from that checkpoint and carries the
+	// prior in-flight work forward.
+	resumed, err := m.Provision("R-2", base)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(resumed.Path, "inflight.go")); err != nil {
+		t.Fatalf("resumed worktree did not carry prior in-flight work: %v", err)
+	}
+
+	// No prior checkpoint → not resumable (caller cuts from the integration base).
+	if _, ok := m.CheckpointBase("R-nope"); ok {
+		t.Error("unexpected checkpoint base for an unknown run")
+	}
+}
+
 func TestReconcileReclaimsOrphans(t *testing.T) {
 	r, dir := initRepo(t)
 	m := NewManager(r, filepath.Join(dir, ".groundwork", "worktrees"))

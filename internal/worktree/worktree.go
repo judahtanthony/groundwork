@@ -204,6 +204,24 @@ func (m *Manager) Reconcile(active map[string]bool) ([]string, error) {
 	return reclaimed, nil
 }
 
+// CheckpointBase returns the git ref a resuming run should branch from to
+// continue a prior run's in-flight work (T-0904, ADR 0015): the prior run's
+// gw/run/<id> branch if it still exists, else its retained
+// refs/groundwork/runs/<id> chain. ok is false when neither exists (nothing to
+// resume) and the caller should cut from the integration base instead.
+func (m *Manager) CheckpointBase(priorRunID string) (ref string, ok bool) {
+	if priorRunID == "" {
+		return "", false
+	}
+	if branch := RunBranch(priorRunID); m.repo.BranchExists(branch) {
+		return branch, true
+	}
+	if r := RunRef(priorRunID); m.repo.RefExists(r) {
+		return r, true
+	}
+	return "", false
+}
+
 // IsRunWorktreePath reports whether p looks like a managed run worktree path.
 func (m *Manager) IsRunWorktreePath(p string) bool {
 	return strings.HasPrefix(filepath.Clean(p), filepath.Clean(m.dir)+string(filepath.Separator))

@@ -15,6 +15,7 @@ import (
 	"groundwork/internal/runtime"
 	"groundwork/internal/scheduler"
 	"groundwork/internal/server"
+	"groundwork/internal/store/sqlite"
 	"groundwork/internal/worktree"
 )
 
@@ -124,7 +125,7 @@ func runServer(ctx *Context, args []string) error {
 	if codex, ok := rt.(*runtime.Codex); ok {
 		if repo, gerr := git.Open(p.Root); gerr == nil {
 			mgr := worktree.NewManager(repo, p.WorktreesDir())
-			rt = codex.WithExec().WithWorkspace(worktreeProvider{mgr}, nil)
+			rt = codex.WithExec().WithWorkspace(worktreeProvider{mgr}, resumeBase(db, mgr))
 		} else {
 			ctx.Stderr.Write([]byte("gw: warning: project is not a git work tree; codex runs records-only\n"))
 		}
@@ -199,5 +200,22 @@ func (g envelopeGate) AuthorizeAIClaim(nodeID, action, workType string, a *actor
 		return scheduler.ClaimException, nil
 	default:
 		return scheduler.ClaimDeny, nil
+	}
+}
+
+// resumeBase returns a base resolver that continues a node's most recent
+// interrupted run from its checkpoint chain (T-0904, ADR 0015); when there is no
+// prior checkpoint it returns "" so the worktree is cut from HEAD/the integration
+// base.
+func resumeBase(db *sqlite.DB, mgr *worktree.Manager) runtime.BaseResolver {
+	return func(spec runtime.Spec) string {
+		priorRunID, err := db.LatestInterruptedRunForNode(spec.TicketID)
+		if err != nil || priorRunID == "" {
+			return ""
+		}
+		if ref, ok := mgr.CheckpointBase(priorRunID); ok {
+			return ref
+		}
+		return ""
 	}
 }

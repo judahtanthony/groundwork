@@ -182,3 +182,12 @@ at each step.
   are never bypassed. Ungoverned/manual nodes are a no-op. Tests: helper detection, within-
   scope no-op, each trigger escalates with an exception, and no-envelope no-op. Completes
   E-0012.
+- **T-0904** resume interrupted runs from last checkpoint (ADR 0015/0059) — a resuming run
+  continues a node's most recent interrupted run from its checkpoint chain rather than
+  starting from base: `worktree.Manager.CheckpointBase` returns the prior run's
+  `gw/run/<id>` branch while it exists, else its retained `refs/groundwork/runs/<id>` chain
+  (new `git.RefExists`); `LatestInterruptedRunForNode` finds the candidate. The Codex
+  adapter's base resolver (`resumeBase`, wired in boot) returns that ref so the new
+  worktree branches from the checkpoint and carries in-flight work forward, falling back to
+  the integration base when there is nothing to resume. Tests: resume from branch then ref
+  (work preserved), unknown run not resumable, and interrupted-run selection.

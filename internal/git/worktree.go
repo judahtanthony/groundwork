@@ -159,3 +159,10 @@ func (r *Repo) BranchExists(name string) bool {
 	_, err := r.run("show-ref", "--verify", "--quiet", "refs/heads/"+name)
 	return err == nil
 }
+
+// RefExists reports whether a fully-qualified ref exists (e.g.
+// refs/groundwork/runs/<id>), used to resume from a retained checkpoint chain.
+func (r *Repo) RefExists(ref string) bool {
+	_, err := r.run("show-ref", "--verify", "--quiet", ref)
+	return err == nil
+}

@@ -43,6 +43,31 @@ func TestRunChangedFilesRoundTrip(t *testing.T) {
 	}
 }
 
+func TestLatestInterruptedRunForNode(t *testing.T) {
+	db := openTestDB(t)
+	id := seedTicketStatus(t, db, "work", ticket.StatusInProgress)
+
+	// No runs → none.
+	if got, _ := db.LatestInterruptedRunForNode(id); got != "" {
+		t.Fatalf("got %q, want empty", got)
+	}
+	// A completed run is not a resume candidate.
+	insertRun(t, db, "R-1", id, "2026-06-28T10:00:00Z") // status completed
+	if got, _ := db.LatestInterruptedRunForNode(id); got != "" {
+		t.Fatalf("completed run returned: %q", got)
+	}
+	// An interrupted run is the resume candidate.
+	if _, err := db.Exec(`INSERT INTO runs
+		(id, ticket_id, actor_id, actor_snapshot_json, mode, runtime, model, status, workspace_path, started_at, updated_at)
+		VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
+		"R-2", id, "ai.codex.default", "{}", "implementation", "codex", "m", "interrupted", "", "2026-06-28T11:00:00Z", "2026-06-28T11:00:00Z"); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := db.LatestInterruptedRunForNode(id); got != "R-2" {
+		t.Fatalf("got %q, want R-2", got)
+	}
+}
+
 func TestChangedFilesForNodePrefersLatestNonEmpty(t *testing.T) {
 	db := openTestDB(t)
 	id := seedTicketStatus(t, db, "work", ticket.StatusInProgress)

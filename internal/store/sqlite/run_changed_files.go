@@ -76,6 +76,22 @@ func (db *DB) LatestRunIDForNode(nodeID string) (string, error) {
 	return id, nil
 }
 
+// LatestInterruptedRunForNode returns the most recent interrupted run id for a
+// node (recovery.md), or "" — the run whose checkpoint chain a resume continues
+// from (T-0904, ADR 0015).
+func (db *DB) LatestInterruptedRunForNode(nodeID string) (string, error) {
+	var id string
+	err := db.QueryRow(`SELECT id FROM runs WHERE ticket_id=? AND status='interrupted'
+		ORDER BY started_at DESC, id DESC LIMIT 1`, nodeID).Scan(&id)
+	if err == sql.ErrNoRows {
+		return "", nil
+	}
+	if err != nil {
+		return "", err
+	}
+	return id, nil
+}
+
 func decodeStringList(doc string) ([]string, error) {
 	if doc == "" {
 		return nil, nil
