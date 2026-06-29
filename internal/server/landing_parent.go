@@ -44,6 +44,12 @@ func (s *Server) LandToParent(childID string) (*sqlite.IntegrationBranch, error)
 	if _, err := s.db.CheckValidationGate(childID, nil, false); err != nil {
 		return nil, err
 	}
+	// Diff-fed envelope enforcement (ADR 0056): the runtime supplied the child's
+	// changed-file set, so enforce file scope and escalation triggers before
+	// committing. A breach raises a human exception and blocks the landing.
+	if _, err := s.enforceEnvelopeOnDiff(childID, "land_to_parent"); err != nil {
+		return nil, err
+	}
 	if s.repo != nil {
 		if cur, _ := s.repo.CurrentBranch(); cur != ib.Branch {
 			if err := s.repo.Checkout(ib.Branch); err != nil {
@@ -117,6 +123,8 @@ func (s *Server) handleTicketLandToParent(w http.ResponseWriter, r *http.Request
 		switch {
 		case errors.Is(err, errNoIntegrationTarget):
 			writeError(w, http.StatusConflict, "no_integration_target", err.Error())
+		case errors.Is(err, ErrEnvelopeEscalation):
+			writeError(w, http.StatusConflict, "envelope_escalation", err.Error())
 		default:
 			s.writeMutationError(w, err)
 		}

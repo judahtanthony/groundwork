@@ -170,3 +170,15 @@ at each step.
   (computes claim-time risk class, runs the AND-composition with no diff yet). Default-deny
   for no-envelope nodes is preserved. Tests: gate allow dispatches even when trust-only would
   not, deny blocks, and exception does not dispatch.
+- **T-1091** enforce envelope file-scope + escalation triggers via diff (ADR 0056) — new
+  `enforceEnvelopeOnDiff` reads the node's captured changed-file set and the active
+  envelope, then enforces actual-vs-planned file scope (`envelopeScopeAllows` for real on a
+  non-empty set), `require_review` paths, and the five escalation triggers
+  (`on_unexpected_files`, `on_contract_change`, `on_public_api_change`,
+  `on_validation_failure`, `on_risk_above_ceiling` — risk computed from the actual diff
+  scope). Any breach opens one human exception approval listing the reasons and returns
+  `ErrEnvelopeEscalation`; wired into `LandToParent` after the validation gate (mapped to a
+  `409 envelope_escalation`), so a breach blocks the landing — the human-gated invariants
+  are never bypassed. Ungoverned/manual nodes are a no-op. Tests: helper detection, within-
+  scope no-op, each trigger escalates with an exception, and no-envelope no-op. Completes
+  E-0012.

@@ -4,7 +4,7 @@ kind: ticket
 node_type: leaf
 work_type: technical_implementation
 title: Enforce envelope file-scope and escalation triggers using the run diff
-status: todo
+status: done
 assignee: null
 requested_actor: null
 priority: 0.45
