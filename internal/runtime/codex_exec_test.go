@@ -88,7 +88,8 @@ func TestValidateWorkspaceContainment(t *testing.T) {
 type fakeProvider struct {
 	dir          string
 	gotRun       string
-	gotBase      string
+	gotBase      string // base passed to Provision
+	gotDiffBase  string // base passed to Diff
 	checkpointed bool
 }
 
@@ -98,6 +99,7 @@ func (f *fakeProvider) Provision(runID, base string) (string, error) {
 }
 
 func (f *fakeProvider) Diff(runID, base string) ([]string, string, error) {
+	f.gotDiffBase = base
 	return []string{"feature.go"}, "diff --git a/feature.go b/feature.go\n", nil
 }
 
@@ -134,6 +136,30 @@ func TestCodexProvisionsWorkspaceBeforeLaunch(t *testing.T) {
 	// The work is checkpointed on the run branch for landing/resume.
 	if !fp.checkpointed {
 		t.Error("expected a checkpoint commit after the run")
+	}
+}
+
+// TestCodexDiffsAgainstIntegrationBaseNotProvisionBase covers review finding #3: a
+// resumed run is provisioned from a prior checkpoint but its diff must be measured
+// against the integration base, so files an interrupted run changed are still
+// captured (and seen by envelope enforcement).
+func TestCodexDiffsAgainstIntegrationBaseNotProvisionBase(t *testing.T) {
+	ws := t.TempDir()
+	fp := &fakeProvider{dir: ws}
+	c := NewCodex(Config{}).
+		WithWorkspace(fp, func(spec Spec) string { return "checkpoint-ref" }). // resume base
+		WithDiffBase(func(spec Spec) string { return "integration-base" }).
+		WithLauncher(func(ctx context.Context, spec Spec, sink Sink, cfg Config) (Result, error) {
+			return Result{Status: "produced"}, nil
+		})
+	if _, err := c.Run(context.Background(), Spec{RunID: "R-9", TicketID: "T-9"}, nil); err != nil {
+		t.Fatal(err)
+	}
+	if fp.gotBase != "checkpoint-ref" {
+		t.Errorf("provision base = %q, want the resume checkpoint", fp.gotBase)
+	}
+	if fp.gotDiffBase != "integration-base" {
+		t.Fatalf("diff base = %q, want the integration base (not the checkpoint)", fp.gotDiffBase)
 	}
 }
 

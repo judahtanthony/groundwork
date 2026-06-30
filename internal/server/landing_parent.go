@@ -50,6 +50,12 @@ func (s *Server) LandToParent(childID string) (*sqlite.IntegrationBranch, error)
 	if _, err := s.enforceEnvelopeOnDiff(childID, "land_to_parent"); err != nil {
 		return nil, err
 	}
+	// Landing mutates the single shared main working tree (checkout + merge --squash
+	// + commit). Serialize all working-tree mutations so concurrent landings cannot
+	// race on one index (review finding #5).
+	s.repoMu.Lock()
+	defer s.repoMu.Unlock()
+
 	if s.repo != nil {
 		if cur, _ := s.repo.CurrentBranch(); cur != ib.Branch {
 			if err := s.repo.Checkout(ib.Branch); err != nil {
@@ -57,16 +63,19 @@ func (s *Server) LandToParent(childID string) (*sqlite.IntegrationBranch, error)
 			}
 		}
 	}
-	if err := s.db.TransitionTicket(childID, ticket.StatusDone, ownerActor); err != nil {
-		return nil, err
-	}
-	// When the child ran in an isolated worktree, squash its gw/run/<id> branch
-	// into the integration branch's index (ADR 0015/0059); commitLanding then makes
-	// the single curated landing commit (squashed code + refreshed sidecar). Without
-	// a run branch (manual/human work in the single tree) this is a no-op and the
+	// Stage the run branch into the integration branch FIRST (the conflict-prone
+	// step), so a squash conflict leaves the child untouched in review — re-landable
+	// — rather than recorded done-but-uncommitted (review finding #6). Without a run
+	// branch (manual/human work in the single tree) this is a no-op and the
 	// working-tree commit path is used unchanged (ADR 0058).
 	runID, err := s.squashRunBranch(childID)
 	if err != nil {
+		return nil, err
+	}
+	// Only after the work is staged do we mark the child done, so commitLanding's
+	// regenerated export reflects done and is committed together with the squashed
+	// change as one landing commit.
+	if err := s.db.TransitionTicket(childID, ticket.StatusDone, ownerActor); err != nil {
 		return nil, err
 	}
 	if err := s.commitLanding(childID); err != nil {

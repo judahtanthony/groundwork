@@ -58,7 +58,13 @@ func (db *DB) RebuildDurableQueues() (*QueueRebuildReport, error) {
 		if liveApprovals[key] {
 			continue // already projected
 		}
-		if _, err := db.CreateApproval(approvalFromRecord(rec, typ)); err != nil {
+		a, err := db.CreateApproval(approvalFromRecord(rec, typ))
+		if err != nil {
+			return nil, err
+		}
+		// Re-point the durable record at the recreated approval's new runtime id so
+		// a later Decide can resolve it (review finding #2).
+		if err := db.RelinkApprovalRequest(rec.TicketID, rec.ID, a.ID); err != nil {
 			return nil, err
 		}
 		liveApprovals[key] = true

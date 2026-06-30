@@ -2,6 +2,7 @@ package sqlite
 
 import (
 	"bytes"
+	"database/sql"
 	"os"
 	"path/filepath"
 
@@ -54,37 +55,50 @@ func (db *DB) DetectFileDivergence() (*DivergenceReport, error) {
 			continue // sidecar matches store: consistent
 		}
 		rep.Diverged = append(rep.Diverged, t.ID)
-		if err := appendRecoveryNeededToSidecar(db.exportDir, t.ID); err != nil {
+		if err := db.flagDivergence(t.ID); err != nil {
 			return nil, err
 		}
 	}
 	return rep, nil
 }
 
-// appendRecoveryNeededToSidecar appends a recovery_needed record to a node's
-// decisions.ndjson on disk without touching ticket.md, so divergence is flagged
-// durably without overwriting the diverged ticket from SQLite. Idempotent: it
-// does not append a second record when a pending recovery_needed already exists.
-func appendRecoveryNeededToSidecar(dir, ticketID string) error {
-	recs, _, err := decision.Read(dir, ticketID)
+// flagDivergence records a recovery_needed for a diverged node so the flag is
+// DURABLE — held in the store (and thus included by ListDecisions) and written to
+// the decisions.ndjson sidecar — rather than file-only. A file-only flag is erased
+// the next time write-through rewrites the sidecar from store state (review
+// finding #4). It deliberately does NOT rewrite ticket.md, so the ticket.md
+// divergence stays visible instead of being silently overwritten from SQLite.
+// Idempotent: skips when a pending recovery_needed already exists.
+func (db *DB) flagDivergence(ticketID string) error {
+	existing, err := db.ListDecisions(ticketID)
 	if err != nil {
 		return err
 	}
-	for _, r := range recs {
+	seq := 0
+	for _, r := range existing {
 		if r.EventType == decision.EventRecoveryNeeded && r.Status == decision.StatusPending {
 			return nil // already flagged
 		}
-	}
-	seq := 0
-	for _, r := range recs {
 		if r.Sequence > seq {
 			seq = r.Sequence
 		}
 	}
-	recs = append(recs, decision.Record{
+	rec := decision.Record{
 		Sequence: seq + 1, EventType: decision.EventRecoveryNeeded, TicketID: ticketID,
 		Status: decision.StatusPending, RequestedAt: encoding.Now(),
 		HandoffSummary: "recovery_needed: SQLite state diverged from the committed sidecar (unexported durable mutation); rebuild from files to repair",
-	})
-	return decision.Write(dir, ticketID, recs)
+	}
+	if err := db.withTx(func(tx *sql.Tx) error { return insertDecision(tx, rec) }); err != nil {
+		return err
+	}
+	// Persist only the decisions sidecar (not ticket.md), so the durable flag is on
+	// disk yet the diverged ticket.md is left for the operator to reconcile.
+	if db.exportDir != "" {
+		all, err := db.ListDecisions(ticketID)
+		if err != nil {
+			return err
+		}
+		return decision.Write(db.exportDir, ticketID, all)
+	}
+	return nil
 }

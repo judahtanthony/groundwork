@@ -202,6 +202,34 @@ at each step.
   `land_to_main` approval that an AI actor cannot decide. Proves the runtime can safely
   prepare work and that root landing stays human-gated.
 
+## Code-review fixes (post-review hardening)
+
+A multi-agent code review of the branch surfaced seven findings; all fixed with regression
+tests (suite green, server/scheduler also green under `-race`):
+
+1. **Exception flood** — a boundary-crossing AI claim raised a new exception every scheduler
+   tick. `AuthorizeEnvelopedClaim` and `enforceEnvelopeOnDiff` now skip raising when a
+   pending exception already exists (`HasOpenApprovalOfType`); one open request per node.
+2. **Rebuild approval re-key** — a recreated approval got a fresh A-id while the durable
+   record kept the original, so a later decide could never resolve it (zombie approvals
+   across restarts). `RebuildDurableQueues` now `RelinkApprovalRequest`s the durable record
+   to the recreated id.
+3. **Resume diff base** — a resumed run diffed against its prior checkpoint, omitting the
+   interrupted run's files (which still land), so out-of-scope files escaped enforcement.
+   The Codex adapter now measures the diff against the **integration base** (`WithDiffBase`),
+   decoupled from the provision/checkpoint base.
+4. **Divergence flag erased** — `recovery_needed` was written file-only and erased by the
+   next write-through. It is now recorded in the store (`flagDivergence`) so `ListDecisions`
+   includes it and write-through preserves it; `ticket.md` divergence stays visible.
+5. **Landing race** — concurrent landings raced on the single main working tree. Added a
+   `repoMu` mutex serializing all working-tree mutations (`LandToParent`, `finishLanding`).
+6. **Premature done** — the child was marked done before the squash/commit succeeded. The
+   squash now runs **before** the done transition, so a conflict leaves the child re-landable
+   (and the tree is reset, not left mid-conflict).
+7. **Stale diff selection** — `ChangedFilesForNode` returned the latest *non-empty* run, so a
+   follow-up run that reverted a change left a stale diff enforced. It now returns the
+   **latest** run's set.
+
 ## Phase complete
 
 All Phase 6 leaves landed on `phase-6-durable-handoff-codex-runtime`; `go build ./... &&

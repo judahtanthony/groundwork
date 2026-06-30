@@ -284,6 +284,68 @@ func TestCheckpointBaseResumesFromBranchThenRef(t *testing.T) {
 	}
 }
 
+// TestResumedDiffAgainstIntegrationBaseCoversBothRuns proves the git mechanics
+// behind review finding #3: a resumed run's diff against the integration base
+// includes the interrupted run's files, whereas a diff against the checkpoint
+// would omit them.
+func TestResumedDiffAgainstIntegrationBaseCoversBothRuns(t *testing.T) {
+	r, dir := initRepo(t)
+	m := NewManager(r, filepath.Join(dir, ".groundwork", "worktrees"))
+	integrationBase, err := r.HeadCommit()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Interrupted run R-1: writes out-of-scope.go, checkpoints, then is reclaimed.
+	r1, err := m.Provision("R-1", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(r1.Path, "out-of-scope.go"), []byte("package x\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := m.Checkpoint("R-1", "wip"); err != nil {
+		t.Fatal(err)
+	}
+	if err := m.Retain("R-1"); err != nil {
+		t.Fatal(err)
+	}
+	if err := m.Teardown("R-1", true); err != nil {
+		t.Fatal(err)
+	}
+
+	// Resume R-2 from R-1's retained checkpoint and add its own file.
+	base, ok := m.CheckpointBase("R-1")
+	if !ok {
+		t.Fatal("no checkpoint to resume from")
+	}
+	r2, err := m.Provision("R-2", base)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(r2.Path, "resume.go"), []byte("package x\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Diff against the integration base covers BOTH runs' files.
+	files, _, err := m.Diff("R-2", integrationBase)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !has(files, "out-of-scope.go") || !has(files, "resume.go") {
+		t.Fatalf("diff vs integration base = %v, want both files", files)
+	}
+
+	// Diff against the checkpoint (the buggy base) would omit the interrupted file.
+	buggy, _, err := m.Diff("R-2", base)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if has(buggy, "out-of-scope.go") {
+		t.Fatal("sanity: diff vs checkpoint unexpectedly included the prior file")
+	}
+}
+
 func TestReconcileReclaimsOrphans(t *testing.T) {
 	r, dir := initRepo(t)
 	m := NewManager(r, filepath.Join(dir, ".groundwork", "worktrees"))

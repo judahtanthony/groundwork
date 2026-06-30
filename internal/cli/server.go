@@ -125,7 +125,9 @@ func runServer(ctx *Context, args []string) error {
 	if codex, ok := rt.(*runtime.Codex); ok {
 		if repo, gerr := git.Open(p.Root); gerr == nil {
 			mgr := worktree.NewManager(repo, p.WorktreesDir())
-			rt = codex.WithExec().WithWorkspace(worktreeProvider{mgr}, resumeBase(db, mgr))
+			rt = codex.WithExec().
+				WithWorkspace(worktreeProvider{mgr}, resumeBase(db, mgr)).
+				WithDiffBase(integrationBase(repo))
 		} else {
 			ctx.Stderr.Write([]byte("gw: warning: project is not a git work tree; codex runs records-only\n"))
 		}
@@ -215,6 +217,19 @@ func resumeBase(db *sqlite.DB, mgr *worktree.Manager) runtime.BaseResolver {
 		}
 		if ref, ok := mgr.CheckpointBase(priorRunID); ok {
 			return ref
+		}
+		return ""
+	}
+}
+
+// integrationBase returns the diff base for a run: the integration target tip the
+// run's net change is measured against (review finding #3). In v1's single working
+// tree this is the main repo HEAD (the checked-out integration branch). A resolve
+// failure falls back to "" (the provision base).
+func integrationBase(repo *git.Repo) runtime.BaseResolver {
+	return func(spec runtime.Spec) string {
+		if sha, err := repo.HeadCommit(); err == nil {
+			return sha
 		}
 		return ""
 	}

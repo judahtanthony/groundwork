@@ -68,7 +68,7 @@ func TestLatestInterruptedRunForNode(t *testing.T) {
 	}
 }
 
-func TestChangedFilesForNodePrefersLatestNonEmpty(t *testing.T) {
+func TestChangedFilesForNodeUsesLatestRun(t *testing.T) {
 	db := openTestDB(t)
 	id := seedTicketStatus(t, db, "work", ticket.StatusInProgress)
 
@@ -76,7 +76,8 @@ func TestChangedFilesForNodePrefersLatestNonEmpty(t *testing.T) {
 	if err := db.SetRunChangedFiles("R-1", []string{"old.go"}); err != nil {
 		t.Fatal(err)
 	}
-	// A later run with no changes must not mask the earlier diff.
+	// A later run that reverts the change to nothing is the current truth — the gate
+	// must see the empty set, not the stale older diff (review finding #7).
 	insertRun(t, db, "R-2", id, "2026-06-28T11:00:00Z")
 	if err := db.SetRunChangedFiles("R-2", nil); err != nil {
 		t.Fatal(err)
@@ -86,7 +87,17 @@ func TestChangedFilesForNodePrefersLatestNonEmpty(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(files) != 1 || files[0] != "old.go" {
-		t.Fatalf("ChangedFilesForNode = %v, want [old.go]", files)
+	if len(files) != 0 {
+		t.Fatalf("ChangedFilesForNode = %v, want [] (latest run reverted the change)", files)
+	}
+
+	// A subsequent run that changes a new file becomes the current set.
+	insertRun(t, db, "R-3", id, "2026-06-28T12:00:00Z")
+	if err := db.SetRunChangedFiles("R-3", []string{"new.go"}); err != nil {
+		t.Fatal(err)
+	}
+	files, _ = db.ChangedFilesForNode(id)
+	if len(files) != 1 || files[0] != "new.go" {
+		t.Fatalf("ChangedFilesForNode = %v, want [new.go]", files)
 	}
 }

@@ -41,6 +41,12 @@ func (s *Server) enforceEnvelopeOnDiff(nodeID, action string) (*sqlite.Approval,
 	if len(reasons) == 0 {
 		return nil, nil
 	}
+	// Dedup: don't stack duplicate exceptions when a blocked landing is retried.
+	if open, oerr := s.db.HasOpenApprovalOfType(nodeID, approval.TypeException); oerr != nil {
+		return nil, oerr
+	} else if open {
+		return nil, ErrEnvelopeEscalation
+	}
 	appr, rerr := s.raiseEscalation(nodeID, env.ID, action, reasons)
 	if rerr != nil {
 		return nil, rerr

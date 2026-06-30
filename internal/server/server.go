@@ -13,6 +13,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"sync"
 	"time"
 
 	"groundwork/internal/actor"
@@ -37,7 +38,8 @@ type Server struct {
 	sched     Dispatcher
 	bus       *eventbus.Hub
 	approvals *ApprovalService
-	repo      *git.Repo // nil when the project root is not a git work tree
+	repo      *git.Repo  // nil when the project root is not a git work tree
+	repoMu    sync.Mutex // serializes mutations of the shared main working tree
 }
 
 // New builds a coordinator server over the given store and project. version is

@@ -108,6 +108,43 @@ func (db *DB) ResolveDecisionRequest(ticketID, decisionID, status, decidedBy str
 	return db.writeThrough(ticketID)
 }
 
+// RelinkApprovalRequest re-keys a pending approval_requested record from oldID to
+// newID (its correlation to the live approval row). A recreated approval on cold
+// rebuild gets a fresh runtime id, so without this the durable record's
+// decision_id would still point at the original id and the gate could never be
+// resolved — leaving a decided gate to reproject as pending forever (review
+// finding #2). A no-op when no matching pending record exists.
+func (db *DB) RelinkApprovalRequest(ticketID, oldID, newID string) error {
+	if oldID == newID {
+		return nil
+	}
+	var seq int
+	var doc string
+	err := db.QueryRow(`SELECT seq, doc_json FROM decisions
+		WHERE ticket_id=? AND decision_id=? AND event_type=? AND status=? ORDER BY seq DESC LIMIT 1`,
+		ticketID, oldID, decision.EventApprovalRequested, decision.StatusPending).Scan(&seq, &doc)
+	if err == sql.ErrNoRows {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	var rec decision.Record
+	if err := json.Unmarshal([]byte(doc), &rec); err != nil {
+		return err
+	}
+	rec.ID = newID
+	newDoc, err := json.Marshal(&rec)
+	if err != nil {
+		return err
+	}
+	if _, err := db.Exec(`UPDATE decisions SET decision_id=?, doc_json=? WHERE ticket_id=? AND seq=?`,
+		newID, string(newDoc), ticketID, seq); err != nil {
+		return err
+	}
+	return db.writeThrough(ticketID)
+}
+
 // ListDecisions returns a ticket's decision records in append (sequence) order.
 func (db *DB) ListDecisions(ticketID string) ([]decision.Record, error) {
 	rows, err := db.Query(`SELECT doc_json FROM decisions WHERE ticket_id = ? ORDER BY seq`, ticketID)

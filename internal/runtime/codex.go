@@ -29,7 +29,8 @@ type Codex struct {
 	cfg       Config
 	launch    LaunchFunc
 	workspace WorkspaceProvider // optional; provisions the run's isolated worktree
-	base      BaseResolver      // resolves the integration base for the worktree
+	base      BaseResolver      // resolves the provision base (resume checkpoint, else "")
+	diffBase  BaseResolver      // resolves the integration base the diff is measured against
 }
 
 // NewCodex builds the Codex adapter with cfg, applying defaults. Until the
@@ -67,6 +68,18 @@ func (c *Codex) WithWorkspace(p WorkspaceProvider, base BaseResolver) *Codex {
 	return &cp
 }
 
+// WithDiffBase sets the resolver for the integration base the run's diff is
+// measured against (ADR 0059). This must be the node's integration target, NOT
+// the provision base: a resumed run is provisioned from a prior checkpoint but
+// its diff must still cover everything since the integration base, or files an
+// interrupted run changed would escape envelope enforcement (review finding #3).
+// When unset, the diff is measured against the provision base.
+func (c *Codex) WithDiffBase(r BaseResolver) *Codex {
+	cp := *c
+	cp.diffBase = r
+	return &cp
+}
+
 // Name identifies the codex runtime.
 func (c *Codex) Name() string { return "codex" }
 
@@ -84,18 +97,25 @@ func (c *Codex) Run(ctx context.Context, spec Spec, sink Sink) (Result, error) {
 	// the agent executes against a private tree from a fixed base (ADR 0059). The
 	// worktree (and its gw/run/<id> branch) persists past the run for diff capture
 	// and landing; abandoned worktrees are reclaimed by recovery reconciliation.
-	base := ""
+	provBase := ""    // where the worktree is cut from (resume checkpoint, else "")
+	diffBase := ""    // the integration base the run's net diff is measured against
 	if c.workspace != nil {
 		if c.base != nil {
-			base = c.base(spec)
+			provBase = c.base(spec)
 		}
-		path, err := c.workspace.Provision(spec.RunID, base)
+		path, err := c.workspace.Provision(spec.RunID, provBase)
 		if err != nil {
 			return Result{Status: "error"}, fmt.Errorf("codex: provision worktree: %w", err)
 		}
 		spec.Workspace = path
+		// The diff is measured against the integration base, NOT the provision base,
+		// so a resumed run still reports everything since the integration target.
+		diffBase = provBase
+		if c.diffBase != nil {
+			diffBase = c.diffBase(spec)
+		}
 		emit(sink, Event{Type: "worktree", Message: "provisioned " + path,
-			Payload: map[string]any{"branch": "gw/run/" + spec.RunID, "base": base}})
+			Payload: map[string]any{"branch": "gw/run/" + spec.RunID, "base": provBase, "diff_base": diffBase}})
 	}
 
 	res, err := c.launch(ctx, spec, sink, c.cfg)
@@ -106,7 +126,7 @@ func (c *Codex) Run(ctx context.Context, spec Spec, sink Sink) (Result, error) {
 	// Capture the run's changed-file set from its worktree as the authoritative
 	// diff for gate inputs (ADR 0059) and as run evidence.
 	if c.workspace != nil {
-		files, diff, derr := c.workspace.Diff(spec.RunID, base)
+		files, diff, derr := c.workspace.Diff(spec.RunID, diffBase)
 		if derr != nil {
 			emit(sink, Event{Type: "run.error", Message: "capture diff: " + derr.Error()})
 		} else {

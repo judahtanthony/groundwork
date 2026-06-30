@@ -67,3 +67,56 @@ func TestAuthorizeEnvelopedClaim(t *testing.T) {
 		t.Errorf("orphan: %s, want deny", oc)
 	}
 }
+
+// A boundary-crossing node is re-evaluated every scheduler tick; only the first
+// crossing raises an exception. Subsequent evaluations return exception WITHOUT
+// stacking duplicate approvals or durable records (review finding #1).
+func TestEnvelopedClaimExceptionIsDeduped(t *testing.T) {
+	srv, db := newTestServer(t)
+	reg, _, _ := actor.Parse([]byte(testActorsYAML))
+	pol := &policy.Set{Trust: &policy.TrustPolicy{AllowClaim: []policy.Rule{{
+		ID: "coding-within", When: policy.Match{Roles: []string{"coding"}, WithinEnvelope: boolp(true)}, Actions: []string{"execute"},
+	}}}}
+	srv.SetApprovals(NewApprovalService(db, pol, reg))
+
+	root := &ticket.Ticket{Title: "root", NodeType: ticket.NodeComposite, Status: ticket.StatusTodo, WorkType: "technical_design"}
+	mustCreate(t, db, root)
+	child := &ticket.Ticket{ParentID: root.ID, Title: "child", NodeType: ticket.NodeLeaf, Status: ticket.StatusInProgress, WorkType: "technical_implementation"}
+	mustCreate(t, db, child)
+	if err := db.UpsertEnvelope(&envelope.Envelope{
+		ID: "ENV-1", NodeID: root.ID, Status: envelope.StatusActive,
+		ApprovedActions: []string{envelope.ActionExecuteChildren}, AllowedRoles: []string{"coding"},
+		Planning: envelope.Planning{AllowedWorkTypes: []string{"technical_implementation"}}, RiskCeiling: "medium",
+		Scope: envelope.Scope{Files: envelope.FileScope{Allow: []string{"internal/**"}}},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	coder := &actor.Actor{ID: "ai.coding.codex", Type: actor.TypeAIAgent, Roles: []string{"coding"}}
+
+	// Ten ticks worth of re-evaluation of the same boundary crossing.
+	for i := 0; i < 10; i++ {
+		oc, _, err := srv.AuthorizeEnvelopedClaim(child.ID, "execute", "technical_implementation", coder, risk.ClassLow, []string{"cmd/main.go"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if oc != ClaimException {
+			t.Fatalf("tick %d: outcome = %s, want exception", i, oc)
+		}
+	}
+
+	// Exactly one exception approval and one durable record, not ten.
+	pending, _ := db.ListApprovals(string(approval.StatusPending))
+	exceptions := 0
+	for _, a := range pending {
+		if a.Type == string(approval.TypeException) && a.TicketID == child.ID {
+			exceptions++
+		}
+	}
+	if exceptions != 1 {
+		t.Fatalf("exception approvals = %d, want 1 (deduped)", exceptions)
+	}
+	recs, _ := db.ListDecisions(child.ID)
+	if len(recs) != 1 {
+		t.Fatalf("durable records = %d, want 1 (deduped)", len(recs))
+	}
+}

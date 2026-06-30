@@ -35,30 +35,23 @@ func (db *DB) RunChangedFiles(runID string) ([]string, error) {
 	return decodeStringList(doc)
 }
 
-// ChangedFilesForNode returns the changed-file set of a node's most recent run
-// that recorded one (ADR 0059). This is the diff the gate reads for envelope
-// file-scope and escalation. Empty when no run produced a diff.
+// ChangedFilesForNode returns the changed-file set of a node's MOST RECENT run
+// (ADR 0059) — the diff the gate reads for envelope file-scope and escalation.
+// It uses the latest run rather than the latest non-empty one, so a follow-up run
+// that legitimately reduces the change (e.g. reverts an out-of-scope edit) is not
+// masked by a stale older diff (review finding #7). Empty when no run has captured
+// a diff for the node.
 func (db *DB) ChangedFilesForNode(nodeID string) ([]string, error) {
-	rows, err := db.Query(`SELECT changed_files_json FROM runs
-		WHERE ticket_id=? ORDER BY started_at DESC, id DESC`, nodeID)
+	var doc string
+	err := db.QueryRow(`SELECT changed_files_json FROM runs
+		WHERE ticket_id=? ORDER BY started_at DESC, id DESC LIMIT 1`, nodeID).Scan(&doc)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
-	for rows.Next() {
-		var doc string
-		if err := rows.Scan(&doc); err != nil {
-			return nil, err
-		}
-		files, err := decodeStringList(doc)
-		if err != nil {
-			return nil, err
-		}
-		if len(files) > 0 {
-			return files, nil
-		}
-	}
-	return nil, rows.Err()
+	return decodeStringList(doc)
 }
 
 // LatestRunIDForNode returns the most recent run id for a node, or "" when the

@@ -75,6 +75,56 @@ func TestRebuildDurableQueuesRecreatesApprovals(t *testing.T) {
 	}
 }
 
+// TestRebuildThenDecideResolvesDurableRecord covers review finding #2: a recreated
+// approval gets a fresh runtime id, and the durable record must be relinked to it
+// so a later Decide resolves it — otherwise the decided gate reprojects as pending
+// (a zombie) on the next rebuild.
+func TestRebuildThenDecideResolvesDurableRecord(t *testing.T) {
+	db := openTestDB(t)
+	id := seedTicketStatus(t, db, "decompose me", ticket.StatusReview)
+	// A durable record whose runtime id is deliberately not what the allocator will
+	// assign on recreation (so the test exercises the id mismatch).
+	if err := db.ImportDecision(decision.Record{
+		ID: "A-9999", Sequence: 1, EventType: decision.EventApprovalRequested, TicketID: id,
+		RequestType: "decompose", Status: decision.StatusPending, RequestedBy: "ai.codex.default",
+		Statement: "Accept children?",
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	rep, err := db.RebuildDurableQueues()
+	if err != nil || rep.ApprovalsRecreated != 1 {
+		t.Fatalf("rebuild: recreated=%d err=%v", rep.ApprovalsRecreated, err)
+	}
+	pending, _ := db.ListApprovals(string(approval.StatusPending))
+	if len(pending) != 1 {
+		t.Fatalf("pending approvals = %d, want 1", len(pending))
+	}
+	newID := pending[0].ID
+	if newID == "A-9999" {
+		t.Skip("allocator coincidentally reused the stale id; cannot exercise the mismatch")
+	}
+	// The durable record was relinked to the recreated approval's id.
+	recs, _ := db.ListDecisions(id)
+	if len(recs) != 1 || recs[0].ID != newID {
+		t.Fatalf("record not relinked: %+v (want id %s)", recs, newID)
+	}
+
+	// Deciding the recreated approval resolves the durable record (the Decide path).
+	if err := db.ResolveDecisionRequest(id, newID, string(approval.StatusApproved), "human.owner"); err != nil {
+		t.Fatal(err)
+	}
+	if p, _ := db.ListPendingDecisions(); len(p) != 0 {
+		t.Fatalf("pending durable records after decide = %d, want 0", len(p))
+	}
+
+	// A subsequent rebuild recreates no zombie approval.
+	rep2, err := db.RebuildDurableQueues()
+	if err != nil || rep2.ApprovalsRecreated != 0 {
+		t.Fatalf("second rebuild recreated %d, want 0 (no zombie)", rep2.ApprovalsRecreated)
+	}
+}
+
 // TestRebuildDurableQueuesInputRequiredKeepsBlocked covers a blocked ticket whose
 // durable explainer is an input_requested record: it needs no approval row and
 // must NOT be flagged recovery_needed (T-1054).

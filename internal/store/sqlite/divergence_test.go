@@ -64,4 +64,18 @@ func TestDetectFileDivergenceFlagsUnexportedMutation(t *testing.T) {
 	if len(recs) != 1 {
 		t.Fatalf("recovery_needed duplicated: %d records", len(recs))
 	}
+
+	// The flag is in the store, so a later write-through (which rewrites the sidecar
+	// from store state) PRESERVES it rather than erasing it (review finding #4).
+	stored, err := db.ListDecisions(tk.ID)
+	if err != nil || len(stored) != 1 || stored[0].EventType != decision.EventRecoveryNeeded {
+		t.Fatalf("recovery_needed not durable in store: %+v err=%v", stored, err)
+	}
+	if err := db.TransitionTicket(tk.ID, ticket.StatusBlocked, "tester"); err != nil { // triggers write-through
+		t.Fatal(err)
+	}
+	after, ok, err := decision.Read(ticketsDir, tk.ID)
+	if err != nil || !ok || len(after) != 1 || after[0].EventType != decision.EventRecoveryNeeded {
+		t.Fatalf("recovery_needed erased by write-through: ok=%v recs=%+v err=%v", ok, after, err)
+	}
 }
