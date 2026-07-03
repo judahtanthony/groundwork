@@ -26,6 +26,13 @@ func TestNewCodexDefaultsCommand(t *testing.T) {
 	if c.cfg.Command != "codex" {
 		t.Errorf("default command = %q, want codex", c.cfg.Command)
 	}
+	// Defaults to autonomous-within-scope: no prompts, sandboxed to the workspace.
+	if c.cfg.Sandbox != "workspace-write" {
+		t.Errorf("default sandbox = %q, want workspace-write", c.cfg.Sandbox)
+	}
+	if c.cfg.Approval != "never" {
+		t.Errorf("default approval = %q, want never", c.cfg.Approval)
+	}
 	if c.Name() != "codex" {
 		t.Errorf("name = %q", c.Name())
 	}

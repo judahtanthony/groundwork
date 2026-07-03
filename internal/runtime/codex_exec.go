@@ -142,6 +142,9 @@ func codexArgs(cfg Config, spec Spec) []string {
 	if spec.Model != "" {
 		args = append(args, "--model", spec.Model)
 	}
+	if cfg.Approval != "" {
+		args = append(args, "--ask-for-approval", cfg.Approval)
+	}
 	if cfg.Sandbox != "" {
 		args = append(args, "--sandbox", cfg.Sandbox)
 	}

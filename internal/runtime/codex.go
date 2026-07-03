@@ -11,7 +11,8 @@ import (
 type Config struct {
 	Command      string // codex executable, default "codex"
 	Model        string // default model when a Spec carries none
-	Sandbox      string // sandbox mode passed to the agent (e.g. workspace-write)
+	Sandbox      string // sandbox mode (read-only|workspace-write|danger-full-access), default workspace-write
+	Approval     string // approval policy (untrusted|on-failure|on-request|never), default never
 	Args         []string
 	WorktreeRoot string // when set, the launcher requires the workspace to be contained here
 }
@@ -39,6 +40,16 @@ type Codex struct {
 func NewCodex(cfg Config) *Codex {
 	if cfg.Command == "" {
 		cfg.Command = "codex"
+	}
+	// Default to fully autonomous execution bounded to the run's worktree: no
+	// approval prompts (headless) but writes confined to the workspace. Groundwork
+	// provides its own boundary (worktree isolation + envelope enforcement at
+	// landing), so the agent runs unattended within scope.
+	if cfg.Sandbox == "" {
+		cfg.Sandbox = "workspace-write"
+	}
+	if cfg.Approval == "" {
+		cfg.Approval = "never"
 	}
 	return &Codex{cfg: cfg, launch: recordsOnlyLaunch}
 }

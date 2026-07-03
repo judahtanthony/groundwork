@@ -114,6 +114,7 @@ func runServer(ctx *Context, args []string) error {
 	rt, err := runtime.Select(p.Config.Runtime, runtime.Config{
 		Model:        p.Config.Model,
 		Sandbox:      p.Config.Sandbox,
+		Approval:     p.Config.Approval,
 		Args:         p.Config.RuntimeArgs,
 		WorktreeRoot: p.WorktreesDir(),
 	})
