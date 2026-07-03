@@ -48,6 +48,10 @@ func execLauncher(ctx context.Context, spec Spec, sink Sink, cfg Config) (Result
 	cmd := exec.CommandContext(ctx, cfg.Command, codexArgs(cfg, spec)...)
 	cmd.Dir = dir
 	cmd.Env = os.Environ()
+	// Headless: never attach a TTY. With Stdin nil the child reads /dev/null, so
+	// the agent runs non-interactively (interactive Codex errors "stdin is not a
+	// terminal"; `codex exec` below is the non-interactive path).
+	cmd.Stdin = nil
 
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
@@ -123,13 +127,27 @@ func validateWorkspace(dir, root string) (string, error) {
 	return abs, nil
 }
 
-// codexArgs builds the agent command arguments: configured args plus the model
-// when one was resolved. The exact agent CLI contract is intentionally thin in
-// v1 — the prompt/turn protocol is supplied by config (cfg.Args).
+// codexArgs builds the Codex non-interactive invocation
+// (developers.openai.com/codex/noninteractive):
+//
+//	codex exec [--model M] [--sandbox S] [extra args] "<prompt>"
+//
+// `exec` is the headless subcommand (the default TUI needs a terminal); the
+// sandbox mode bounds what the agent may touch (workspace-write lets it edit the
+// worktree cwd); the prompt is the task. cfg.Args are extra flags inserted before
+// the prompt for local overrides. Test stand-ins / alternate agents that ignore
+// argv still work — they receive these args and disregard them.
 func codexArgs(cfg Config, spec Spec) []string {
-	args := append([]string(nil), cfg.Args...)
+	args := []string{"exec"}
 	if spec.Model != "" {
 		args = append(args, "--model", spec.Model)
+	}
+	if cfg.Sandbox != "" {
+		args = append(args, "--sandbox", cfg.Sandbox)
+	}
+	args = append(args, cfg.Args...)
+	if spec.Prompt != "" {
+		args = append(args, spec.Prompt)
 	}
 	return args
 }

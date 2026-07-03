@@ -50,6 +50,28 @@ func TestExecLauncherRunsInWorkspaceAndStreams(t *testing.T) {
 	}
 }
 
+func TestCodexArgsBuildsNonInteractiveExec(t *testing.T) {
+	got := codexArgs(Config{Sandbox: "workspace-write", Args: []string{"--skip-git-repo-check"}},
+		Spec{Model: "gpt-x", Prompt: "do the thing"})
+	want := []string{"exec", "--model", "gpt-x", "--sandbox", "workspace-write", "--skip-git-repo-check", "do the thing"}
+	if len(got) != len(want) {
+		t.Fatalf("args = %v, want %v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("args = %v, want %v", got, want)
+		}
+	}
+	// The prompt is always the final argv element (a single string; newlines are safe).
+	if got[len(got)-1] != "do the thing" {
+		t.Errorf("prompt not last: %v", got)
+	}
+	// exec is present even with no model/prompt (headless subcommand).
+	if bare := codexArgs(Config{}, Spec{}); len(bare) == 0 || bare[0] != "exec" {
+		t.Errorf("bare args = %v, want [exec]", bare)
+	}
+}
+
 func TestExecLauncherFailingCommandReturnsError(t *testing.T) {
 	scriptDir := t.TempDir()
 	ws := t.TempDir()

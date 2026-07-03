@@ -15,13 +15,14 @@ const SchemaVersion = "groundwork_config/v1"
 // Config is the parsed .groundwork/config.yaml. Phase 1 keys only; later phases
 // add fields via new keys (unknown keys warn rather than error).
 type Config struct {
-	Schema         string `yaml:"schema"`
-	Runtime        string `yaml:"runtime"`
-	Model          string `yaml:"model"`
-	Server         Server `yaml:"server"`
-	MaxConcurrency int    `yaml:"max_concurrency"`
-	Lease          Lease  `yaml:"lease"`
-	Sandbox        string `yaml:"sandbox"`
+	Schema         string   `yaml:"schema"`
+	Runtime        string   `yaml:"runtime"`
+	Model          string   `yaml:"model"`
+	RuntimeArgs    []string `yaml:"runtime_args"` // extra flags passed to the agent command (e.g. codex exec)
+	Server         Server   `yaml:"server"`
+	MaxConcurrency int      `yaml:"max_concurrency"`
+	Lease          Lease    `yaml:"lease"`
+	Sandbox        string   `yaml:"sandbox"`
 }
 
 // Server holds coordinator network settings (used in Phase 2).
@@ -53,6 +54,7 @@ var knownKeys = map[string]bool{
 	"schema":          true,
 	"runtime":         true,
 	"model":           true,
+	"runtime_args":    true,
 	"server":          true,
 	"max_concurrency": true,
 	"lease":           true,

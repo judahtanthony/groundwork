@@ -25,6 +25,9 @@ type Spec struct {
 	Runtime   string
 	Model     string
 	Workspace string
+	// Prompt is the task instruction handed to the agent — assembled by the
+	// coordinator from the ticket's durable context (acceptance, contract, blockers).
+	Prompt string
 }
 
 // Run outcomes (ADR 0051). A run ends in exactly one. Produced/Completed reach

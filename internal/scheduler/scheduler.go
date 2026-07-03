@@ -262,7 +262,7 @@ func (s *Scheduler) supervise(ctx context.Context, r *sqlite.Run, ticketID, acto
 		s.publish(eventbus.Event{Type: "run." + ev.Type, RunID: r.ID, TicketID: ticketID, Message: ev.Message})
 	}
 	spec := runtime.Spec{RunID: r.ID, TicketID: ticketID, Mode: r.Mode, ActorID: actorID,
-		Runtime: r.Runtime, Model: r.Model, Workspace: r.WorkspacePath}
+		Runtime: r.Runtime, Model: r.Model, Workspace: r.WorkspacePath, Prompt: s.buildPrompt(ticketID)}
 
 	res, err := s.rt.Run(ctx, spec, sink)
 	stopHB()
