@@ -132,18 +132,16 @@ func validateWorkspace(dir, root string) (string, error) {
 //
 //	codex exec [--model M] [--sandbox S] [extra args] "<prompt>"
 //
-// `exec` is the headless subcommand (the default TUI needs a terminal); the
-// sandbox mode bounds what the agent may touch (workspace-write lets it edit the
-// worktree cwd); the prompt is the task. cfg.Args are extra flags inserted before
-// the prompt for local overrides. Test stand-ins / alternate agents that ignore
-// argv still work — they receive these args and disregard them.
+// `exec` is the headless subcommand (the default TUI needs a terminal, and exec
+// is inherently non-interactive — it never prompts for approval); the sandbox
+// mode bounds what the agent may touch (workspace-write lets it edit the worktree
+// cwd but nothing outside it); the prompt is the task. cfg.Args are extra flags
+// inserted before the prompt for local overrides. Test stand-ins / alternate
+// agents that ignore argv still work — they receive these args and disregard them.
 func codexArgs(cfg Config, spec Spec) []string {
 	args := []string{"exec"}
 	if spec.Model != "" {
 		args = append(args, "--model", spec.Model)
-	}
-	if cfg.Approval != "" {
-		args = append(args, "--ask-for-approval", cfg.Approval)
 	}
 	if cfg.Sandbox != "" {
 		args = append(args, "--sandbox", cfg.Sandbox)

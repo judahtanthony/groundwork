@@ -51,9 +51,9 @@ func TestExecLauncherRunsInWorkspaceAndStreams(t *testing.T) {
 }
 
 func TestCodexArgsBuildsNonInteractiveExec(t *testing.T) {
-	got := codexArgs(Config{Sandbox: "workspace-write", Approval: "never", Args: []string{"--skip-git-repo-check"}},
+	got := codexArgs(Config{Sandbox: "workspace-write", Args: []string{"--skip-git-repo-check"}},
 		Spec{Model: "gpt-x", Prompt: "do the thing"})
-	want := []string{"exec", "--model", "gpt-x", "--ask-for-approval", "never", "--sandbox", "workspace-write", "--skip-git-repo-check", "do the thing"}
+	want := []string{"exec", "--model", "gpt-x", "--sandbox", "workspace-write", "--skip-git-repo-check", "do the thing"}
 	if len(got) != len(want) {
 		t.Fatalf("args = %v, want %v", got, want)
 	}

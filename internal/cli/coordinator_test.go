@@ -82,6 +82,56 @@ func TestOpenTicketStoreSkipsForeignCoordinator(t *testing.T) {
 	}
 }
 
+// TestOpenTicketStoreDirectStoreWritesThrough proves the offline direct-store path
+// enables filesystem write-through (ADR 0053): an offline transition rewrites the
+// ticket.md sidecar so files stay the source of truth even with no coordinator.
+// Regression — openTicketStore's fallback branch previously skipped SetExportDir,
+// so an offline transition updated SQLite but not the sidecar, and the next
+// `gw server` boot flagged a spurious recovery_needed divergence.
+func TestOpenTicketStoreDirectStoreWritesThrough(t *testing.T) {
+	ctx, _, _ := newTestCtx()
+	root := projectWithClosedCoordinator(t)
+	ctx.RootFlag = root
+
+	store, closeStore, err := ctx.openTicketStore()
+	if err != nil {
+		t.Fatalf("openTicketStore: %v", err)
+	}
+	defer closeStore()
+
+	tk := &ticket.Ticket{Title: "root", NodeType: ticket.NodeComposite, Status: ticket.StatusTodo, WorkType: "technical_design"}
+	if err := store.CreateTicket(tk, ownerActor); err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	if err := store.TransitionTicket(tk.ID, ticket.StatusInProgress, ownerActor); err != nil {
+		t.Fatalf("transition: %v", err)
+	}
+
+	// The sidecar exists and reflects the transition (write-through happened, not a
+	// stale create-time snapshot).
+	sidecar := filepath.Join(root, config.GroundworkDir, "tickets", tk.ID, "ticket.md")
+	got, err := os.ReadFile(sidecar)
+	if err != nil {
+		t.Fatalf("read sidecar: %v", err)
+	}
+	if !strings.Contains(string(got), "status: in_progress") {
+		t.Fatalf("sidecar did not capture the transition:\n%s", got)
+	}
+
+	// And no spurious divergence on the next boot: SQLite matches its files.
+	db, ok := store.(*sqlite.DB)
+	if !ok {
+		t.Fatalf("store = %T, want *sqlite.DB (direct fallback)", store)
+	}
+	rep, err := db.DetectFileDivergence()
+	if err != nil {
+		t.Fatalf("DetectFileDivergence: %v", err)
+	}
+	if len(rep.Diverged) != 0 {
+		t.Fatalf("diverged = %v, want none (write-through kept files in sync)", rep.Diverged)
+	}
+}
+
 // projectWithCoordinatorAt writes a project whose configured server address is addr.
 func projectWithCoordinatorAt(t *testing.T, addr string) string {
 	t.Helper()

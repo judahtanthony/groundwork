@@ -23,7 +23,6 @@ type Config struct {
 	MaxConcurrency int      `yaml:"max_concurrency"`
 	Lease          Lease    `yaml:"lease"`
 	Sandbox        string   `yaml:"sandbox"`
-	Approval       string   `yaml:"approval"` // agent approval policy (never|on-failure|on-request|untrusted)
 }
 
 // Server holds coordinator network settings (used in Phase 2).
@@ -60,7 +59,6 @@ var knownKeys = map[string]bool{
 	"max_concurrency": true,
 	"lease":           true,
 	"sandbox":         true,
-	"approval":        true,
 }
 
 // Parse decodes config YAML over the Phase 1 defaults, returning the merged
