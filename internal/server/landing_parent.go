@@ -11,7 +11,6 @@ import (
 	"net/http"
 
 	"groundwork/internal/store/sqlite"
-	"groundwork/internal/ticket"
 	"groundwork/internal/worktree"
 )
 
@@ -74,8 +73,10 @@ func (s *Server) LandToParent(childID string) (*sqlite.IntegrationBranch, error)
 	}
 	// Only after the work is staged do we mark the child done, so commitLanding's
 	// regenerated export reflects done and is committed together with the squashed
-	// change as one landing commit.
-	if err := s.db.TransitionTicket(childID, ticket.StatusDone, ownerActor); err != nil {
+	// change as one landing commit. Use the land_to_parent status primitive (not a
+	// single-hop transition): the scheduler leaves a completed run's node in review,
+	// and review -> done is not a legal single hop (it must pass through landing).
+	if err := s.db.LandToParentDone(childID, ownerActor); err != nil {
 		return nil, err
 	}
 	if err := s.commitLanding(childID); err != nil {
