@@ -125,6 +125,47 @@ func (s *Server) cleanupLandedRun(nodeID, runID string) {
 	}
 }
 
+// landRouteFor reports how `gw ticket land` should land a node (ADR 0058): a node
+// whose nearest integration target is an ANCESTOR (not itself) is a child that
+// lands to its root's integration branch ("parent"); anything else — a root that
+// owns its integration branch, or a node with no integration chain — lands to main
+// ("main"). runBranch reports whether the node has a live gw/run/<id> branch whose
+// work would be orphaned by a wrong land-to-main; the CLI uses route to skip
+// main-tree staging and route the landing correctly.
+func (s *Server) landRouteFor(nodeID string) (route, branch string, runBranch bool, err error) {
+	if _, err := s.db.GetTicket(nodeID); err != nil {
+		return "", "", false, err
+	}
+	ib, err := s.integrationTargetFor(nodeID)
+	if err != nil {
+		return "", "", false, err
+	}
+	if ib == nil || ib.NodeID == nodeID {
+		return "main", "", false, nil
+	}
+	if s.repo != nil {
+		if runID, rerr := s.db.LatestRunIDForNode(nodeID); rerr == nil && runID != "" {
+			runBranch = s.repo.BranchExists(worktree.RunBranch(runID))
+		}
+	}
+	return "parent", ib.Branch, runBranch, nil
+}
+
+// handleTicketLandRoute reports the landing route for a node so the CLI can pick
+// land_to_parent over a main-tree commit for run-backed children (ADR 0058).
+func (s *Server) handleTicketLandRoute(w http.ResponseWriter, r *http.Request) {
+	route, branch, runBranch, err := s.landRouteFor(r.PathValue("id"))
+	if err != nil {
+		s.writeStoreError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{
+		"route":              route,
+		"integration_branch": branch,
+		"run_branch":         runBranch,
+	})
+}
+
 // handleTicketLandToParent lands a child to its root integration target.
 func (s *Server) handleTicketLandToParent(w http.ResponseWriter, r *http.Request) {
 	ib, err := s.LandToParent(r.PathValue("id"))

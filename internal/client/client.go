@@ -246,6 +246,38 @@ func (c *Client) LandTicket(ticketID string, override bool) (*LandResult, error)
 	return &out, nil
 }
 
+// LandRoute reports how `gw ticket land` should land a node: "parent" (the node
+// is a child whose work lands on its root's integration branch, ADR 0058) or
+// "main" (a root or unparented node). branch is the integration branch for the
+// "parent" route. The CLI uses it to route run-backed children to land_to_parent
+// instead of committing the main working tree.
+func (c *Client) LandRoute(ticketID string) (route, branch string, err error) {
+	var out struct {
+		Route             string `json:"route"`
+		IntegrationBranch string `json:"integration_branch"`
+		RunBranch         bool   `json:"run_branch"`
+	}
+	if err := c.do(http.MethodGet, "/api/v1/tickets/"+ticketID+"/land/route", nil, &out); err != nil {
+		return "", "", err
+	}
+	return out.Route, out.IntegrationBranch, nil
+}
+
+// LandToParent lands a child onto its root's integration branch (ADR 0058),
+// squash-merging the child's run branch into it. It returns the integration
+// branch the work landed on. Unlike LandTicket this never merges to main and does
+// not open the land_to_main gate.
+func (c *Client) LandToParent(ticketID string) (branch string, err error) {
+	var out struct {
+		LandedTo string `json:"landed_to"`
+		NodeID   string `json:"node_id"`
+	}
+	if err := c.do(http.MethodPost, "/api/v1/tickets/"+ticketID+"/land-to-parent", nil, &out); err != nil {
+		return "", err
+	}
+	return out.LandedTo, nil
+}
+
 // EscalateTicket records an escalation and opens a re-plan approval.
 func (c *Client) EscalateTicket(id, reason string) (*sqlite.Approval, error) {
 	var a sqlite.Approval
@@ -384,6 +416,8 @@ func decodeError(resp *http.Response) error {
 		return sqlite.ErrSelfDependency
 	case "dependency_cycle":
 		return fmt.Errorf("%w: %s", sqlite.ErrDependencyCycle, env.Error.Message)
+	case "validation_gate":
+		return fmt.Errorf("%w: %s", sqlite.ErrValidationGate, env.Error.Message)
 	case "self_parent":
 		return sqlite.ErrSelfParent
 	case "parent_cycle":

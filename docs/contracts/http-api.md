@@ -23,6 +23,7 @@ DELETE /api/v1/tickets/:id/dependencies/:depId
 GET  /api/v1/tickets/:id/validations
 POST /api/v1/tickets/:id/validations
 GET  /api/v1/tickets/:id/land/preview
+GET  /api/v1/tickets/:id/land/route
 POST /api/v1/tickets/:id/land
 POST /api/v1/tickets/:id/land-to-parent
 POST /api/v1/tickets/:id/envelope
@@ -68,6 +69,13 @@ branch (ADR 0058): it marks the child done and commits its export plus staged wo
 to that branch — distinct from `land_to_main`, which is the human-gated root merge.
 It enforces the same validation gate as `land_to_main` (a child with a failing
 validation result is refused).
+`GET /api/v1/tickets/:id/land/route` reports how `gw ticket land` should land the
+node — `{"route": "parent"|"main", "integration_branch", "run_branch"}`. A node
+whose nearest integration target is an ancestor lands to that branch (`parent`);
+a root that owns its integration branch, or an unparented node, lands to main
+(`main`). The CLI reads this so a plain `gw ticket land <child>` auto-routes a
+run-backed child to `land_to_parent` — squashing its `gw/run/<id>` branch — instead
+of committing the main working tree and orphaning the run's code (ADR 0058).
 `POST /api/v1/tickets/:id/envelope` proposes an approval envelope for the node
 (ADR 0054): the body is the draft envelope JSON (`approved_actions`,
 `allowed_roles`, `planning`, `scope`, `risk_ceiling`, …) and it opens a pending

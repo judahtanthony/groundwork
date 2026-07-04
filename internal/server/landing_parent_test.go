@@ -116,6 +116,75 @@ func TestLandToParentWithoutTargetErrors(t *testing.T) {
 	}
 }
 
+// landRouteFor tells the CLI to route a run-backed child to land_to_parent (so its
+// run branch is squashed onto the integration branch) while a root and an
+// unparented leaf keep the land_to_main path (ADR 0058). Without this, plain
+// `gw ticket land <child>` would commit the main working tree and orphan the run.
+func TestLandRouteForRunBackedChildIsParent(t *testing.T) {
+	srv, db, root := newGitServer(t)
+	parent := &ticket.Ticket{Title: "feature", NodeType: ticket.NodeComposite, Status: ticket.StatusTodo, WorkType: "technical_design"}
+	if err := db.CreateTicket(parent, "tester"); err != nil {
+		t.Fatal(err)
+	}
+	appr, err := srv.ProposeEnvelope(parent.ID, &envelope.Envelope{
+		ApprovedActions: []string{envelope.ActionExecuteChildren, envelope.ActionLandChildToParent},
+		AllowedRoles:    []string{"coding"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := srv.recordDecision(appr.ID, approval.StatusApproved, ""); err != nil {
+		t.Fatal(err)
+	}
+	ib, _ := db.GetIntegrationBranch(parent.ID)
+
+	child := &ticket.Ticket{ParentID: parent.ID, Title: "child", NodeType: ticket.NodeLeaf, Status: ticket.StatusInProgress, WorkType: "technical_implementation"}
+	if err := db.CreateTicket(child, "tester"); err != nil {
+		t.Fatal(err)
+	}
+	// A completed run with a live run branch carrying the child's work.
+	runID := "R-200"
+	if _, err := db.Exec(`INSERT INTO runs
+		(id, ticket_id, actor_id, actor_snapshot_json, mode, runtime, model, status, workspace_path, started_at, updated_at)
+		VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
+		runID, child.ID, "ai.codex.default", "{}", "implementation", "codex", "m", "completed", "", "2026-06-28T10:00:00Z", "2026-06-28T10:00:00Z"); err != nil {
+		t.Fatal(err)
+	}
+	mgr := worktree.NewManager(srv.repo, filepath.Join(root, ".groundwork", "worktrees"))
+	p, err := mgr.Provision(runID, ib.Branch)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(p.Path, "feature.go"), []byte("package x\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := mgr.Checkpoint(runID, "wip"); err != nil {
+		t.Fatal(err)
+	}
+
+	route, branch, runBranch, err := srv.landRouteFor(child.ID)
+	if err != nil {
+		t.Fatalf("landRouteFor(child): %v", err)
+	}
+	if route != "parent" || branch != ib.Branch || !runBranch {
+		t.Errorf("child route = %q branch=%q runBranch=%v, want parent %q true", route, branch, runBranch, ib.Branch)
+	}
+
+	// The root owns its integration branch, so it lands to main, not to itself.
+	if route, _, _, err := srv.landRouteFor(parent.ID); err != nil || route != "main" {
+		t.Errorf("root route = %q (err %v), want main", route, err)
+	}
+
+	// An unparented leaf with no integration chain lands to main.
+	orphan := &ticket.Ticket{Title: "orphan", NodeType: ticket.NodeLeaf, Status: ticket.StatusInProgress, WorkType: "technical_implementation"}
+	if err := db.CreateTicket(orphan, "tester"); err != nil {
+		t.Fatal(err)
+	}
+	if route, _, _, err := srv.landRouteFor(orphan.ID); err != nil || route != "main" {
+		t.Errorf("orphan route = %q (err %v), want main", route, err)
+	}
+}
+
 // Concurrent land_to_parent calls must not corrupt the single shared working tree
 // (review finding #5): they are serialized by the repo mutex. Run under -race.
 func TestConcurrentLandToParentSerialized(t *testing.T) {
