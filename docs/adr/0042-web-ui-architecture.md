@@ -71,11 +71,71 @@ contract, the single-binary local-first distribution, and gate-routing are near-
 the specific client framework and the SSE→WebSocket transport step are **process** —
 replaceable behind the contract.
 
+## Decision — Information Architecture (v1)
+
+The human web UI supersedes the flat, page-per-noun screen map inherited from
+[dashboard.md](../architecture/dashboard.md) with a **root-centric, node-agnostic**
+information architecture. The full specification — screen inventory, interaction flows,
+state coverage, the CLI→UI parity matrix, and wireframes — lives in
+[docs/design/web-ui-ia.md](../design/web-ui-ia.md) and is the Claude Design handoff. The
+durable decisions:
+
+8. **Two surfaces: a scalable Roots board and a node view.** A rail of roots does not scale
+   to hundreds of initiatives, so the UI splits into (a) a **Roots board** — the landing
+   index and "board for roots": search + a global **⌘K command palette** (jump to any root
+   or node by id/title), an attention-first default (needs-me + active), **archived hidden
+   by default** (ties to the prune/archive work, T-1096), filters × sort × optional lanes,
+   dense virtualized rows showing rollup status, progress, and attention badges; and (b) a
+   **node view** — the drill/work surface entered from a root, carrying no root rail, only a
+   compact root switcher and a "Roots board" home button. KPIs ride as a header strip; the
+   Roots board is a root-scoped index, not a KPI dashboard.
+
+9. **The node view is a horizontal spine: up · here · down.** The focused node is centered
+   as the pointer; ancestors sit to the left, children to the right; drilling a child slides
+   it to center and the former focus joins the ancestor spine (children are proto-breadcrumbs).
+   Dependencies are an **overlay** (badge → peek → cross-tree jump), never edges in the
+   children column and never a whole-graph canvas — the DAG is walked, not drawn.
+
+10. **Node-agnostic review and action.** The detail + action surface operates on whatever
+    node is focused, at any level of the DAG, not just leaves; the detail follows focus. This
+    realizes Groundwork's telos of **moving the human up the decision framework**: the primary
+    review object shifts over time from leaf implementations to plans/designs at higher
+    abstraction.
+
+11. **Progressive elevation is a policy dial, not a UI rewrite — via the envelope planning
+    budget.** A human approves scope once at a composite/root (the envelope's max
+    depth/children/work-types, [ADR 0044](0044-hierarchical-planning-and-approval-envelopes.md));
+    agents decompose below without a per-layer gate; anything past the budget surfaces as an
+    exception ([ADR 0056](0056-envelope-aware-claim-authorization.md)). Cascading decomposition
+    is surfaced as a **digest** ("new subtree ready for review") — delivered as approvals-inbox
+    entries plus a Roots-board attention badge — consistent with realtime being deferred.
+
+12. **Provenance is keyed on envelope coverage.** The human/agent boundary in a subtree is
+    drawn where an approved envelope begins to authorize agent work, with creator-actor badges
+    as the per-row visual; provenance and authority are shown together.
+
+13. **One unified approvals inbox; exceptions elevated.** All human gates — `decompose`,
+    `land_to_main`, `approve_envelope`, and envelope exceptions — share one inbox grouped
+    under parent envelope (mirroring the single pending count in `gw status`); exceptions are
+    pinned/elevated, never split into a second queue.
+
+14. **Boundaries preserved.** Realtime stays deferred (request/response + light polling,
+    contract kept WS-capable); **machine dispatch (`run next`/`run once`) is not surfaced in
+    the human UI** (CLI/scheduler-only; the UI shows run effects + pause/resume/cancel);
+    `export`/`import`/`sync` stay CLI-only for v1; every mutation flows the same gates as the
+    CLI.
+
+**Classification ([ADR 0037](0037-transitional-defaults-vs-invariants.md)):** the two-surface
+split, the node-agnostic review model, and the envelope-planning-budget elevation mechanism
+are near-structural; the specific pane layout, drag-to-prioritize interaction, and screen
+chrome are **process** — replaceable behind the API contract.
+
 ## Consequences
 
-- Extends [dashboard.md](../architecture/dashboard.md); the screen map there (Dashboard,
-  Board, Tickets, Run detail, Approvals, Policies, Settings) becomes the CLI-parity target,
-  built on the SPA as web-UI work activates.
+- Supersedes the flat screen map in [dashboard.md](../architecture/dashboard.md) (Dashboard,
+  Board, Tickets, Run detail, Approvals, Policies, Settings) with the root-centric IA above
+  and in [docs/design/web-ui-ia.md](../design/web-ui-ia.md); CLI parity is retargeted onto the
+  two-surface (Roots board + node view) model, built on the SPA as web-UI work activates.
 - Sequenced **below** the Codex runtime (E-0006): the runtime is the active focus; this is
   the tracked plan that follows. The current dashboard remains the interim surface meanwhile.
 - The single-binary install/run story is **unchanged** for users; only the build pipeline
