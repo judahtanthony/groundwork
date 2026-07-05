@@ -130,6 +130,14 @@ func (r *Repo) MergeNoFF(branch, message string) error {
 	return err
 }
 
+// ResetHard resets the index and working tree to ref (`git reset --hard`). Used
+// to recover the integration branch after a failed squash so the tree is never
+// left mid-conflict (ADR 0058/0059).
+func (r *Repo) ResetHard(ref string) error {
+	_, err := r.run("reset", "--hard", ref)
+	return err
+}
+
 // MergeAbort aborts an in-progress merge, restoring the work tree and index to
 // the pre-merge state (git merge --abort). Used to recover from a conflicted
 // root land_to_main so a failed merge never leaves the tree mid-conflict (ADR 0058).
@@ -144,6 +152,15 @@ func (r *Repo) MergeAbort() error {
 // be lost — it surfaces as a loud error rather than a silent force-delete.
 func (r *Repo) DeleteBranch(name string) error {
 	_, err := r.run("branch", "-d", name)
+	return err
+}
+
+// DeleteBranchForce removes a branch with `git branch -D`, regardless of merge
+// state. It is for throwaway run branches (gw/run/<id>) whose content has been
+// squash-landed or retained under a ref (ADR 0059); callers that must not lose
+// work retain the branch tip first.
+func (r *Repo) DeleteBranchForce(name string) error {
+	_, err := r.run("branch", "-D", name)
 	return err
 }
 

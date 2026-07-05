@@ -26,6 +26,10 @@ func (ctx *Context) openStore() (*config.Project, *sqlite.DB, error) {
 	if err != nil {
 		return nil, nil, err
 	}
+	// Filesystem write-through (ADR 0053): direct CLI mutations rewrite the
+	// affected ticket sidecars so files stay the source of truth even without a
+	// running coordinator.
+	db.SetExportDir(p.TicketsDir())
 	return p, db, nil
 }
 

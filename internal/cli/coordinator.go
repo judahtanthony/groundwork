@@ -69,6 +69,12 @@ func (ctx *Context) openTicketStore() (ticketStore, func(), error) {
 	if err != nil {
 		return nil, nil, err
 	}
+	// Enable filesystem write-through (ADR 0053) so offline mutations rewrite their
+	// ticket sidecars, keeping files the source of truth — the same contract
+	// openStore honors. Without this, a direct-store transition/create updates
+	// SQLite but not ticket.md, and the next `gw server` boot flags a spurious
+	// recovery_needed divergence.
+	db.SetExportDir(p.TicketsDir())
 	return db, func() { db.Close() }, nil
 }
 

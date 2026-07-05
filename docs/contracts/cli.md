@@ -24,7 +24,7 @@ gw ticket request <id>
 gw ticket decompose <id>
 gw ticket link <id> --depends-on <id>
 gw ticket escalate <id>
-gw ticket land <id> [--all] [--override] [--preview]
+gw ticket land <id> [--all] [--override] [--preview] [--to-parent]
 gw ticket export [id]
 gw ticket import [path]
 gw next [--claim] [--actor <id>]

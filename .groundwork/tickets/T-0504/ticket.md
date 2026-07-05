@@ -4,10 +4,10 @@ kind: ticket
 node_type: leaf
 work_type: technical_implementation
 title: Implement run checkpoints and landing squash
-status: todo
+status: done
 assignee: null
 requested_actor: null
-priority: null
+priority: 0.58
 labels: []
 parent: E-0006
 depends_on:
@@ -18,7 +18,7 @@ updated_at: "2026-06-22T15:06:06Z"
 
 ## Problem
 
-_No description recorded._
+ADR 0015/0059: a run periodically commits WIP checkpoints on its `gw/run/<run-id>` branch (never on main or the integration branch). At `land_to_parent` the run branch's net diff is squashed into one curated commit on `gw/root/<id>-<slug>`; the WIP chain is retained only under `refs/groundwork/runs/<run-id>`.
 
 ## Acceptance Criteria
 

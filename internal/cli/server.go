@@ -10,10 +10,13 @@ import (
 
 	"groundwork/internal/actor"
 	"groundwork/internal/eventbus"
+	"groundwork/internal/git"
 	"groundwork/internal/policy"
 	"groundwork/internal/runtime"
 	"groundwork/internal/scheduler"
 	"groundwork/internal/server"
+	"groundwork/internal/store/sqlite"
+	"groundwork/internal/worktree"
 )
 
 func newServerCmd() *Command {
@@ -47,16 +50,45 @@ func runServer(ctx *Context, args []string) error {
 
 	// Cold start: rebuild nodes from committed exports when the store is empty
 	// (recovery.md). Then reconcile any runs/leases left by a previous process.
-	if has, err := db.HasTickets(); err == nil && !has {
+	hadTickets, _ := db.HasTickets()
+	if !hadTickets {
 		if n, err := importExports(db, p.TicketsDir()); err == nil && n > 0 {
 			ctx.Stderr.Write([]byte("gw: imported " + strconv.Itoa(n) + " ticket(s) from exports\n"))
 		}
 	}
+
+	// Enable filesystem write-through now that the store reflects files (ADR 0053):
+	// from here, durable mutations rewrite their sidecars before reporting success.
+	db.SetExportDir(p.TicketsDir())
+
+	// A store that SURVIVED a restart may hold durable mutations that never reached
+	// files (a crash between SQLite commit and the sidecar write). Surface that as
+	// recovery_needed rather than silently trusting SQLite (ADR 0053). A freshly
+	// rebuilt store matches its files by construction, so skip the check then.
+	if hadTickets {
+		if drep, err := db.DetectFileDivergence(); err != nil {
+			return &Error{Code: "recovery_error", Message: err.Error()}
+		} else if len(drep.Diverged) > 0 {
+			ctx.Stderr.Write([]byte("gw: warning: " + strconv.Itoa(len(drep.Diverged)) +
+				" ticket(s) diverge from their sidecars (unexported durable mutation); flagged recovery_needed — rebuild from files to repair\n"))
+		}
+	}
+
 	if rep, err := db.ReconcileStartup(); err != nil {
 		return &Error{Code: "recovery_error", Message: err.Error()}
 	} else if rep.InterruptedRuns > 0 || rep.ReleasedLeases > 0 {
 		ctx.Stderr.Write([]byte("gw: recovery interrupted " + strconv.Itoa(rep.InterruptedRuns) +
 			" run(s), released " + strconv.Itoa(rep.ReleasedLeases) + " lease(s)\n"))
+	}
+
+	// Rebuild live approval/decision queues from durable ticket records, and
+	// surface recovery_needed for any stranded blocked/review/rework ticket
+	// (ADR 0051). Safe to run every boot; idempotent.
+	if qrep, err := db.RebuildDurableQueues(); err != nil {
+		return &Error{Code: "recovery_error", Message: err.Error()}
+	} else if qrep.ApprovalsRecreated > 0 || qrep.RecoveryNeeded > 0 {
+		ctx.Stderr.Write([]byte("gw: recovery recreated " + strconv.Itoa(qrep.ApprovalsRecreated) +
+			" approval(s), flagged " + strconv.Itoa(qrep.RecoveryNeeded) + " recovery_needed\n"))
 	}
 
 	// Load policy and the actor registry for scheduling decisions. Missing or
@@ -76,17 +108,49 @@ func runServer(ctx *Context, args []string) error {
 
 	bus := eventbus.New(0)
 	defer bus.Close()
-	sched := scheduler.New(db, policies, registry, runtime.Stub{}, bus, scheduler.Config{
+
+	// Select the runtime adapter from config (ADR 0027): records-only stub or the
+	// Codex adapter. The Codex adapter runs in an isolated worktree per run.
+	rt, err := runtime.Select(p.Config.Runtime, runtime.Config{
+		Model:        p.Config.Model,
+		Sandbox:      p.Config.Sandbox,
+		Args:         p.Config.RuntimeArgs,
+		WorktreeRoot: p.WorktreesDir(),
+	})
+	if err != nil {
+		return &Error{Code: "runtime_error", Message: err.Error()}
+	}
+	// The Codex adapter executes in an isolated git worktree per run (ADR 0059).
+	// When the project is a git work tree, give it the real process launcher and a
+	// worktree provider; otherwise it stays the records-only shell.
+	if codex, ok := rt.(*runtime.Codex); ok {
+		if repo, gerr := git.Open(p.Root); gerr == nil {
+			mgr := worktree.NewManager(repo, p.WorktreesDir())
+			rt = codex.WithExec().
+				WithWorkspace(worktreeProvider{mgr}, resumeBase(db, mgr)).
+				WithDiffBase(integrationBase(repo))
+		} else {
+			ctx.Stderr.Write([]byte("gw: warning: project is not a git work tree; codex runs records-only\n"))
+		}
+	}
+	ctx.Stderr.Write([]byte("gw: runtime " + rt.Name() + "\n"))
+	sched := scheduler.New(db, policies, registry, rt, bus, scheduler.Config{
 		MaxConcurrency: p.Config.MaxConcurrency,
 		LeaseTTL:       p.Config.Lease.TTL.Duration(),
 		Heartbeat:      p.Config.Lease.Heartbeat.Duration(),
 		TickInterval:   time.Second,
+		Model:          p.Config.Model,
+		RunLogDir:      p.RunsDir(),
+		TicketsDir:     p.TicketsDir(),
 	})
 
 	srv := server.New(db, p, Version)
 	srv.SetScheduler(sched)
 	srv.SetBus(bus)
 	srv.SetApprovals(server.NewApprovalService(db, policies, registry))
+	// Route AI claims through the envelope-aware authorizer (ADR 0056): trust AND
+	// the active envelope gate the claim, and boundary crossings raise exceptions.
+	sched.SetEnvelopeGate(envelopeGate{srv})
 
 	sigCtx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
@@ -101,4 +165,73 @@ func runServer(ctx *Context, args []string) error {
 		return &Error{Code: "server_error", Message: err.Error()}
 	}
 	return nil
+}
+
+// worktreeProvider adapts worktree.Manager to runtime.WorkspaceProvider so the
+// Codex adapter can provision an isolated worktree per run (ADR 0059).
+type worktreeProvider struct{ m *worktree.Manager }
+
+func (w worktreeProvider) Provision(runID, base string) (string, error) {
+	p, err := w.m.Provision(runID, base)
+	if err != nil {
+		return "", err
+	}
+	return p.Path, nil
+}
+
+func (w worktreeProvider) Diff(runID, base string) ([]string, string, error) {
+	return w.m.Diff(runID, base)
+}
+
+func (w worktreeProvider) Checkpoint(runID, message string) (string, error) {
+	return w.m.Checkpoint(runID, message)
+}
+
+// envelopeGate adapts the coordinator's envelope-aware claim authorization to the
+// scheduler's gate seam (ADR 0056), keeping the scheduler free of a server import.
+type envelopeGate struct{ srv *server.Server }
+
+func (g envelopeGate) AuthorizeAIClaim(nodeID, action, workType string, a *actor.Actor) (scheduler.ClaimDecision, error) {
+	outcome, err := g.srv.AuthorizeAIClaim(nodeID, action, workType, a)
+	if err != nil {
+		return scheduler.ClaimDeny, err
+	}
+	switch outcome {
+	case server.ClaimAllow:
+		return scheduler.ClaimAllow, nil
+	case server.ClaimException:
+		return scheduler.ClaimException, nil
+	default:
+		return scheduler.ClaimDeny, nil
+	}
+}
+
+// resumeBase returns a base resolver that continues a node's most recent
+// interrupted run from its checkpoint chain (T-0904, ADR 0015); when there is no
+// prior checkpoint it returns "" so the worktree is cut from HEAD/the integration
+// base.
+func resumeBase(db *sqlite.DB, mgr *worktree.Manager) runtime.BaseResolver {
+	return func(spec runtime.Spec) string {
+		priorRunID, err := db.LatestInterruptedRunForNode(spec.TicketID)
+		if err != nil || priorRunID == "" {
+			return ""
+		}
+		if ref, ok := mgr.CheckpointBase(priorRunID); ok {
+			return ref
+		}
+		return ""
+	}
+}
+
+// integrationBase returns the diff base for a run: the integration target tip the
+// run's net change is measured against (review finding #3). In v1's single working
+// tree this is the main repo HEAD (the checked-out integration branch). A resolve
+// failure falls back to "" (the provision base).
+func integrationBase(repo *git.Repo) runtime.BaseResolver {
+	return func(spec runtime.Spec) string {
+		if sha, err := repo.HeadCommit(); err == nil {
+			return sha
+		}
+		return ""
+	}
 }

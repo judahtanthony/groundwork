@@ -123,6 +123,26 @@ func renderBrief(ctx *Context, b *contextbrief.Brief) {
 		}
 	}
 
+	if len(b.PendingBlockers) > 0 {
+		fmt.Fprintln(w, "\nPending blockers:")
+		for _, r := range b.PendingBlockers {
+			msg := r.Statement
+			if msg == "" {
+				msg = r.HandoffSummary
+			}
+			fmt.Fprintf(w, "  [%s] %s\n", r.EventType, msg)
+		}
+	}
+
+	if b.CompletionSummary != nil {
+		fmt.Fprintf(w, "\nCompletion summary: %s (%d changed file(s))\n", b.CompletionSummary.Outcome, len(b.CompletionSummary.Changed))
+		if b.SummaryStale {
+			fmt.Fprintf(w, "  ⚠ stale: %s\n", b.SummaryStaleReason)
+		}
+	} else if b.SummaryMissing {
+		fmt.Fprintln(w, "\n⚠ No completion summary for a node at review/done (rework/recovery signal).")
+	}
+
 	if b.Siblings != nil {
 		fmt.Fprintln(w, "\nSiblings:")
 		if len(b.Siblings) == 0 {

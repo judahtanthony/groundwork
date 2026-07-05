@@ -115,6 +115,11 @@ func (db *DB) DecomposeProposal(parentID, contractJSON string, children []ChildS
 	if err != nil {
 		return nil, nil, err
 	}
+	// Children and the parent's review status are durable ticket state: flush their
+	// sidecars so a rebuild from files preserves the proposed decomposition (ADR 0053).
+	if err := db.writeThrough(append([]string{parentID}, childIDs...)...); err != nil {
+		return nil, nil, err
+	}
 	return appr, childIDs, nil
 }
 
@@ -168,6 +173,12 @@ func (db *DB) AcceptDecompose(approvalID, decidedBy, reason string) (*Approval, 
 	if err != nil {
 		return nil, err
 	}
+	// Parent contract/status and children status are durable: flush their sidecars.
+	if _, childIDs, perr := parseDecomposeAction(appr.ActionJSON); perr == nil {
+		if err := db.writeThrough(append([]string{appr.TicketID}, childIDs...)...); err != nil {
+			return nil, err
+		}
+	}
 	return appr, nil
 }
 
@@ -201,6 +212,10 @@ func (db *DB) RejectDecompose(approvalID, decidedBy, reason string) (*Approval, 
 		return err
 	})
 	if err != nil {
+		return nil, err
+	}
+	// Parent moved to rework: flush its sidecar.
+	if err := db.writeThrough(appr.TicketID); err != nil {
 		return nil, err
 	}
 	return appr, nil

@@ -60,11 +60,32 @@ func (s *Server) AuthorizeEnvelopedClaim(nodeID, action, workType string, a *act
 	if within {
 		return ClaimAllow, nil, nil
 	}
+	// Dedup: a boundary-crossing node is re-evaluated on every scheduler tick. Only
+	// raise an exception when one is not already open for it, so the queue and the
+	// durable sidecar are not flooded with duplicate requests.
+	if open, err := s.db.HasOpenApprovalOfType(nodeID, approval.TypeException); err != nil {
+		return ClaimDeny, nil, err
+	} else if open {
+		return ClaimException, nil, nil
+	}
 	appr, err := s.raiseEnvelopeException(nodeID, envID, action, a)
 	if err != nil {
 		return ClaimDeny, nil, err
 	}
 	return ClaimException, appr, nil
+}
+
+// AuthorizeAIClaim is the scheduler-facing entry point (ADR 0056): it computes
+// the claim-time risk class for the action and runs the envelope-aware claim
+// composition with no diff yet (planned scope governs at claim; actual scope is
+// enforced once the runtime supplies the diff, T-1091). It returns the outcome.
+func (s *Server) AuthorizeAIClaim(nodeID, action, workType string, a *actor.Actor) (ClaimOutcome, error) {
+	class := risk.ClassLow
+	if s.approvals != nil {
+		class = s.approvals.policies.Evaluate(policy.Action{Type: action, Actor: a, WorkType: workType}).RiskClass
+	}
+	outcome, _, err := s.AuthorizeEnvelopedClaim(nodeID, action, workType, a, class, nil)
+	return outcome, err
 }
 
 // raiseEnvelopeException opens a human-gated exception approval for an action that

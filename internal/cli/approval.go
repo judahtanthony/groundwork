@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 
+	"groundwork/internal/client"
 	"groundwork/internal/store/sqlite"
 )
 
@@ -172,6 +173,93 @@ func runTicketEscalate(ctx *Context, args []string) error {
 		return ctx.PrintJSON(appr)
 	}
 	fmt.Fprintf(ctx.Stdout, "Escalated %s; re-plan approval %s pending\n", pos[0], appr.ID)
+	return nil
+}
+
+// runTicketDecision raises a consequential decision work node for a blocked
+// ticket (ADR 0052); the decision routes by work type and the blocked ticket
+// depends on it.
+func runTicketDecision(ctx *Context, args []string) error {
+	fs := ctx.NewFlagSet("gw ticket decision")
+	var workType, statement, actor, title string
+	var acceptance stringSlice
+	fs.StringVar(&workType, "work-type", "", "work type that routes the decision (e.g. architecture_decision)")
+	fs.StringVar(&statement, "statement", "", "the question to decide")
+	fs.StringVar(&title, "title", "", "decision node title (defaults from the statement)")
+	fs.StringVar(&actor, "actor", "", "preferred actor for the decision")
+	fs.Var(&acceptance, "acceptance", "decision acceptance criterion (repeatable)")
+	pos, err := parseFlags(fs, args)
+	if err != nil {
+		return err
+	}
+	if len(pos) < 1 || workType == "" || statement == "" {
+		return &Error{Code: "invalid_args", Message: "usage: gw ticket decision <id> --work-type <wt> --statement <q> [--title ...] [--actor ...] [--acceptance ...]"}
+	}
+	c, err := ctx.requireCoordinator()
+	if err != nil {
+		return err
+	}
+	res, err := c.RaiseDecision(pos[0], client.RaiseDecisionParams{
+		Title: title, WorkType: workType, RequestedActor: actor, Statement: statement, Acceptance: acceptance,
+	})
+	if err != nil {
+		return approvalError(err, pos[0])
+	}
+	if ctx.JSON {
+		return ctx.PrintJSON(res)
+	}
+	fmt.Fprintf(ctx.Stdout, "Raised decision %s; %s now blocked on it\n", res.DecisionTicket, res.BlockedTicket)
+	return nil
+}
+
+// runTicketInput records a bounded local input request without creating a work
+// node (ADR 0052).
+func runTicketInput(ctx *Context, args []string) error {
+	fs := ctx.NewFlagSet("gw ticket input")
+	var statement string
+	fs.StringVar(&statement, "statement", "", "the clarification needed to continue")
+	pos, err := parseFlags(fs, args)
+	if err != nil {
+		return err
+	}
+	if len(pos) < 1 || statement == "" {
+		return &Error{Code: "invalid_args", Message: "usage: gw ticket input <id> --statement <q>"}
+	}
+	c, err := ctx.requireCoordinator()
+	if err != nil {
+		return err
+	}
+	rec, err := c.RequestInput(pos[0], statement, "")
+	if err != nil {
+		return approvalError(err, pos[0])
+	}
+	if ctx.JSON {
+		return ctx.PrintJSON(rec)
+	}
+	fmt.Fprintf(ctx.Stdout, "Recorded input request on %s (seq %d)\n", pos[0], rec.Sequence)
+	return nil
+}
+
+// runTicketResume prints a node's durable resume packet (ADR 0051): the context a
+// new run starts from instead of a live session.
+func runTicketResume(ctx *Context, args []string) error {
+	fs := ctx.NewFlagSet("gw ticket resume")
+	pos, err := parseFlags(fs, args)
+	if err != nil {
+		return err
+	}
+	if len(pos) < 1 {
+		return &Error{Code: "invalid_args", Message: "usage: gw ticket resume <id>"}
+	}
+	c, err := ctx.requireCoordinator()
+	if err != nil {
+		return err
+	}
+	packet, err := c.ResumePacket(pos[0])
+	if err != nil {
+		return approvalError(err, pos[0])
+	}
+	fmt.Fprintln(ctx.Stdout, string(packet))
 	return nil
 }
 

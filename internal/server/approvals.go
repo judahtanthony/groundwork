@@ -8,6 +8,7 @@ import (
 
 	"groundwork/internal/actor"
 	"groundwork/internal/approval"
+	"groundwork/internal/decision"
 	"groundwork/internal/policy"
 	"groundwork/internal/store/sqlite"
 )
@@ -219,7 +220,34 @@ func (s *ApprovalService) Request(p RequestParams) (*sqlite.Approval, error) {
 	} else {
 		params.Status = approval.StatusPending
 	}
-	return s.db.CreateApproval(params)
+	a, err := s.db.CreateApproval(params)
+	if err != nil {
+		return nil, err
+	}
+	// A pending human-gated approval is a live projection over a durable request
+	// (ADR 0051): emit a paired approval_requested record (correlated by the
+	// approval id) so the pending gate survives a SQLite rebuild and reprojects.
+	if a.Status == string(approval.StatusPending) {
+		rev := reversible
+		if _, derr := s.db.AppendDecision(decision.Record{
+			ID: a.ID, EventType: decision.EventApprovalRequested, TicketID: a.TicketID, RunID: a.RunID,
+			RequestType: a.Type, Status: decision.StatusPending,
+			RequestedBy: a.RequestedByActor, RequestedActor: firstOr(a.RequiredActors),
+			RequiredRoles: a.RequiredRoles, RequestedAt: a.CreatedAt, Statement: a.Summary,
+			PolicyInputs: &decision.PolicyInputs{Action: a.Type, RiskClass: a.RiskClass, Reversible: &rev},
+		}); derr != nil {
+			return nil, derr
+		}
+	}
+	return a, nil
+}
+
+// firstOr returns the first element of s, or "".
+func firstOr(s []string) string {
+	if len(s) > 0 {
+		return s[0]
+	}
+	return ""
 }
 
 // RequestLanding opens a land_to_main approval for a node through the gate engine
@@ -250,6 +278,22 @@ func (s *ApprovalService) Decide(id string, to approval.Status, decidedBy, reaso
 	if err := s.authorize(a, decidedBy); err != nil {
 		return nil, err
 	}
+	res, err := s.dispatchDecision(a, id, to, decidedBy, reason)
+	if err != nil {
+		return nil, err
+	}
+	// Resolve the paired durable request so a terminal decision is not reprojected
+	// as a pending gate on the next rebuild (ADR 0051). Clarifying leaves it pending.
+	if to == approval.StatusApproved || to == approval.StatusRejected {
+		if rerr := s.db.ResolveDecisionRequest(a.TicketID, id, string(to), decidedBy); rerr != nil {
+			return nil, rerr
+		}
+	}
+	return res, nil
+}
+
+// dispatchDecision records the decision and runs the type-specific side effects.
+func (s *ApprovalService) dispatchDecision(a *sqlite.Approval, id string, to approval.Status, decidedBy, reason string) (*sqlite.Approval, error) {
 	switch to {
 	case approval.StatusApproved:
 		switch approval.Type(a.Type) {

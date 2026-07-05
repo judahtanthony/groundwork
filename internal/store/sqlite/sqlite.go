@@ -14,6 +14,11 @@ import (
 type DB struct {
 	*sql.DB
 	path string
+	// exportDir, when set, enables filesystem write-through (ADR 0053): durable
+	// mutations rewrite the affected ticket sidecars before reporting success, so
+	// the filesystem is the source of truth and SQLite is a rebuildable
+	// projection. Empty disables it (store-only; the default for unit tests).
+	exportDir string
 }
 
 // Open opens (creating if necessary) the SQLite database at path with the

@@ -4,7 +4,7 @@ kind: epic
 node_type: null
 work_type: technical_design
 title: 'Phase 6: Durable handoff and Codex runtime'
-status: backlog
+status: done
 assignee: null
 requested_actor: null
 priority: 0.54

@@ -1,7 +1,7 @@
 # ADR 0051: Async Agent Handoff And Durable Decision Records
 
 Status: Accepted
-Implemented: Not started
+Implemented: Partial
 
 ## Context
 

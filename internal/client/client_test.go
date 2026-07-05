@@ -116,6 +116,45 @@ func TestTransitionIllegalMapsToSentinel(t *testing.T) {
 	}
 }
 
+// A plain (unparented) ticket lands to main: the land route is "main", so the CLI
+// keeps the working-tree staging path rather than routing to land_to_parent.
+func TestLandRouteDefaultsToMain(t *testing.T) {
+	c, _ := newClient(t)
+	tk := &ticket.Ticket{Title: "root", Status: ticket.StatusTodo}
+	if err := c.CreateTicket(tk, "human.owner"); err != nil {
+		t.Fatal(err)
+	}
+	route, branch, err := c.LandRoute(tk.ID)
+	if err != nil {
+		t.Fatalf("LandRoute: %v", err)
+	}
+	if route != "main" {
+		t.Errorf("route = %q, want main", route)
+	}
+	if branch != "" {
+		t.Errorf("branch = %q, want empty for the main route", branch)
+	}
+}
+
+// LandToParent hits the land-to-parent endpoint and surfaces the server's
+// no_integration_target error when the node has no integration branch in its
+// chain (mirrors LandTicket's error mapping).
+func TestLandToParentWithoutTargetSurfacesError(t *testing.T) {
+	c, _ := newClient(t)
+	tk := &ticket.Ticket{Title: "orphan", Status: ticket.StatusTodo}
+	if err := c.CreateTicket(tk, "human.owner"); err != nil {
+		t.Fatal(err)
+	}
+	_, err := c.LandToParent(tk.ID)
+	if err == nil {
+		t.Fatal("LandToParent without an integration target: want error")
+	}
+	var apiErr *APIError
+	if !errors.As(err, &apiErr) || apiErr.Code != "no_integration_target" {
+		t.Fatalf("err = %v, want APIError code no_integration_target", err)
+	}
+}
+
 func TestDependencyCycleMapsToSentinel(t *testing.T) {
 	c, _ := newClient(t)
 	a := &ticket.Ticket{Title: "a", Status: ticket.StatusTodo}

@@ -20,7 +20,7 @@ func (db *DB) TransitionTicket(id string, to ticket.Status, actor string) error 
 	if !to.Valid() {
 		return fmt.Errorf("invalid status %q", to)
 	}
-	return db.withTx(func(tx *sql.Tx) error {
+	if err := db.withTx(func(tx *sql.Tx) error {
 		var fromStr string
 		err := tx.QueryRow(`SELECT status FROM tickets WHERE id=?`, id).Scan(&fromStr)
 		if err == sql.ErrNoRows {
@@ -41,7 +41,10 @@ func (db *DB) TransitionTicket(id string, to ticket.Status, actor string) error 
 			"from": from,
 			"to":   to,
 		})
-	})
+	}); err != nil {
+		return err
+	}
+	return db.writeThrough(id)
 }
 
 // TriageTicket classifies a node as leaf or composite, appending a
@@ -51,7 +54,7 @@ func (db *DB) TriageTicket(id string, nt ticket.NodeType, actor string) error {
 	if nt != ticket.NodeLeaf && nt != ticket.NodeComposite {
 		return fmt.Errorf("invalid node type %q (want leaf or composite)", nt)
 	}
-	return db.withTx(func(tx *sql.Tx) error {
+	if err := db.withTx(func(tx *sql.Tx) error {
 		res, err := tx.Exec(`UPDATE tickets SET node_type=?, updated_at=? WHERE id=?`,
 			string(nt), encoding.Now(), id)
 		if err != nil {
@@ -63,5 +66,8 @@ func (db *DB) TriageTicket(id string, nt ticket.NodeType, actor string) error {
 		return appendAudit(tx, actor, "ticket.triaged", "ticket", id, map[string]any{
 			"node_type": nt,
 		})
-	})
+	}); err != nil {
+		return err
+	}
+	return db.writeThrough(id)
 }

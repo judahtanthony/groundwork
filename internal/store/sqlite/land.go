@@ -107,6 +107,43 @@ func (db *DB) Land(ticketID string, requiredChecks []string, override bool, acto
 	return nil, nil
 }
 
+// LandToParentDone drives a child to done (via landing -> done) when it lands onto
+// its root integration branch (ADR 0058). It mirrors db.Land's raw multi-step
+// transition — bypassing the per-hop transition map, since review -> done is not a
+// single legal hop — but accepts any valid landing origin: in-progress work
+// committed straight from the single tree, or review/approved after a run (the
+// scheduler leaves a completed run's node in review). It is distinct from db.Land
+// (land_to_main): the caller (server.LandToParent) has already enforced the
+// validation and envelope gates and squashed the run branch, and land_to_main's
+// stricter review/approved-only origin must not gain an in-progress path here.
+// Idempotent once done, so a retried landing commit does not re-error.
+func (db *DB) LandToParentDone(ticketID, actor string) error {
+	return db.withTx(func(tx *sql.Tx) error {
+		var status string
+		if err := tx.QueryRow(`SELECT status FROM tickets WHERE id=?`, ticketID).Scan(&status); err != nil {
+			if err == sql.ErrNoRows {
+				return ErrNotFound
+			}
+			return err
+		}
+		switch ticket.Status(status) {
+		case ticket.StatusDone:
+			return nil // already landed: the status moved on a prior attempt
+		case ticket.StatusInProgress, ticket.StatusReview, ticket.StatusApproved, ticket.StatusLanding:
+			// valid landing origins
+		default:
+			return fmt.Errorf("%w: cannot land %s to parent from %s", ErrIllegalTransition, ticketID, status)
+		}
+		now := encoding.Now()
+		for _, to := range []ticket.Status{ticket.StatusLanding, ticket.StatusDone} {
+			if _, err := tx.Exec(`UPDATE tickets SET status=?, updated_at=? WHERE id=?`, string(to), now, ticketID); err != nil {
+				return err
+			}
+		}
+		return appendAudit(tx, actor, "ticket.landed_to_parent", "ticket", ticketID, map[string]any{"to": ticket.StatusDone})
+	})
+}
+
 // LandResultError renders a LandResult for display.
 func (lr *LandResult) String() string {
 	var b strings.Builder

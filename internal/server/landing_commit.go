@@ -30,6 +30,12 @@ func (s *Server) completeLanding(w http.ResponseWriter, id, reason string) bool 
 // commit error so non-HTTP callers (the decision recorder) can map it onto their
 // own response surface. completeLanding wraps this for the JSON handlers.
 func (s *Server) finishLanding(id, reason string) error {
+	// Serialize with land_to_parent and any other working-tree mutation: the
+	// checkout + commit + merge-to-main below all act on the single main working
+	// tree (review finding #5).
+	s.repoMu.Lock()
+	defer s.repoMu.Unlock()
+
 	s.ratify(id, "land", reason)
 	// For a root that owns an open integration branch, the export commit must land
 	// on that branch — not whatever the operator has drifted to — so it is included

@@ -121,17 +121,19 @@ func runValidationRun(ctx *Context, args []string) error {
 // (coordinator-required, ADR 0031).
 func runTicketLand(ctx *Context, args []string) error {
 	fs := ctx.NewFlagSet("gw ticket land")
-	var override, all, preview bool
+	var override, all, preview, toParent bool
 	fs.BoolVar(&override, "override", false, "land despite failing/missing validation (audited)")
 	fs.BoolVar(&all, "all", false, "stage all changes before committing (like git commit -a)")
 	fs.BoolVar(&preview, "preview", false, "show the staged diff that would be landed, without opening the approval")
+	fs.BoolVar(&toParent, "to-parent", false, "land a child onto its root's integration branch (land_to_parent) instead of main")
 	pos, err := parseFlags(fs, args)
 	if err != nil {
 		return err
 	}
 	if len(pos) < 1 {
-		return &Error{Code: "invalid_args", Message: "usage: gw ticket land <id> [--all] [--override] [--preview]"}
+		return &Error{Code: "invalid_args", Message: "usage: gw ticket land <id> [--all] [--override] [--preview] [--to-parent]"}
 	}
+	id := pos[0]
 
 	// --preview is a read-only inspection of what the gate would commit: it shows
 	// the staged diff (plus the ticket's regenerated export, added at commit time)
@@ -145,14 +147,44 @@ func runTicketLand(ctx *Context, args []string) error {
 		if rerr != nil {
 			return &Error{Code: "not_a_repo", Message: "preview requires a git repository"}
 		}
-		return previewLanding(ctx, pos[0], repo)
+		return previewLanding(ctx, id, repo)
 	}
 
-	// Resolve what the landing commit will include before asking the coordinator
-	// to land. The coordinator commits the git index (plus the regenerated
-	// export); --all stages everything, and an empty index prompts to include all
-	// (default yes). Staging here persists until the land/approve completes the
-	// commit (ADR 0034). Skipped cleanly when the project root is not a git repo.
+	c, err := ctx.requireCoordinator()
+	if err != nil {
+		return err
+	}
+
+	// Decide the landing level. A child whose work lives on a run branch under a
+	// root integration target must land to that branch (land_to_parent), not commit
+	// the main working tree — otherwise the run's code is orphaned on gw/run/<id>
+	// (ADR 0058). Auto-route unless the caller forced a level with --to-parent; a
+	// route lookup failure falls through to the main-tree path, which surfaces any
+	// real error itself.
+	if !toParent {
+		if route, _, rerr := c.LandRoute(id); rerr == nil && route == "parent" {
+			toParent = true
+		}
+	}
+	if toParent {
+		branch, lerr := c.LandToParent(id)
+		if lerr != nil {
+			return &Error{Code: "land_failed", Message: lerr.Error()}
+		}
+		if ctx.JSON {
+			return ctx.PrintJSON(map[string]any{"landed": true, "id": id, "landed_to": branch})
+		}
+		fmt.Fprintf(ctx.Stdout, "%s landed to %s\n", id, branch)
+		return nil
+	}
+
+	// land_to_main: resolve what the landing commit will include before asking the
+	// coordinator to land. The coordinator commits the git index (plus the
+	// regenerated export); --all stages everything, and an empty index prompts to
+	// include all (default yes). Staging here persists until the land/approve
+	// completes the commit (ADR 0034). Skipped cleanly when the root is not a git
+	// repo. (Not reached for land_to_parent, whose work is squashed from the run
+	// branch, never staged from the main tree.)
 	if p, perr := ctx.resolveProject(); perr == nil {
 		if repo, rerr := git.Open(p.Root); rerr == nil {
 			if err := resolveLandStaging(repo, all, os.Stdin, ctx.Stdout); err != nil {
@@ -161,11 +193,7 @@ func runTicketLand(ctx *Context, args []string) error {
 		}
 	}
 
-	c, err := ctx.requireCoordinator()
-	if err != nil {
-		return err
-	}
-	res, err := c.LandTicket(pos[0], override)
+	res, err := c.LandTicket(id, override)
 	if err != nil {
 		return &Error{Code: "land_failed", Message: err.Error()}
 	}

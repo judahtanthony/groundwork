@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"path/filepath"
 
+	"groundwork/internal/decision"
 	"groundwork/internal/exporter"
 	"groundwork/internal/ticket"
 )
@@ -54,6 +55,16 @@ func runExport(ctx *Context, args []string) error {
 		}
 		rel, _ := filepath.Rel(p.Root, path)
 		written = append(written, rel)
+
+		// Durable decision records export alongside the ticket as an optional
+		// sidecar (ADR 0051): written when records exist, removed when none do.
+		recs, err := db.ListDecisions(t.ID)
+		if err != nil {
+			return &Error{Code: "store_error", Message: err.Error()}
+		}
+		if err := decision.Write(p.TicketsDir(), t.ID, recs); err != nil {
+			return &Error{Code: "export_failed", Message: err.Error()}
+		}
 	}
 
 	if ctx.JSON {

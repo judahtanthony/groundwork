@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"time"
 
+	"groundwork/internal/decision"
 	"groundwork/internal/envelope"
 	"groundwork/internal/store/sqlite"
 	"groundwork/internal/ticket"
@@ -245,6 +246,38 @@ func (c *Client) LandTicket(ticketID string, override bool) (*LandResult, error)
 	return &out, nil
 }
 
+// LandRoute reports how `gw ticket land` should land a node: "parent" (the node
+// is a child whose work lands on its root's integration branch, ADR 0058) or
+// "main" (a root or unparented node). branch is the integration branch for the
+// "parent" route. The CLI uses it to route run-backed children to land_to_parent
+// instead of committing the main working tree.
+func (c *Client) LandRoute(ticketID string) (route, branch string, err error) {
+	var out struct {
+		Route             string `json:"route"`
+		IntegrationBranch string `json:"integration_branch"`
+		RunBranch         bool   `json:"run_branch"`
+	}
+	if err := c.do(http.MethodGet, "/api/v1/tickets/"+ticketID+"/land/route", nil, &out); err != nil {
+		return "", "", err
+	}
+	return out.Route, out.IntegrationBranch, nil
+}
+
+// LandToParent lands a child onto its root's integration branch (ADR 0058),
+// squash-merging the child's run branch into it. It returns the integration
+// branch the work landed on. Unlike LandTicket this never merges to main and does
+// not open the land_to_main gate.
+func (c *Client) LandToParent(ticketID string) (branch string, err error) {
+	var out struct {
+		LandedTo string `json:"landed_to"`
+		NodeID   string `json:"node_id"`
+	}
+	if err := c.do(http.MethodPost, "/api/v1/tickets/"+ticketID+"/land-to-parent", nil, &out); err != nil {
+		return "", err
+	}
+	return out.LandedTo, nil
+}
+
 // EscalateTicket records an escalation and opens a re-plan approval.
 func (c *Client) EscalateTicket(id, reason string) (*sqlite.Approval, error) {
 	var a sqlite.Approval
@@ -252,6 +285,58 @@ func (c *Client) EscalateTicket(id, reason string) (*sqlite.Approval, error) {
 		return nil, err
 	}
 	return &a, nil
+}
+
+// RaiseDecisionParams configures a consequential decision raised on a blocked
+// ticket (ADR 0052).
+type RaiseDecisionParams struct {
+	Title          string   `json:"title,omitempty"`
+	WorkType       string   `json:"work_type"`
+	RequestedActor string   `json:"requested_actor,omitempty"`
+	Statement      string   `json:"statement"`
+	Acceptance     []string `json:"acceptance,omitempty"`
+	RunID          string   `json:"run_id,omitempty"`
+	RequestedBy    string   `json:"requested_by,omitempty"`
+	Parent         string   `json:"parent,omitempty"`
+}
+
+// RaiseDecisionResult is the response from raising a decision.
+type RaiseDecisionResult struct {
+	BlockedTicket  string          `json:"blocked_ticket"`
+	DecisionTicket string          `json:"decision_ticket"`
+	Record         decision.Record `json:"record"`
+}
+
+// RaiseDecision creates a decision work node and links the blocked ticket to it
+// (ADR 0052).
+func (c *Client) RaiseDecision(blockedID string, p RaiseDecisionParams) (*RaiseDecisionResult, error) {
+	var out RaiseDecisionResult
+	if err := c.do(http.MethodPost, "/api/v1/tickets/"+blockedID+"/decision", p, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+// ResumePacket returns the durable resume packet for a node (ADR 0051) as raw
+// JSON, so the CLI can print it without coupling to the server's packet type.
+func (c *Client) ResumePacket(ticketID string) (json.RawMessage, error) {
+	var out json.RawMessage
+	if err := c.do(http.MethodGet, "/api/v1/tickets/"+ticketID+"/resume", nil, &out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// RequestInput records a bounded local input request without a work node (ADR 0052).
+func (c *Client) RequestInput(ticketID, statement, requestedBy string) (*decision.Record, error) {
+	var out struct {
+		Record decision.Record `json:"record"`
+	}
+	body := map[string]string{"statement": statement, "requested_by": requestedBy}
+	if err := c.do(http.MethodPost, "/api/v1/tickets/"+ticketID+"/input", body, &out); err != nil {
+		return nil, err
+	}
+	return &out.Record, nil
 }
 
 // ProposeEnvelope opens a human-gated approve_envelope approval for nodeID
@@ -331,6 +416,8 @@ func decodeError(resp *http.Response) error {
 		return sqlite.ErrSelfDependency
 	case "dependency_cycle":
 		return fmt.Errorf("%w: %s", sqlite.ErrDependencyCycle, env.Error.Message)
+	case "validation_gate":
+		return fmt.Errorf("%w: %s", sqlite.ErrValidationGate, env.Error.Message)
 	case "self_parent":
 		return sqlite.ErrSelfParent
 	case "parent_cycle":

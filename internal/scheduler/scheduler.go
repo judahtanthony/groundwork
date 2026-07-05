@@ -14,6 +14,8 @@ import (
 	"time"
 
 	"groundwork/internal/actor"
+	"groundwork/internal/completion"
+	"groundwork/internal/encoding"
 	"groundwork/internal/eventbus"
 	"groundwork/internal/policy"
 	"groundwork/internal/risk"
@@ -30,6 +32,25 @@ type Config struct {
 	Heartbeat      time.Duration
 	TickInterval   time.Duration
 	Model          string
+	RunLogDir      string // per-run events.ndjson root (.groundwork/runs); "" disables
+	TicketsDir     string // tickets dir for completion sidecars; "" disables auto-summary
+}
+
+// ClaimDecision is the result of envelope-aware AI claim authorization.
+type ClaimDecision int
+
+const (
+	ClaimDeny      ClaimDecision = iota // not authorized (trust or envelope denies)
+	ClaimAllow                          // trust AND envelope permit the claim
+	ClaimException                      // a boundary crossing raised a human approval
+)
+
+// EnvelopeGate composes trust policy with the active ancestor envelope for an AI
+// claim (ADR 0056). It is implemented by the coordinator (which owns envelopes)
+// and injected so the scheduler stays free of a server dependency. When unset,
+// the scheduler falls back to trust-only authorization (no envelope governance).
+type EnvelopeGate interface {
+	AuthorizeAIClaim(nodeID, action, workType string, a *actor.Actor) (ClaimDecision, error)
 }
 
 // Scheduler owns scheduling decisions and supervises runs.
@@ -40,11 +61,17 @@ type Scheduler struct {
 	rt       runtime.Runtime
 	bus      *eventbus.Hub
 	cfg      Config
+	envGate  EnvelopeGate
 
 	mu     sync.Mutex
 	active map[string]bool // ticketID -> in-flight in this process
 	wg     sync.WaitGroup
 }
+
+// SetEnvelopeGate installs the envelope-aware claim authorizer (ADR 0056). With
+// it set, AI claims require trust AND an active envelope, and boundary crossings
+// raise human exceptions instead of dispatching.
+func (s *Scheduler) SetEnvelopeGate(g EnvelopeGate) { s.envGate = g }
 
 // New builds a scheduler. bus may be nil (events are then only persisted).
 func New(db *sqlite.DB, policies *policy.Set, registry *actor.Registry, rt runtime.Runtime, bus *eventbus.Hub, cfg Config) *Scheduler {
@@ -187,6 +214,24 @@ func (s *Scheduler) selectActor(tk *ticket.Ticket) (*actor.Actor, run.Mode, stri
 		if !a.CanClaim(tk.WorkType) {
 			continue
 		}
+		// Envelope-aware path (ADR 0056): trust AND the active ancestor envelope
+		// must permit the claim; a boundary crossing raises a human exception and is
+		// not dispatched. Falls back to trust-only when no gate is installed.
+		if s.envGate != nil {
+			d, err := s.envGate.AuthorizeAIClaim(tk.ID, actionType, tk.WorkType, a)
+			if err != nil {
+				s.publish(eventbus.Event{Type: "scheduler.error", TicketID: tk.ID, Message: "claim authz: " + err.Error()})
+				continue
+			}
+			if d == ClaimAllow {
+				return a, mode, actionType
+			}
+			if d == ClaimException {
+				s.publish(eventbus.Event{Type: "claim.exception", TicketID: tk.ID,
+					Message: "AI claim exceeds envelope; raised exception approval"})
+			}
+			continue
+		}
 		action := policy.Action{Type: actionType, Actor: a, WorkType: tk.WorkType, Scope: risk.Scope{}}
 		if s.policies.AuthorizeClaim(action).Outcome == policy.OutcomeAllow {
 			return a, mode, actionType
@@ -209,10 +254,15 @@ func (s *Scheduler) supervise(ctx context.Context, r *sqlite.Run, ticketID, acto
 
 	sink := func(ev runtime.Event) {
 		_, _ = s.db.AppendRunEvent(r.ID, ev.Type, ev.Message, ev.Payload)
+		// Mirror to the per-run events.ndjson (ADR 0027); a log failure is observable
+		// but never fails the run.
+		if err := appendRunEventLog(s.cfg.RunLogDir, r.ID, ev); err != nil {
+			s.publish(eventbus.Event{Type: "run.error", RunID: r.ID, TicketID: ticketID, Message: "events.ndjson: " + err.Error()})
+		}
 		s.publish(eventbus.Event{Type: "run." + ev.Type, RunID: r.ID, TicketID: ticketID, Message: ev.Message})
 	}
 	spec := runtime.Spec{RunID: r.ID, TicketID: ticketID, Mode: r.Mode, ActorID: actorID,
-		Runtime: r.Runtime, Model: r.Model, Workspace: r.WorkspacePath}
+		Runtime: r.Runtime, Model: r.Model, Workspace: r.WorkspacePath, Prompt: s.buildPrompt(ticketID)}
 
 	res, err := s.rt.Run(ctx, spec, sink)
 	stopHB()
@@ -229,11 +279,68 @@ func (s *Scheduler) supervise(ctx context.Context, r *sqlite.Run, ticketID, acto
 		return
 	}
 
+	// Record the run's changed-file set (the authoritative diff for gate inputs,
+	// ADR 0059) and persist the full diff as run evidence.
+	if res.ChangedFiles != nil || res.Diff != "" {
+		s.cleanup("record changed files", r.ID, ticketID, s.db.SetRunChangedFiles(r.ID, res.ChangedFiles))
+		if res.Diff != "" {
+			s.cleanup("write diff artifact", r.ID, ticketID, writeRunDiff(s.cfg.RunLogDir, r.ID, res.Diff))
+		}
+	}
+
 	s.cleanup("complete run", r.ID, ticketID, s.db.SetRunStatus(r.ID, run.StatusCompleted, actorID))
+
+	// A blocked/escalated/input-required outcome ends with a durable handoff and
+	// moves the ticket to blocked — not review — so a later run can resume from
+	// durable state and the scheduler spends capacity elsewhere (ADR 0051). The
+	// handoff summary is written BEFORE the lease is released (ADR 0047).
+	if runtime.IsBlockedOutcome(res.Status) {
+		s.cleanup("record handoff", r.ID, ticketID,
+			s.db.RecordBlockedHandoff(ticketID, r.ID, res.Status, res.Statement, res.HandoffSummary))
+		s.cleanup("release lease", r.ID, ticketID, s.db.ReleaseLease(ticketID, r.ID))
+		s.cleanup("transition to blocked", r.ID, ticketID, s.db.TransitionTicket(ticketID, ticket.StatusBlocked, actorID))
+		s.publish(eventbus.Event{Type: "run.blocked", RunID: r.ID, TicketID: ticketID, Message: res.HandoffSummary})
+		return
+	}
+
+	// A runtime-produced result must carry a completion summary before review/
+	// landing (ADR 0047): write one from the run's evidence when none exists.
+	s.cleanup("write completion summary", r.ID, ticketID, s.writeCompletionSummary(ticketID, res))
+
 	s.cleanup("release lease", r.ID, ticketID, s.db.ReleaseLease(ticketID, r.ID))
 	// Prepared work (leaf) or a decomposition proposal (composite) awaits review.
 	s.cleanup("transition to review", r.ID, ticketID, s.db.TransitionTicket(ticketID, ticket.StatusReview, actorID))
 	s.publish(eventbus.Event{Type: "run.completed", RunID: r.ID, TicketID: ticketID, Message: res.LastMessage})
+}
+
+// writeCompletionSummary auto-generates a node's completion summary from a
+// produced run's evidence (changed files, validation, outcome) when none exists,
+// so runtime-produced results always carry the summary review/landing requires
+// (ADR 0047). A pre-existing (e.g. human-authored) summary is left untouched.
+func (s *Scheduler) writeCompletionSummary(ticketID string, res runtime.Result) error {
+	if s.cfg.TicketsDir == "" {
+		return nil
+	}
+	if _, ok, err := completion.Read(s.cfg.TicketsDir, ticketID); err != nil {
+		return err
+	} else if ok {
+		return nil
+	}
+	sum := &completion.Summary{
+		NodeID: ticketID, Outcome: res.Status, Changed: res.ChangedFiles, CreatedAt: encoding.Now(),
+	}
+	if res.LastMessage != "" {
+		sum.Decisions = []string{res.LastMessage}
+	}
+	if vals, err := s.db.ListValidationsForTicket(ticketID); err == nil {
+		for _, v := range vals {
+			sum.Validation = append(sum.Validation, completion.ValidationLine{Command: v.Name, Status: string(v.Status)})
+		}
+	}
+	if err := completion.Write(s.cfg.TicketsDir, sum); err != nil {
+		return err
+	}
+	return s.db.UpsertCompletionSummary(sum)
 }
 
 // cleanup publishes a run.error event when a best-effort post-run state change

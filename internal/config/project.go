@@ -97,6 +97,10 @@ func (p *Project) TicketsDir() string { return filepath.Join(p.Dir(), "tickets")
 // RunsDir returns the run-log directory (ignored runtime state).
 func (p *Project) RunsDir() string { return filepath.Join(p.Dir(), "runs") }
 
+// WorktreesDir returns the per-run isolated worktree root (ignored runtime state,
+// ADR 0059). Each run gets <WorktreesDir>/<run-id>.
+func (p *Project) WorktreesDir() string { return filepath.Join(p.Dir(), "worktrees") }
+
 // JournalDir returns the per-node decision-journal directory (tier-1 ephemeral,
 // ignored; ADR 0013).
 func (p *Project) JournalDir() string { return filepath.Join(p.RunsDir(), "journal") }

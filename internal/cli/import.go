@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 
+	"groundwork/internal/decision"
 	"groundwork/internal/exporter"
 	"groundwork/internal/store/sqlite"
 	"groundwork/internal/ticket"
@@ -55,6 +56,14 @@ func importExports(db *sqlite.DB, dir string) (int, error) {
 			return 0, nil
 		}
 		return 0, err
+	}
+
+	// Import IS the rebuild of files into the store; disable write-through for its
+	// duration so projecting imported rows back never rewrites the very sidecars
+	// being read (ADR 0053).
+	if saved := db.ExportDir(); saved != "" {
+		db.SetExportDir("")
+		defer db.SetExportDir(saved)
 	}
 
 	type entry struct {
@@ -150,6 +159,24 @@ func importExports(db *sqlite.DB, dir string) (int, error) {
 					continue // missing endpoint: tolerate, edge skipped
 				}
 				return inserted, fmt.Errorf("add dependency %s -> %s: %w", e.t.ID, dep, err)
+			}
+		}
+	}
+
+	// Durable decision records: rebuild the live projection from each ticket's
+	// decisions.ndjson sidecar (ADR 0051/0053). Sequences are preserved so a
+	// rebuilt store re-exports byte-for-byte.
+	for _, e := range entries {
+		recs, ok, err := decision.Read(dir, e.t.ID)
+		if err != nil {
+			return inserted, fmt.Errorf("read decisions %s: %w", e.t.ID, err)
+		}
+		if !ok {
+			continue
+		}
+		for _, rec := range recs {
+			if err := db.ImportDecision(rec); err != nil {
+				return inserted, fmt.Errorf("import decision %s seq %d: %w", e.t.ID, rec.Sequence, err)
 			}
 		}
 	}

@@ -1,0 +1,228 @@
+// Package worktree manages the per-run isolated git worktrees the Phase 6 runtime
+// executes in (ADR 0059). Each run gets a worktree at <worktreesDir>/<run-id> on
+// its own branch gw/run/<run-id> from a recorded base commit. The WIP chain can
+// be retained under refs/groundwork/runs/<run-id> before teardown so no work is
+// silently dropped, and orphaned worktrees reconcile against live run records.
+package worktree
+
+import (
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+
+	"groundwork/internal/git"
+)
+
+const (
+	branchPrefix = "gw/run/"
+	refPrefix    = "refs/groundwork/runs/"
+)
+
+// RunBranch is the branch name for a run's worktree.
+func RunBranch(runID string) string { return branchPrefix + runID }
+
+// RunRef is the throwaway ref namespace that retains a run's WIP checkpoint chain
+// after landing (ADR 0015/0059).
+func RunRef(runID string) string { return refPrefix + runID }
+
+// Manager provisions and tears down per-run worktrees under dir.
+type Manager struct {
+	repo *git.Repo
+	dir  string // worktrees root, e.g. .groundwork/worktrees
+}
+
+// NewManager builds a Manager rooted at the given worktrees directory.
+func NewManager(repo *git.Repo, worktreesDir string) *Manager {
+	return &Manager{repo: repo, dir: worktreesDir}
+}
+
+// Provisioned describes a live run worktree.
+type Provisioned struct {
+	RunID  string
+	Path   string // absolute worktree path
+	Branch string // gw/run/<run-id>
+	Base   string // base commit the branch was cut from
+}
+
+// Path returns the worktree path for a run.
+func (m *Manager) Path(runID string) string { return filepath.Join(m.dir, runID) }
+
+// Provision creates the run's branch at base and checks it out in a fresh
+// worktree under the worktrees dir (ADR 0059). base may be a commit or ref; ""
+// uses HEAD. It fails if the worktree already exists.
+func (m *Manager) Provision(runID, base string) (*Provisioned, error) {
+	if runID == "" {
+		return nil, fmt.Errorf("worktree: run id is required")
+	}
+	path := m.Path(runID)
+	if _, err := os.Stat(path); err == nil {
+		return nil, fmt.Errorf("worktree: %s already exists", path)
+	}
+	if err := os.MkdirAll(m.dir, 0o755); err != nil {
+		return nil, err
+	}
+	branch := RunBranch(runID)
+	if err := m.repo.WorktreeAdd(path, branch, base); err != nil {
+		return nil, err
+	}
+	return &Provisioned{RunID: runID, Path: path, Branch: branch, Base: base}, nil
+}
+
+// Diff captures the run's changed-file set and unified diff against base from its
+// worktree (ADR 0059). It stages the worktree (so new files count) then diffs the
+// index against base, so it works whether or not checkpoints have been committed.
+// base "" compares against the worktree HEAD (the provisioned base commit).
+func (m *Manager) Diff(runID, base string) (files []string, diff string, err error) {
+	wt, err := git.Open(m.Path(runID))
+	if err != nil {
+		return nil, "", err
+	}
+	if err := wt.AddAll(); err != nil {
+		return nil, "", err
+	}
+	files, err = wt.DiffCachedNameOnly(base)
+	if err != nil {
+		return nil, "", err
+	}
+	diff, err = wt.DiffCached(base)
+	if err != nil {
+		return nil, "", err
+	}
+	return files, diff, nil
+}
+
+// Checkpoint commits the run worktree's current work as a WIP checkpoint on its
+// gw/run/<run-id> branch (ADR 0015), so the work is durable on the branch for
+// landing (squash) and resume. Returns the commit sha, or "" when there is
+// nothing to commit. It never touches main or the integration branch.
+func (m *Manager) Checkpoint(runID, message string) (string, error) {
+	wt, err := git.Open(m.Path(runID))
+	if err != nil {
+		return "", err
+	}
+	if err := wt.AddAll(); err != nil {
+		return "", err
+	}
+	staged, err := wt.HasStagedChanges()
+	if err != nil {
+		return "", err
+	}
+	if !staged {
+		return "", nil
+	}
+	if message == "" {
+		message = "wip checkpoint " + runID
+	}
+	return wt.Commit(message)
+}
+
+// Retain saves the run branch's current tip under refs/groundwork/runs/<run-id>
+// so the WIP checkpoint chain survives teardown (ADR 0015). A no-op when the
+// branch does not exist.
+func (m *Manager) Retain(runID string) error {
+	branch := RunBranch(runID)
+	if !m.repo.BranchExists(branch) {
+		return nil
+	}
+	return m.repo.UpdateRef(RunRef(runID), branch)
+}
+
+// RemoveWorktree removes a run's worktree directory but KEEPS its gw/run/<id>
+// branch, so the run's checkpoint commits survive for landing (squash) or resume
+// (ADR 0059/0015). force discards an uncommitted worktree. Tolerates an
+// already-gone directory and prunes stale metadata.
+func (m *Manager) RemoveWorktree(runID string, force bool) error {
+	path := m.Path(runID)
+	if _, err := os.Stat(path); err == nil {
+		if err := m.repo.WorktreeRemove(path, force); err != nil {
+			return err
+		}
+	}
+	_ = m.repo.WorktreePrune()
+	return nil
+}
+
+// DeleteRunBranch force-deletes a run's branch (its content has squash-landed or
+// is retained under the run ref). A no-op when the branch is gone.
+func (m *Manager) DeleteRunBranch(runID string) error {
+	branch := RunBranch(runID)
+	if m.repo.BranchExists(branch) {
+		return m.repo.DeleteBranchForce(branch)
+	}
+	return nil
+}
+
+// Teardown fully removes a run's worktree and branch. force discards an
+// un-landed worktree; callers that must not lose work call Retain first (ADR 0059).
+func (m *Manager) Teardown(runID string, force bool) error {
+	if err := m.RemoveWorktree(runID, force); err != nil {
+		return err
+	}
+	return m.DeleteRunBranch(runID)
+}
+
+// List returns the run ids that currently have a worktree directory.
+func (m *Manager) List() ([]string, error) {
+	entries, err := os.ReadDir(m.dir)
+	if os.IsNotExist(err) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	var ids []string
+	for _, e := range entries {
+		if e.IsDir() {
+			ids = append(ids, e.Name())
+		}
+	}
+	return ids, nil
+}
+
+// Reconcile removes worktrees whose run is no longer active (ADR 0059 recovery):
+// each orphan's WIP is first retained under its run ref so nothing is dropped,
+// then its worktree and branch are removed. Returns the reclaimed run ids.
+func (m *Manager) Reconcile(active map[string]bool) ([]string, error) {
+	ids, err := m.List()
+	if err != nil {
+		return nil, err
+	}
+	var reclaimed []string
+	for _, id := range ids {
+		if active[id] {
+			continue
+		}
+		if err := m.Retain(id); err != nil {
+			return reclaimed, err
+		}
+		if err := m.Teardown(id, true); err != nil {
+			return reclaimed, err
+		}
+		reclaimed = append(reclaimed, id)
+	}
+	return reclaimed, nil
+}
+
+// CheckpointBase returns the git ref a resuming run should branch from to
+// continue a prior run's in-flight work (T-0904, ADR 0015): the prior run's
+// gw/run/<id> branch if it still exists, else its retained
+// refs/groundwork/runs/<id> chain. ok is false when neither exists (nothing to
+// resume) and the caller should cut from the integration base instead.
+func (m *Manager) CheckpointBase(priorRunID string) (ref string, ok bool) {
+	if priorRunID == "" {
+		return "", false
+	}
+	if branch := RunBranch(priorRunID); m.repo.BranchExists(branch) {
+		return branch, true
+	}
+	if r := RunRef(priorRunID); m.repo.RefExists(r) {
+		return r, true
+	}
+	return "", false
+}
+
+// IsRunWorktreePath reports whether p looks like a managed run worktree path.
+func (m *Manager) IsRunWorktreePath(p string) bool {
+	return strings.HasPrefix(filepath.Clean(p), filepath.Clean(m.dir)+string(filepath.Separator))
+}

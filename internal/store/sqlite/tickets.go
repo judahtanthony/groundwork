@@ -96,7 +96,7 @@ func (db *DB) CreateTicket(t *ticket.Ticket, actor string) error {
 	now := encoding.Now()
 	t.CreatedAt, t.UpdatedAt = now, now
 
-	return db.withTx(func(tx *sql.Tx) error {
+	if err := db.withTx(func(tx *sql.Tx) error {
 		if t.ID == "" {
 			id, err := nextTicketID(tx)
 			if err != nil {
@@ -126,7 +126,10 @@ func (db *DB) CreateTicket(t *ticket.Ticket, actor string) error {
 			"title":  t.Title,
 			"status": t.Status,
 		})
-	})
+	}); err != nil {
+		return err
+	}
+	return db.writeThrough(t.ID)
 }
 
 // GetTicket returns the ticket with the given id, or ErrNotFound.
@@ -168,7 +171,7 @@ func (db *DB) UpdateTicket(t *ticket.Ticket, actor string) error {
 		return err
 	}
 	t.UpdatedAt = encoding.Now()
-	return db.withTx(func(tx *sql.Tx) error {
+	if err := db.withTx(func(tx *sql.Tx) error {
 		labels, acceptance, err := marshalLists(t)
 		if err != nil {
 			return err
@@ -188,7 +191,10 @@ func (db *DB) UpdateTicket(t *ticket.Ticket, actor string) error {
 			return ErrNotFound
 		}
 		return appendAudit(tx, actor, "ticket.updated", "ticket", t.ID, nil)
-	})
+	}); err != nil {
+		return err
+	}
+	return db.writeThrough(t.ID)
 }
 
 // --- helpers ---

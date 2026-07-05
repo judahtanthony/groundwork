@@ -13,6 +13,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"sync"
 	"time"
 
 	"groundwork/internal/actor"
@@ -37,7 +38,8 @@ type Server struct {
 	sched     Dispatcher
 	bus       *eventbus.Hub
 	approvals *ApprovalService
-	repo      *git.Repo // nil when the project root is not a git work tree
+	repo      *git.Repo  // nil when the project root is not a git work tree
+	repoMu    sync.Mutex // serializes mutations of the shared main working tree
 }
 
 // New builds a coordinator server over the given store and project. version is
@@ -92,9 +94,13 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("POST /api/v1/runs/{id}/cancel", s.handleRunCancel)
 	s.mux.HandleFunc("POST /api/v1/tickets/{id}/decompose", s.handleTicketDecompose)
 	s.mux.HandleFunc("POST /api/v1/tickets/{id}/escalate", s.handleTicketEscalate)
+	s.mux.HandleFunc("POST /api/v1/tickets/{id}/decision", s.handleTicketRaiseDecision)
+	s.mux.HandleFunc("POST /api/v1/tickets/{id}/input", s.handleTicketRequestInput)
+	s.mux.HandleFunc("GET /api/v1/tickets/{id}/resume", s.handleTicketResume)
 	s.mux.HandleFunc("GET /api/v1/tickets/{id}/validations", s.handleTicketValidations)
 	s.mux.HandleFunc("POST /api/v1/tickets/{id}/validations", s.handleRecordValidation)
 	s.mux.HandleFunc("GET /api/v1/tickets/{id}/land/preview", s.handleTicketLandPreview)
+	s.mux.HandleFunc("GET /api/v1/tickets/{id}/land/route", s.handleTicketLandRoute)
 	s.mux.HandleFunc("POST /api/v1/tickets/{id}/land", s.handleTicketLand)
 	s.mux.HandleFunc("POST /api/v1/tickets/{id}/land-to-parent", s.handleTicketLandToParent)
 	s.mux.HandleFunc("POST /api/v1/tickets/{id}/envelope", s.handleEnvelopePropose)

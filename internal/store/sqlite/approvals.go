@@ -195,6 +195,19 @@ func (db *DB) ListApprovals(status string) ([]*Approval, error) {
 	return out, rows.Err()
 }
 
+// HasOpenApprovalOfType reports whether a node already has a pending approval of
+// the given type. Used to dedup repeatedly-raised exceptions so a node that keeps
+// failing a gate does not flood the queue (one open request per node/type).
+func (db *DB) HasOpenApprovalOfType(ticketID string, typ approval.Type) (bool, error) {
+	var n int
+	err := db.QueryRow(`SELECT COUNT(*) FROM approvals WHERE ticket_id=? AND type=? AND status=?`,
+		ticketID, string(typ), string(approval.StatusPending)).Scan(&n)
+	if err != nil {
+		return false, err
+	}
+	return n > 0, nil
+}
+
 // txGetApproval loads an approval within a transaction.
 func txGetApproval(tx *sql.Tx, id string) (*Approval, error) {
 	return scanApproval(tx.QueryRow(`SELECT `+approvalColumns+` FROM approvals WHERE id=?`, id))
