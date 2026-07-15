@@ -11,3 +11,11 @@ templates:
     required:
       - name: go_tests
         command: "go test ./..."
+  web:
+    # The embedded SPA lives under web/ (Vite; built to static assets, go:embed'd).
+    match:
+      files: ["web/**"]
+    required:
+      - name: web_build
+        command: "npm --prefix web ci && npm --prefix web run build"
+    landing_risk_floor: low
