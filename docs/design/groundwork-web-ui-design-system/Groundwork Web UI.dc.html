@@ -1,0 +1,1088 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="tokens/groundwork-ui.css">
+<style>
+  html, body { margin: 0; padding: 0; background: #16171A; }
+  .doc-scroll { scroll-behavior: smooth; }
+  ::-webkit-scrollbar { width: 11px; height: 11px; }
+  ::-webkit-scrollbar-thumb { background: var(--gw-border-2); border-radius: 6px; border: 3px solid transparent; background-clip: padding-box; }
+</style>
+</helmet>
+
+<div class="gw doc-scroll" data-theme="{{ theme }}" style="--gw-accent:{{ accent }}; min-height:100vh; background:var(--gw-bg); scroll-padding-top:64px;">
+
+  <!-- ============ TOP BAR ============ -->
+  <div style="position:sticky; top:0; z-index:30; display:flex; align-items:center; gap:16px; height:56px; padding:0 22px; background:color-mix(in oklab, var(--gw-bg) 82%, transparent); backdrop-filter:blur(12px); border-bottom:1px solid var(--gw-border);">
+    <div style="display:flex; align-items:center; gap:10px;">
+      <svg width="26" height="26" viewBox="0 0 28 28" fill="none"><rect x="1" y="1" width="26" height="26" rx="6" fill="var(--gw-shell-2)" stroke="var(--gw-shell-border)"></rect><path d="M5 18.5h18" stroke="var(--gw-on-shell)" stroke-width="1.6" stroke-linecap="round" opacity=".55"></path><path d="M5 14.5h18" stroke="var(--gw-on-shell)" stroke-width="1.6" stroke-linecap="round" opacity=".8"></path><path d="M5 10.5h18" stroke="#9c4b3b" stroke-width="1.8" stroke-linecap="round"></path><circle cx="14" cy="10.5" r="2.1" fill="#9c4b3b" stroke="var(--gw-shell-2)" stroke-width="1.4"></circle></svg>
+      <div>
+        <div style="font-size:14px; font-weight:600; letter-spacing:-0.01em;">Groundwork</div>
+        <div class="gw-mono" style="font-size:9.5px; letter-spacing:.14em; text-transform:uppercase; color:var(--gw-fg-subtle); margin-top:-1px;">Web UI · Design System v1</div>
+      </div>
+    </div>
+
+    <nav style="display:flex; align-items:center; gap:2px; margin-left:14px;">
+      <a href="#foundations" style="padding:6px 11px; border-radius:5px; font-size:12.5px; font-weight:500; color:var(--gw-fg-muted);">Foundations</a>
+      <a href="#components" style="padding:6px 11px; border-radius:5px; font-size:12.5px; font-weight:500; color:var(--gw-fg-muted);">Components</a>
+      <a href="#board" style="padding:6px 11px; border-radius:5px; font-size:12.5px; font-weight:500; color:var(--gw-fg-muted);">Roots board</a>
+      <a href="#nodeview" style="padding:6px 11px; border-radius:5px; font-size:12.5px; font-weight:500; color:var(--gw-fg-muted);">Node view</a>
+      <a href="#lenses" style="padding:6px 11px; border-radius:5px; font-size:12.5px; font-weight:500; color:var(--gw-fg-muted);">Lenses</a>
+      <a href="#states" style="padding:6px 11px; border-radius:5px; font-size:12.5px; font-weight:500; color:var(--gw-fg-muted);">States</a>
+      <a href="#tokens" style="padding:6px 11px; border-radius:5px; font-size:12.5px; font-weight:500; color:var(--gw-fg-muted);">Tokens</a>
+    </nav>
+
+    <div style="flex:1;"></div>
+
+    <div class="gw-search" onClick="{{ openCmdk }}" style="cursor:pointer; flex:0 0 auto; min-width:0; width:210px;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14z"></path><path d="M20 20l-3.5-3.5"></path></svg>
+      Jump to root or node
+      <span class="gw-kbd">⌘K</span>
+    </div>
+
+    <div onClick="{{ toggleTheme }}" title="Toggle light / dark" style="display:inline-flex; align-items:center; gap:7px; height:34px; padding:0 12px; border-radius:5px; border:1px solid var(--gw-border-2); background:var(--gw-surface); cursor:pointer; font-size:12px; font-weight:500; color:var(--gw-fg-muted);">
+      <span>{{ themeIcon }}</span>{{ themeLabel }}
+    </div>
+  </div>
+
+  <!-- ============ COMMAND PALETTE ============ -->
+  <sc-if value="{{ cmdk }}" hint-placeholder-val="{{ false }}">
+    <div class="gw-cmdk-scrim" onClick="{{ closeCmdk }}">
+      <div class="gw-cmdk" onClick="{{ stop }}">
+        <div class="gw-cmdk-input">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14z"></path><path d="M20 20l-3.5-3.5"></path></svg>
+          <input placeholder="Search all roots and nodes by id or title…" value="{{ query }}" onInput="{{ onQuery }}" autofocus="true">
+          <span class="scope">Global</span>
+        </div>
+        <div style="max-height:340px; overflow:auto;">
+          <div class="gw-cmdk-sect">Roots</div>
+          <sc-for list="{{ cmdkRoots }}" as="row" hint-placeholder-count="2">
+            <div class="gw-cmdk-item" onClick="{{ row.go }}">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l9 5-9 5-9-5z"></path><path d="M3 13l9 5 9-5"></path></svg>
+              <span class="ck-id">{{ row.id }}</span><span class="ck-title">{{ row.title }}</span><span class="ck-kind">{{ row.kind }}</span>
+            </div>
+          </sc-for>
+          <div class="gw-cmdk-sect">Nodes</div>
+          <sc-for list="{{ cmdkNodes }}" as="row" hint-placeholder-count="4">
+            <div class="gw-cmdk-item" onClick="{{ row.go }}">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v2a2 2 0 0 0 0 4v2a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-2a2 2 0 0 0 0-4z"></path></svg>
+              <span class="ck-id">{{ row.id }}</span><span class="ck-title">{{ row.title }}</span><span class="ck-kind">{{ row.kind }}</span>
+            </div>
+          </sc-for>
+        </div>
+        <div class="gw-cmdk-foot">
+          <span><span class="kk">↑↓</span>navigate</span>
+          <span><span class="kk">↵</span>open</span>
+          <span><span class="kk">esc</span>close</span>
+          <span style="margin-left:auto; color:var(--gw-fg-subtle);">Searches globally · scope to subtree is a filter, not the default</span>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <div style="max-width:1280px; margin:0 auto; padding:0 32px 120px;">
+
+    <!-- ============ COVER ============ -->
+    <header style="padding:56px 0 40px; border-bottom:1px solid var(--gw-border);">
+      <div class="gw-eyebrow" style="color:var(--gw-accent-line);">Local-first agent control plane · human web UI</div>
+      <h1 style="font-family:var(--gw-ui); font-size:34px; font-weight:700; letter-spacing:-0.025em; margin-top:12px; max-width:780px; line-height:1.15;">A focused developer tool for planning and supervising AI coding agents.</h1>
+      <p class="gw-muted" style="font-size:14.5px; line-height:1.6; max-width:640px; margin-top:14px;">A human plans and reviews work as a DAG of work-nodes; agents execute inside approved envelopes. This system defines the visual language, component library, and the two surfaces — the <b style="color:var(--gw-fg); font-weight:600;">Roots board</b> and the <b style="color:var(--gw-fg); font-weight:600;">up·here·down node view</b> — plus the load-bearing interactions and every state. Built to ship as a static SPA embedded in one binary.</p>
+      <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:22px;">
+        <span class="gw-chip">Static Vite SPA · go:embed</span>
+        <span class="gw-chip">Request/response + light polling</span>
+        <span class="gw-chip">Server is source of truth</span>
+        <span class="gw-chip">CLI parity</span>
+        <span class="gw-chip">Light + dark · WCAG-AA</span>
+      </div>
+    </header>
+
+    <!-- ============ FOUNDATIONS ============ -->
+    <section id="foundations" style="padding:44px 0 8px;">
+      <div class="gw-eyebrow">01 — Foundations</div>
+      <h2 style="font-family:var(--gw-ui); font-size:24px; font-weight:700; letter-spacing:-0.02em; margin-top:8px;">Color, type, space, elevation</h2>
+      <p class="gw-muted" style="font-size:13.5px; margin-top:8px; max-width:620px;">Warm-neutral surfaces, a charcoal shell, and one rationed accent — oxblood. The semantic palette is small and muted so status reads without shouting. Both themes below track a single set of tokens.</p>
+
+      <!-- color -->
+      <div class="gw-sect-label" style="margin-top:30px;">Surfaces &amp; text — light / dark</div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+        <div class="gw-panel" style="overflow:hidden;">
+          <div class="gw-panel-head"><h3>Light</h3><span class="gw-spacer"></span><span class="gw-mono gw-subtle" style="font-size:10.5px;">default</span></div>
+          <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:0;">
+            <div style="height:64px; background:#F4F2EE; border-right:1px solid var(--gw-border); border-bottom:1px solid var(--gw-border); display:flex; align-items:flex-end; padding:6px;"><span class="gw-mono" style="font-size:9px; color:#6B6F76;">bg</span></div>
+            <div style="height:64px; background:#FFFFFF; border-right:1px solid var(--gw-border); border-bottom:1px solid var(--gw-border); display:flex; align-items:flex-end; padding:6px;"><span class="gw-mono" style="font-size:9px; color:#6B6F76;">surface</span></div>
+            <div style="height:64px; background:#F6F4F0; border-right:1px solid var(--gw-border); border-bottom:1px solid var(--gw-border); display:flex; align-items:flex-end; padding:6px;"><span class="gw-mono" style="font-size:9px; color:#6B6F76;">surface-2</span></div>
+            <div style="height:64px; background:#EDEAE3; border-bottom:1px solid var(--gw-border); display:flex; align-items:flex-end; padding:6px;"><span class="gw-mono" style="font-size:9px; color:#6B6F76;">surface-3</span></div>
+            <div style="height:52px; background:#1E1F21; display:flex; align-items:flex-end; padding:6px;"><span class="gw-mono" style="font-size:9px; color:#9A9CA1;">shell</span></div>
+            <div style="height:52px; background:#1E1F21; display:flex; align-items:center; padding:6px;"><span style="font-size:11px; color:#1E1F21; background:#F4F2EE; padding:1px 5px; border-radius:3px;">fg</span></div>
+            <div style="height:52px; background:#1E1F21; display:flex; align-items:center; padding:6px;"><span style="font-size:11px; color:#6B6F76; background:#F4F2EE; padding:1px 5px; border-radius:3px;">muted</span></div>
+            <div style="height:52px; background:#6B1D1F; display:flex; align-items:flex-end; padding:6px;"><span class="gw-mono" style="font-size:9px; color:#F3F0E8;">accent</span></div>
+          </div>
+        </div>
+        <div class="gw-panel" style="overflow:hidden;">
+          <div class="gw-panel-head"><h3>Dark</h3><span class="gw-spacer"></span><span class="gw-mono gw-subtle" style="font-size:10.5px;">[data-theme=dark]</span></div>
+          <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:0;">
+            <div style="height:64px; background:#16171A; border-right:1px solid #2C2E32; border-bottom:1px solid #2C2E32; display:flex; align-items:flex-end; padding:6px;"><span class="gw-mono" style="font-size:9px; color:#A6A29A;">bg</span></div>
+            <div style="height:64px; background:#1E1F22; border-right:1px solid #2C2E32; border-bottom:1px solid #2C2E32; display:flex; align-items:flex-end; padding:6px;"><span class="gw-mono" style="font-size:9px; color:#A6A29A;">surface</span></div>
+            <div style="height:64px; background:#24262A; border-right:1px solid #2C2E32; border-bottom:1px solid #2C2E32; display:flex; align-items:flex-end; padding:6px;"><span class="gw-mono" style="font-size:9px; color:#A6A29A;">surface-2</span></div>
+            <div style="height:64px; background:#2B2D31; border-bottom:1px solid #2C2E32; display:flex; align-items:flex-end; padding:6px;"><span class="gw-mono" style="font-size:9px; color:#A6A29A;">surface-3</span></div>
+            <div style="height:52px; background:#101113; display:flex; align-items:flex-end; padding:6px;"><span class="gw-mono" style="font-size:9px; color:#8C8E93;">shell</span></div>
+            <div style="height:52px; background:#101113; display:flex; align-items:center; padding:6px;"><span style="font-size:11px; color:#16171A; background:#E9E5DC; padding:1px 5px; border-radius:3px;">fg</span></div>
+            <div style="height:52px; background:#101113; display:flex; align-items:center; padding:6px;"><span style="font-size:11px; color:#A6A29A; background:#24262A; padding:1px 5px; border-radius:3px;">muted</span></div>
+            <div style="height:52px; background:#6B1D1F; display:flex; align-items:flex-end; padding:6px;"><span class="gw-mono" style="font-size:9px; color:#F3F0E8;">accent</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- semantic -->
+      <div class="gw-sect-label" style="margin-top:26px;">Semantic palette <span style="text-transform:none; letter-spacing:0; color:var(--gw-fg-subtle);">— muted, distinct, adapts per theme</span></div>
+      <div style="display:flex; gap:10px; flex-wrap:wrap;">
+        <span class="gw-badge ok"><i class="bdot"></i>Healthy / pass</span>
+        <span class="gw-badge warn"><i class="bdot"></i>Waiting / attention</span>
+        <span class="gw-badge bad"><i class="bdot"></i>Blocked / fail</span>
+        <span class="gw-badge run"><i class="bdot"></i>Active run</span>
+        <span class="gw-badge idle"><i class="bdot"></i>Settled / idle</span>
+        <span style="width:1px; background:var(--gw-border); margin:0 4px;"></span>
+        <span class="gw-risk low"><span class="rbar"><i style="width:22%"></i></span>22</span>
+        <span class="gw-risk med"><span class="rbar"><i style="width:58%"></i></span>58</span>
+        <span class="gw-risk high"><span class="rbar"><i style="width:82%"></i></span>82</span>
+      </div>
+
+      <!-- type + space + elevation -->
+      <div style="display:grid; grid-template-columns:1.3fr 1fr; gap:16px; margin-top:26px;">
+        <div class="gw-panel">
+          <div class="gw-panel-head"><h3>Type</h3><span class="gw-spacer"></span><span class="gw-mono gw-subtle" style="font-size:10.5px;">Inter · IBM Plex Mono</span></div>
+          <div class="gw-panel-body" style="display:flex; flex-direction:column; gap:14px;">
+            <div style="display:flex; align-items:baseline; gap:14px;"><span class="gw-mono gw-subtle" style="font-size:10px; flex:0 0 80px;">24 / 700</span><span style="font-size:24px; font-weight:700; letter-spacing:-0.02em;">Page title</span></div>
+            <div style="display:flex; align-items:baseline; gap:14px;"><span class="gw-mono gw-subtle" style="font-size:10px; flex:0 0 80px;">20 / 600</span><span style="font-size:20px; font-weight:600; letter-spacing:-0.01em;">Focused node</span></div>
+            <div style="display:flex; align-items:baseline; gap:14px;"><span class="gw-mono gw-subtle" style="font-size:10px; flex:0 0 80px;">13.5 / 600</span><span style="font-size:13.5px; font-weight:600;">Panel heading &amp; row title</span></div>
+            <div style="display:flex; align-items:baseline; gap:14px;"><span class="gw-mono gw-subtle" style="font-size:10px; flex:0 0 80px;">13 / 400</span><span style="font-size:13px;">Body copy — the working density of the tool</span></div>
+            <div style="display:flex; align-items:baseline; gap:14px;"><span class="gw-mono gw-subtle" style="font-size:10px; flex:0 0 80px;">10 / mono</span><span class="gw-mono" style="font-size:10px; letter-spacing:.12em; text-transform:uppercase; color:var(--gw-fg-subtle);">Eyebrow · id · coordinate</span></div>
+          </div>
+        </div>
+        <div class="gw-panel">
+          <div class="gw-panel-head"><h3>Space · radius · elevation</h3></div>
+          <div class="gw-panel-body" style="display:flex; flex-direction:column; gap:16px;">
+            <div style="display:flex; align-items:flex-end; gap:6px;">
+              <div style="width:4px; height:4px; background:var(--gw-accent-line);"></div>
+              <div style="width:8px; height:8px; background:var(--gw-accent-line);"></div>
+              <div style="width:12px; height:12px; background:var(--gw-accent-line);"></div>
+              <div style="width:16px; height:16px; background:var(--gw-accent-line);"></div>
+              <div style="width:24px; height:24px; background:var(--gw-accent-line);"></div>
+              <div style="width:32px; height:32px; background:var(--gw-accent-line);"></div>
+              <span class="gw-mono gw-subtle" style="font-size:10px; margin-left:6px;">8pt · 4→32</span>
+            </div>
+            <div style="display:flex; align-items:center; gap:10px;">
+              <div style="width:38px; height:30px; border:1px solid var(--gw-border-2); border-radius:5px; background:var(--gw-surface-2);"></div>
+              <span class="gw-mono gw-subtle" style="font-size:10px;">r-sm 5</span>
+              <div style="width:38px; height:30px; border:1px solid var(--gw-border-2); border-radius:8px; background:var(--gw-surface-2);"></div>
+              <span class="gw-mono gw-subtle" style="font-size:10px;">r 8 · max</span>
+            </div>
+            <div style="display:flex; align-items:center; gap:14px;">
+              <div style="width:52px; height:34px; border-radius:6px; background:var(--gw-surface); box-shadow:var(--gw-sh-1);"></div>
+              <div style="width:52px; height:34px; border-radius:6px; background:var(--gw-surface); box-shadow:var(--gw-sh-2);"></div>
+              <div style="width:52px; height:34px; border-radius:6px; background:var(--gw-surface); box-shadow:var(--gw-sh-3);"></div>
+              <span class="gw-mono gw-subtle" style="font-size:10px;">sh 1 · 2 · 3</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ COMPONENTS ============ -->
+    <section id="components" style="padding:44px 0 8px; border-top:1px solid var(--gw-border); margin-top:44px;">
+      <div class="gw-eyebrow">02 — Component library</div>
+      <h2 style="font-family:var(--gw-ui); font-size:24px; font-weight:700; letter-spacing:-0.02em; margin-top:8px;">The working parts</h2>
+      <p class="gw-muted" style="font-size:13.5px; margin-top:8px; max-width:640px;">Every screen is assembled from these. The model-specific primitives — node-type, dependency, autonomy, actor, provenance — are what make this a work-node control plane and not a generic tracker.</p>
+
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:26px; align-items:start;">
+
+        <!-- buttons -->
+        <div class="gw-panel">
+          <div class="gw-panel-head"><h3>Buttons</h3></div>
+          <div class="gw-panel-body" style="display:flex; flex-wrap:wrap; gap:8px; align-items:center;">
+            <button class="gw-btn primary">Approve for landing</button>
+            <button class="gw-btn">Request breakdown</button>
+            <button class="gw-btn danger">Reject</button>
+            <button class="gw-btn ghost">Clarify</button>
+            <button class="gw-btn sm">Small</button>
+            <button class="gw-btn" disabled="true">Claim · ineligible</button>
+            <span class="gw-icon-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h.01M12 12h.01M19 12h.01"></path></svg></span>
+          </div>
+        </div>
+
+        <!-- status + validation + risk -->
+        <div class="gw-panel">
+          <div class="gw-panel-head"><h3>Status · validation · risk</h3></div>
+          <div class="gw-panel-body" style="display:flex; flex-wrap:wrap; gap:8px; align-items:center;">
+            <span class="gw-badge run"><i class="bdot"></i>In progress</span>
+            <span class="gw-badge warn"><i class="bdot"></i>In review</span>
+            <span class="gw-badge ok"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 6"></path></svg>32 passing</span>
+            <span class="gw-badge bad"><i class="bdot"></i>Blocked</span>
+            <span class="gw-badge idle"><i class="bdot"></i>Done</span>
+            <span class="gw-risk high"><span class="rbar"><i style="width:72%"></i></span>72</span>
+          </div>
+        </div>
+
+        <!-- node-type + kind -->
+        <div class="gw-panel">
+          <div class="gw-panel-head"><h3>Node-type &amp; kind</h3><span class="gw-spacer"></span><span class="gw-mono gw-subtle" style="font-size:10px;">structure over label</span></div>
+          <div class="gw-panel-body" style="display:flex; flex-direction:column; gap:12px;">
+            <div style="display:flex; align-items:center; gap:10px;">
+              <span class="gw-ntype composite"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l9 5-9 5-9-5z"></path><path d="M3 13l9 5 9-5"></path></svg>Composite</span>
+              <span class="gw-kind">goal</span>
+              <span class="gw-muted" style="font-size:11.5px;">has children + a contract</span>
+            </div>
+            <div style="display:flex; align-items:center; gap:10px;">
+              <span class="gw-ntype"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h7l4 4v14H7z"></path><path d="M14 3v4h4"></path></svg>Leaf</span>
+              <span class="gw-kind">task</span>
+              <span class="gw-muted" style="font-size:11.5px;">one verifiable change</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- dependency + waiting -->
+        <div class="gw-panel">
+          <div class="gw-panel-head"><h3>Dependency · waiting · blocked</h3></div>
+          <div class="gw-panel-body" style="display:flex; flex-direction:column; gap:12px;">
+            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+              <span class="gw-dep blocked-by"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M6 10h12v10H6z"></path><path d="M8 10V7a4 4 0 0 1 8 0v3"></path></svg>blocked-by 2</span>
+              <span class="gw-dep"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h15M13 5l7 7-7 7"></path></svg>blocks 1</span>
+            </div>
+            <div style="display:flex; align-items:center; gap:10px;">
+              <span class="gw-wait"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 10h12v10H6z"></path><path d="M8 10V7a4 4 0 0 1 8 0v3"></path></svg>Waiting</span>
+              <span class="gw-muted" style="font-size:11.5px;">eligible but deps-gated — <b style="color:var(--gw-warn); font-weight:600;">amber</b>, not the red of <span class="gw-badge bad" style="height:18px;"><i class="bdot"></i>Blocked</span></span>
+            </div>
+          </div>
+        </div>
+
+        <!-- autonomy -->
+        <div class="gw-panel">
+          <div class="gw-panel-head"><h3>Autonomy ladder</h3><span class="gw-spacer"></span><span class="gw-mono gw-subtle" style="font-size:10px;">per gated action</span></div>
+          <div class="gw-panel-body" style="display:flex; flex-direction:column; gap:10px;">
+            <div style="display:flex; align-items:center; gap:9px;"><span class="gw-auto human">Human-required</span><span class="gw-muted" style="font-size:11.5px;">land_to_main — always gated in v1</span></div>
+            <div style="display:flex; align-items:center; gap:9px;"><span class="gw-auto reviewer">Reviewer</span><span class="gw-muted" style="font-size:11.5px;">Phase 2 · disabled in v1</span></div>
+            <div style="display:flex; align-items:center; gap:9px;"><span class="gw-auto auto">Auto</span><span class="gw-muted" style="font-size:11.5px;">SOP + context + validations mature</span></div>
+          </div>
+        </div>
+
+        <!-- actors -->
+        <div class="gw-panel">
+          <div class="gw-panel-head"><h3>Actor badges</h3><span class="gw-spacer"></span><span class="gw-mono gw-subtle" style="font-size:10px;">creator provenance</span></div>
+          <div class="gw-panel-body" style="display:flex; flex-wrap:wrap; gap:8px; align-items:center;">
+            <span class="gw-actor human"><span class="adot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8z"></path><path d="M4 21a8 8 0 0 1 16 0"></path></svg></span>You</span>
+            <span class="gw-actor ai"><span class="adot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7h10v10H7z"></path><path d="M9 4v3M15 4v3M9 17v3M15 17v3"></path></svg></span>AI · planner</span>
+            <span class="gw-actor ai"><span class="adot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7h10v10H7z"></path></svg></span>AI · coder</span>
+            <span class="gw-actor judge"><span class="adot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z"></path></svg></span>AI · reviewer</span>
+          </div>
+        </div>
+
+        <!-- inputs -->
+        <div class="gw-panel">
+          <div class="gw-panel-head"><h3>Inputs &amp; controls</h3></div>
+          <div class="gw-panel-body" style="display:flex; flex-direction:column; gap:12px;">
+            <input class="gw-input" value="gw/root/R-0042" style="max-width:100%;">
+            <div style="display:flex; align-items:center; gap:12px;">
+              <span class="gw-seg"><button class="on">Attention</button><button>Recent</button><button>Priority</button></span>
+              <span class="gw-toggle on"></span>
+              <span class="gw-drag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M9 6h.01M9 12h.01M9 18h.01M15 6h.01M15 12h.01M15 18h.01"></path></svg></span>
+              <span class="gw-mono gw-subtle" style="font-size:10.5px;">drag handle</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- dep peek popover (static) -->
+        <div class="gw-panel">
+          <div class="gw-panel-head"><h3>Dependency peek</h3><span class="gw-spacer"></span><span class="gw-mono gw-subtle" style="font-size:10px;">badge → popover → jump</span></div>
+          <div class="gw-panel-body" style="display:flex; justify-content:center; background:var(--gw-surface-2);">
+            <div class="gw-peek" style="width:260px;">
+              <div class="gw-peek-head">Blocked by · 2 unsatisfied</div>
+              <div class="gw-peek-item"><span class="pi-id">T-0512</span><span class="pi-title">in_progress</span><span class="pi-jump"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h15M13 5l7 7-7 7"></path></svg></span></div>
+              <div class="gw-peek-item xtree"><span class="pi-id">T-0602</span><span class="pi-title">other root →</span><span class="pi-jump"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h6v6M20 4l-9 9"></path></svg></span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ ROOTS BOARD (W1) ============ -->
+    <section id="board" style="padding:44px 0 8px; border-top:1px solid var(--gw-border); margin-top:44px;">
+      <div class="gw-eyebrow">03 — Screen · W1</div>
+      <div style="display:flex; align-items:flex-end; gap:16px; margin-top:8px;">
+        <div style="min-width:0;">
+          <h2 style="font-family:var(--gw-ui); font-size:24px; font-weight:700; letter-spacing:-0.02em;">Roots board — the landing index</h2>
+          <p class="gw-muted" style="font-size:13.5px; margin-top:8px; max-width:640px;">Not a KPI dashboard — a root-scoped, attention-first index that scales to hundreds of initiatives. Needs-me and active work float up; archived is hidden by default and kept honest with a count.</p>
+        </div>
+      </div>
+
+      <!-- the comp -->
+      <div style="border:1px solid var(--gw-border-2); border-radius:12px; overflow:hidden; margin-top:22px; box-shadow:var(--gw-sh-2); background:var(--gw-bg);">
+        <div class="gw" style="padding:20px;">
+          <!-- KPI header strip (thin) -->
+          <div class="gw-strip" style="margin-bottom:14px;">
+            <div class="gw-strip-cell run"><span class="s-l">Active runs</span><span class="s-v">3</span></div>
+            <div class="gw-strip-cell alert"><span class="s-l">Blocked</span><span class="s-v">1</span></div>
+            <div class="gw-strip-cell warn"><span class="s-l">Pending approvals</span><span class="s-v">4</span></div>
+            <div class="gw-strip-cell"><span class="s-l">In review</span><span class="s-v">2</span></div>
+            <div class="gw-strip-cell"><span class="s-l">Landed today</span><span class="s-v">6</span></div>
+          </div>
+
+          <!-- control bar -->
+          <div class="gw-ctlbar" style="margin-bottom:14px;">
+            <div class="gw-search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14z"></path><path d="M20 20l-3.5-3.5"></path></svg>Search roots &amp; nodes<span class="gw-kbd">⌘K</span></div>
+            <span class="gw-fchip on">Needs me <span class="fc-n">3</span></span>
+            <span class="gw-fchip">Mine</span>
+            <span class="gw-fchip">Active <span class="fc-n">4</span></span>
+            <span class="gw-fchip">Status</span>
+            <span class="gw-fchip">Owner</span>
+            <span class="gw-fchip">Label</span>
+            <span style="flex:1;"></span>
+            <span class="gw-seg"><button class="on">Attention</button><button>Recent</button><button>Priority</button></span>
+            <span style="display:inline-flex; align-items:center; gap:8px; font-size:12px; color:var(--gw-fg-muted);"><span class="gw-toggle"></span>Archived</span>
+            <button class="gw-btn primary"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"></path></svg>New root</button>
+          </div>
+
+          <!-- bordered rows -->
+          <div class="gw-rows">
+            <div class="gw-root-row attn">
+              <span class="rr-status" style="background:var(--gw-run);"></span>
+              <span class="rr-id">R-0042</span>
+              <span class="rr-title">Web UI — embedded static SPA</span>
+              <span class="rr-prog"><span class="rr-bar"><i style="width:29%"></i></span>7 / 24</span>
+              <span class="gw-actor human" style="height:22px;"><span class="adot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8z"></path><path d="M4 21a8 8 0 0 1 16 0"></path></svg></span>You</span>
+              <span class="rr-attn"><span class="gw-attn-pill approvals"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z"></path><path d="M9 12l2 2 4-4"></path></svg>2</span><span class="gw-attn-pill runs"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4l5 4-5 4"></path></svg>1</span></span>
+            </div>
+            <div class="gw-root-row attn">
+              <span class="rr-status" style="background:var(--gw-bad);"></span>
+              <span class="rr-id">R-0038</span>
+              <span class="rr-title">Approval envelopes v1</span>
+              <span class="rr-prog"><span class="rr-bar"><i style="width:75%"></i></span>12 / 16</span>
+              <span class="gw-actor human" style="height:22px;"><span class="adot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8z"></path><path d="M4 21a8 8 0 0 1 16 0"></path></svg></span>You</span>
+              <span class="rr-attn"><span class="gw-attn-pill exceptions"><span class="bdot"></span>1 exception</span><span class="gw-attn-pill approvals">2</span></span>
+            </div>
+            <div class="gw-root-row">
+              <span class="rr-status" style="background:var(--gw-warn);"></span>
+              <span class="rr-id">R-0051</span>
+              <span class="rr-title">Worktree-per-run topology &amp; land-from-worktree</span>
+              <span class="rr-prog"><span class="rr-bar"><i style="width:33%"></i></span>3 / 9</span>
+              <span class="gw-actor ai" style="height:22px;"><span class="adot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7h10v10H7z"></path></svg></span>codex</span>
+              <span class="rr-attn"><span class="gw-attn-pill runs"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4l5 4-5 4"></path></svg>2</span></span>
+            </div>
+            <div class="gw-root-row">
+              <span class="rr-status" style="background:var(--gw-run);"></span>
+              <span class="rr-id">R-0029</span>
+              <span class="rr-title">Deterministic canonical export</span>
+              <span class="rr-prog"><span class="rr-bar"><i style="width:45%"></i></span>5 / 11</span>
+              <span class="gw-actor ai" style="height:22px;"><span class="adot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7h10v10H7z"></path></svg></span>codex-2</span>
+              <span class="rr-attn"></span>
+            </div>
+            <div class="gw-root-row">
+              <span class="rr-status" style="background:var(--gw-idle);"></span>
+              <span class="rr-id">R-0044</span>
+              <span class="rr-title">Hierarchical planning &amp; planning budget</span>
+              <span class="rr-prog"><span class="rr-bar"><i style="width:0%"></i></span>0 / 6</span>
+              <span class="gw-actor human" style="height:22px;"><span class="adot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8z"></path><path d="M4 21a8 8 0 0 1 16 0"></path></svg></span>You</span>
+              <span class="rr-attn"><span class="gw-wait" style="height:22px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 10h12v10H6z"></path><path d="M8 10V7a4 4 0 0 1 8 0v3"></path></svg>Waiting</span></span>
+            </div>
+          </div>
+
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-top:12px; padding:0 2px;">
+            <span class="gw-mono gw-subtle" style="font-size:11px;">Showing 6 of 61 · 55 archived hidden</span>
+            <span class="gw-subtle" style="font-size:12px;">Virtualized · paginated</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- annotations -->
+      <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-top:20px;">
+        <div style="display:flex; gap:10px;"><span class="gw-mono" style="font-size:10px; font-weight:600; color:var(--gw-accent-line); flex:0 0 auto;">A1</span><p class="gw-muted" style="font-size:12px; line-height:1.5;"><b style="color:var(--gw-fg); font-weight:600;">KPIs ride as a thin strip</b> — status counts from <span class="gw-mono">gw status</span>, deliberately not the focus of the page.</p></div>
+        <div style="display:flex; gap:10px;"><span class="gw-mono" style="font-size:10px; font-weight:600; color:var(--gw-accent-line); flex:0 0 auto;">A2</span><p class="gw-muted" style="font-size:12px; line-height:1.5;"><b style="color:var(--gw-fg); font-weight:600;">Attention-first rows.</b> Needs-me + active float up with an oxblood edge; the right-aligned pills are approvals · runs · exceptions — the last pinned red.</p></div>
+        <div style="display:flex; gap:10px;"><span class="gw-mono" style="font-size:10px; font-weight:600; color:var(--gw-accent-line); flex:0 0 auto;">A3</span><p class="gw-muted" style="font-size:12px; line-height:1.5;"><b style="color:var(--gw-fg); font-weight:600;">Dense bordered rows, not cards.</b> Root id · title · rollup dot · settled/total · owner glyph. Click enters the node view with that root centered.</p></div>
+      </div>
+    </section>
+
+    <!-- ============ NODE VIEW (W2) — INTERACTIVE ============ -->
+    <section id="nodeview" style="padding:44px 0 8px; border-top:1px solid var(--gw-border); margin-top:44px;">
+      <div class="gw-eyebrow">04 — Screen · W2 · interactive</div>
+      <h2 style="font-family:var(--gw-ui); font-size:24px; font-weight:700; letter-spacing:-0.02em; margin-top:8px;">Node view — the up·here·down spine</h2>
+      <p class="gw-muted" style="font-size:13.5px; margin-top:8px; max-width:660px;">Ancestors left, the focused node centered, children right. The detail and action rail follow focus at any level of the DAG. <b style="color:var(--gw-fg); font-weight:600;">Try it:</b> click a child to drill (it slides to center; the old focus joins the ancestors), drag children to re-prioritize, and click a <span style="color:var(--gw-warn);">blocked-by</span> badge to peek at its dependencies.</p>
+
+      <div style="border:1px solid var(--gw-border-2); border-radius:12px; overflow:hidden; margin-top:22px; box-shadow:var(--gw-sh-2); background:var(--gw-bg);">
+        <div class="gw" style="padding:0;">
+          <!-- top bar -->
+          <div style="display:flex; align-items:center; gap:14px; padding:12px 18px; border-bottom:1px solid var(--gw-border); background:var(--gw-surface);">
+            <button class="gw-btn sm"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h7v7H3zM14 3h7v5h-7zM14 12h7v9h-7zM3 14h7v7H3z"></path></svg>Roots board</button>
+            <div style="display:flex; align-items:center; gap:8px; padding:5px 11px; border:1px solid var(--gw-border-2); border-radius:6px; background:var(--gw-surface-2); cursor:pointer;">
+              <span class="gw-mono" style="font-size:10.5px; color:var(--gw-fg-subtle);">{{ rootId }}</span>
+              <span style="font-size:12px; font-weight:600;">{{ rootTitle }}</span>
+              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linecap="round" stroke-linejoin="round" style="color:var(--gw-fg-subtle);"><path d="M5 9l7 7 7-7"></path></svg>
+            </div>
+            <div style="flex:1;"></div>
+            <div style="display:flex; align-items:center; gap:14px;">
+              <span style="display:flex; align-items:center; gap:6px; font-size:12px; color:var(--gw-fg-muted);"><span class="gw-mono" style="color:var(--gw-run); font-weight:600;">1</span> run</span>
+              <span style="display:flex; align-items:center; gap:6px; font-size:12px; color:var(--gw-fg-muted);"><span class="gw-mono" style="color:var(--gw-warn); font-weight:600;">2</span> pending</span>
+              <span style="display:flex; align-items:center; gap:6px; font-size:12px; color:var(--gw-fg-muted);"><span class="gw-mono" style="color:var(--gw-ok); font-weight:600;">3</span> eligible</span>
+            </div>
+          </div>
+
+          <!-- spine -->
+          <div class="gw-spine" style="padding:18px;">
+
+            <!-- LEFT — ancestors -->
+            <div class="gw-anc">
+              <div class="gw-anc-label">Up · ancestors</div>
+              <sc-for list="{{ ancestors }}" as="a" hint-placeholder-count="1">
+                <div class="gw-anc-chip" onClick="{{ a.onClick }}">
+                  <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="color:var(--gw-fg-subtle); flex:0 0 13px;"><path d="M12 3l9 5-9 5-9-5z"></path><path d="M3 13l9 5 9-5"></path></svg>
+                  <div style="min-width:0;"><div class="ac-id">{{ a.id }}</div><div class="ac-title">{{ a.title }}</div></div>
+                </div>
+                <div class="gw-anc-rail"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 9l7 7 7-7"></path></svg></div>
+              </sc-for>
+
+              <sc-if value="{{ hasProvMark }}" hint-placeholder-val="{{ true }}">
+                <div class="gw-prov-mark">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 10h12v10H6z"></path><path d="M8 10V7a4 4 0 0 1 8 0v3"></path></svg>
+                  <div class="pm-t">Provenance boundary — below here <b>{{ envName }}</b> authorizes agents to plan &amp; execute.</div>
+                </div>
+              </sc-if>
+            </div>
+
+            <!-- CENTER — focused node -->
+            <div style="min-width:0;">
+              <div class="gw-focus">
+                <div class="gw-focus-top">
+                  <div class="gw-focus-badges">
+                    <span class="gw-id" style="font-size:12px;">{{ f_id }}</span>
+                    <span class="gw-ntype composite">{{ f_typeLabel }}</span>
+                    <span class="gw-kind">{{ f_kind }}</span>
+                    <span class="{{ f_statusCls }}"><i class="bdot"></i>{{ f_statusLabel }}</span>
+                    <span class="{{ f_actorCls }}"><span class="adot">{{ f_actorGlyph }}</span>{{ f_actorLabel }}</span>
+                    <sc-if value="{{ f_run }}" hint-placeholder-val="{{ false }}"><span class="gw-badge run"><i class="bdot"></i>Active run</span></sc-if>
+                    <sc-if value="{{ f_hasBlocks }}" hint-placeholder-val="{{ false }}"><span class="gw-dep">blocks {{ f_blocksN }}</span></sc-if>
+                  </div>
+                  <h2>{{ f_title }}</h2>
+                  <div class="f-sub">Detail follows focus · every action is expressed against this node</div>
+                </div>
+
+                <!-- action rail -->
+                <div class="gw-detail-sect" style="background:var(--gw-surface-2);">
+                  <div class="gw-sect-label">Actions at this node</div>
+                  <div style="display:flex; flex-wrap:wrap; gap:8px;">
+                    <sc-for list="{{ f_actions }}" as="act" hint-placeholder-count="5">
+                      <button class="{{ act.cls }}">{{ act.label }}</button>
+                    </sc-for>
+                  </div>
+                </div>
+
+                <!-- context brief -->
+                <div class="gw-detail-sect">
+                  <div class="gw-sect-label">Parent contract</div>
+                  <p class="gw-muted" style="font-size:12.5px; line-height:1.55;">Deliver the human web UI's node-view surface: the up·here·down spine, node-agnostic detail that follows focus, and a node-appropriate action rail. Ships as static SPA routes restoring full state from the canonical URL.</p>
+                </div>
+                <div class="gw-detail-sect">
+                  <div class="gw-sect-label">Acceptance</div>
+                  <div class="gw-check done"><span class="box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 6"></path></svg></span><span class="ctext">Ancestors · focus · children render from <span class="gw-mono">/tickets/:id{,/children}</span></span></div>
+                  <div class="gw-check done"><span class="box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 6"></path></svg></span><span class="ctext">Drill re-points detail; canonical <span class="gw-mono">#/node/:id</span> restores state</span></div>
+                  <div class="gw-check"><span class="box pend"></span><span class="ctext">Drag sets <span class="gw-mono">priority</span>; deps stay a hard gate</span></div>
+                </div>
+                <div class="gw-detail-sect">
+                  <div class="gw-sect-label">Dependencies</div>
+                  <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+                    <sc-if value="{{ f_hasBlocks }}" hint-placeholder-val="{{ false }}"><span class="gw-dep">blocks {{ f_blocksN }} · T-0502</span></sc-if>
+                    <span class="gw-muted" style="font-size:12px;">Parent→child is the axis you walk; <span class="gw-mono">depends_on</span> is the axis you annotate.</span>
+                  </div>
+                </div>
+                <div class="gw-detail-sect">
+                  <div class="gw-sect-label">Provenance &amp; authority</div>
+                  <p class="gw-muted" style="font-size:12.5px; line-height:1.55;">This subtree exists because you approved <b style="color:var(--gw-accent-line); font-weight:600;">{{ envName }}</b> on <span class="gw-mono">{{ rootId }}</span>. Agents plan and execute within its budget; anything past the budget raises a human exception.</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- RIGHT — children -->
+            <div class="gw-children">
+              <div class="gw-col-head">
+                <span class="ch-name">Down · children</span><span class="ch-count">{{ childCountLabel }}</span>
+                <span style="flex:1;"></span>
+                <span style="display:inline-flex; align-items:center; gap:6px; font-size:11px; color:var(--gw-fg-muted);"><span class="gw-toggle" style="transform:scale(.82);"></span>Settled</span>
+              </div>
+
+              <sc-if value="{{ hasChildren }}" hint-placeholder-val="{{ true }}">
+                <sc-for list="{{ children }}" as="child" hint-placeholder-count="5">
+                  <div style="display:flex; align-items:stretch; gap:6px; position:relative;">
+                    <span class="gw-child-order">{{ child.order }}</span>
+                    <div class="{{ child.rowCls }}" draggable="true" onClick="{{ child.onDrill }}" onDragStart="{{ child.onDragStart }}" onDragOver="{{ child.onDragOver }}" onDrop="{{ child.onDrop }}">
+                      <span class="gw-drag"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M9 6h.01M9 12h.01M9 18h.01M15 6h.01M15 12h.01M15 18h.01"></path></svg></span>
+                      <div class="gw-child-body">
+                        <div class="gw-child-top">
+                          <span class="gw-child-id">{{ child.id }}</span>
+                          <span class="gw-kind">{{ child.typeLabel }}</span>
+                          <sc-if value="{{ child.run }}" hint-placeholder-val="{{ false }}"><span class="gw-badge run" style="height:17px; padding:0 6px;"><i class="bdot"></i></span></sc-if>
+                        </div>
+                        <div class="gw-child-title">{{ child.title }}</div>
+                        <div class="gw-child-meta">
+                          <sc-if value="{{ child.waiting }}" hint-placeholder-val="{{ false }}"><span class="gw-wait"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 10h12v10H6z"></path><path d="M8 10V7a4 4 0 0 1 8 0v3"></path></svg>Waiting</span></sc-if>
+                          <sc-if value="{{ child.showStatus }}" hint-placeholder-val="{{ true }}"><span class="{{ child.statusCls }}"><i class="bdot"></i>{{ child.statusLabel }}</span></sc-if>
+                          <span class="{{ child.actorCls }}"><span class="adot">{{ child.actorGlyph }}</span></span>
+                          <sc-if value="{{ child.hasBlockedBy }}" hint-placeholder-val="{{ false }}"><span class="gw-dep blocked-by" onClick="{{ child.togglePeek }}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M6 10h12v10H6z"></path><path d="M8 10V7a4 4 0 0 1 8 0v3"></path></svg>blocked-by {{ child.blockedByN }}</span></sc-if>
+                          <span class="gw-child-bd" onClick="{{ child.reqBreakdown }}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l9 5-9 5-9-5z"></path><path d="M3 13l9 5 9-5"></path></svg>Breakdown</span>
+                        </div>
+                      </div>
+                      <sc-if value="{{ child.peekOpen }}" hint-placeholder-val="{{ false }}">
+                        <div style="position:absolute; top:8px; right:8px; z-index:20;">
+                          <div class="gw-peek">
+                            <div class="gw-peek-head">Blocked by · unsatisfied deps</div>
+                            <sc-for list="{{ child.peekItems }}" as="d" hint-placeholder-count="1">
+                              <div class="gw-peek-item"><span class="pi-id">{{ d.id }}</span><span class="pi-title">{{ d.status }}</span><span class="pi-jump"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h15M13 5l7 7-7 7"></path></svg></span></div>
+                            </sc-for>
+                          </div>
+                        </div>
+                      </sc-if>
+                    </div>
+                  </div>
+                </sc-for>
+              </sc-if>
+              <sc-if value="{{ noChildren }}" hint-placeholder-val="{{ false }}">
+                <div class="gw-empty" style="border:1px dashed var(--gw-border-2); border-radius:8px; padding:32px 20px;">
+                  <div class="ec-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l9 5-9 5-9-5z"></path><path d="M3 13l9 5 9-5"></path></svg></div>
+                  <div class="ec-t">No children yet</div>
+                  <div class="ec-s">This leaf has no subtree. Triage may reclassify it as composite — or request a breakdown.</div>
+                  <button class="gw-btn primary" style="margin-top:4px;">Request breakdown</button>
+                </div>
+              </sc-if>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- annotations -->
+      <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-top:20px;">
+        <div style="display:flex; gap:10px;"><span class="gw-mono" style="font-size:10px; font-weight:600; color:var(--gw-accent-line); flex:0 0 auto;">B1</span><p class="gw-muted" style="font-size:12px; line-height:1.5;"><b style="color:var(--gw-fg); font-weight:600;">Drill = slide to center.</b> Clicking a child re-points focus and detail; the old focus becomes the newest ancestor chip. Drilling a leaf shows the empty-children prompt.</p></div>
+        <div style="display:flex; gap:10px;"><span class="gw-mono" style="font-size:10px; font-weight:600; color:var(--gw-accent-line); flex:0 0 auto;">B2</span><p class="gw-muted" style="font-size:12px; line-height:1.5;"><b style="color:var(--gw-fg); font-weight:600;">Priority is soft, deps are hard.</b> Drag reorders <span class="gw-mono">priority</span>; a child dragged to the top still shows a <span style="color:var(--gw-warn);">waiting</span> lock until its deps clear.</p></div>
+        <div style="display:flex; gap:10px;"><span class="gw-mono" style="font-size:10px; font-weight:600; color:var(--gw-accent-line); flex:0 0 auto;">B3</span><p class="gw-muted" style="font-size:12px; line-height:1.5;"><b style="color:var(--gw-fg); font-weight:600;">Node-agnostic rail.</b> On a composite: propose/approve envelope, request breakdown, review bundle. On a leaf: claim, transition, land. Same screen, different envelope.</p></div>
+      </div>
+    </section>
+
+    <!-- ============ LENSES ============ -->
+    <section id="lenses" style="padding:44px 0 8px; border-top:1px solid var(--gw-border); margin-top:44px;">
+      <div class="gw-eyebrow">05 — Cross-cutting lenses</div>
+      <h2 style="font-family:var(--gw-ui); font-size:24px; font-weight:700; letter-spacing:-0.02em; margin-top:8px;">The gates, seen through one queue and five detail views</h2>
+      <p class="gw-muted" style="font-size:13.5px; margin-top:8px; max-width:660px;">Lenses share the node view's vocabulary. The approvals inbox is the single place the human is pulled to; every other lens opens from a node, a run, or an inbox entry.</p>
+
+      <!-- Approvals inbox -->
+      <div style="display:flex; align-items:baseline; gap:10px; margin-top:30px;">
+        <span class="gw-mono" style="font-size:11px; color:var(--gw-accent-line); font-weight:600;">L1</span>
+        <h3 style="font-family:var(--gw-ui); font-size:16px; font-weight:600;">Approvals inbox — one queue, exceptions pinned</h3>
+      </div>
+      <div style="border:1px solid var(--gw-border-2); border-radius:12px; overflow:hidden; margin-top:12px; box-shadow:var(--gw-sh-2);">
+        <div class="gw" style="padding:18px; display:flex; flex-direction:column; gap:16px;">
+
+          <!-- pinned exception -->
+          <div>
+            <div class="gw-appr-group"><span class="ag-label">Pinned · exception</span></div>
+            <div class="gw-appr exception">
+              <div class="gw-exc-ribbon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4l9 16H3zM12 10v4M12 17h.01"></path></svg>Envelope boundary crossed — claim touches files outside env-E-0006 file scope</div>
+              <div class="gw-appr-top">
+                <div style="flex:1; min-width:0;">
+                  <div style="display:flex; align-items:center; gap:8px; margin-bottom:5px;"><span class="gw-id">T-0521</span><span class="gw-badge bad"><i class="bdot"></i>Exception</span><span class="gw-actor ai" style="height:19px;"><span class="adot" style="width:13px;height:13px;">C</span>codex-2</span></div>
+                  <div class="ttl">Write to <span class="gw-mono">internal/scheduler/lease.go</span> — outside envelope scope</div>
+                  <div class="why">The envelope authorizes <span class="gw-mono">web/**</span> only. The agent needs a scheduler change to satisfy the acceptance. This is a boundary crossing, not a routine approval — decide once and optionally widen the envelope.</div>
+                </div>
+                <span class="gw-risk high"><span class="rbar"><i style="width:74%"></i></span>74</span>
+              </div>
+              <div class="gw-appr-actions">
+                <button class="gw-btn primary">Approve once</button>
+                <button class="gw-btn">Widen the envelope…</button>
+                <button class="gw-btn danger">Reject</button>
+                <button class="gw-btn ghost">Clarify</button>
+                <span style="flex:1;"></span>
+                <span class="gw-mono gw-subtle" style="font-size:10.5px; align-self:center;">gw approval approve T-0521 --once</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- grouped under envelope -->
+          <div>
+            <div class="gw-appr-group"><span class="ag-label">Grouped under</span><span class="ag-env">env-E-0006</span><span class="gw-subtle" style="font-size:11.5px;">· approved by you · 2 items</span></div>
+            <div style="display:flex; flex-direction:column; gap:12px;">
+              <div class="gw-appr">
+                <div class="gw-appr-top">
+                  <div style="flex:1; min-width:0;">
+                    <div style="display:flex; align-items:center; gap:8px; margin-bottom:5px;"><span class="gw-id">T-0501</span><span class="gw-badge warn"><i class="bdot"></i>Decompose</span><span class="gw-auto human">Human-required</span></div>
+                    <div class="ttl">Decomposition proposal — 5 children + parent contract</div>
+                    <div class="why">Planning run <span class="gw-mono">run_5b1</span> proposes a subtree for the node-view surface. Approving moves children <span class="gw-mono">backlog→todo</span> as deps allow.</div>
+                  </div>
+                  <button class="gw-btn">Review plan →</button>
+                </div>
+              </div>
+              <div class="gw-appr flag-warn">
+                <div class="gw-appr-top">
+                  <div style="flex:1; min-width:0;">
+                    <div style="display:flex; align-items:center; gap:8px; margin-bottom:5px;"><span class="gw-id">T-0480</span><span class="gw-badge warn"><i class="bdot"></i>Land to main</span><span class="gw-auto human">Human-required</span></div>
+                    <div class="ttl">Land branch <span class="gw-mono">gw/root/R-0038</span> → main · 6 commits</div>
+                    <div class="why">Always human-gated in v1. Validations green · bundle reviewed.</div>
+                  </div>
+                  <button class="gw-btn primary">Open review bundle →</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Decompose / plan review -->
+      <div style="display:flex; align-items:baseline; gap:10px; margin-top:34px;">
+        <span class="gw-mono" style="font-size:11px; color:var(--gw-accent-line); font-weight:600;">L2</span>
+        <h3 style="font-family:var(--gw-ui); font-size:16px; font-weight:600;">Decompose / plan review — proposed subtree</h3>
+      </div>
+      <div style="border:1px solid var(--gw-border-2); border-radius:12px; overflow:hidden; margin-top:12px; box-shadow:var(--gw-sh-2);">
+        <div class="gw" style="padding:18px;">
+          <div style="display:grid; grid-template-columns:1fr 300px; gap:16px; align-items:start;">
+            <div class="gw-panel">
+              <div class="gw-panel-head"><h3>Proposed children</h3><span class="gw-spacer"></span><span class="gw-mono gw-subtle" style="font-size:10px;">planning run_5b1</span></div>
+              <div class="gw-panel-body" style="display:flex; flex-direction:column; gap:9px;">
+                <div class="gw-plan-node"><span class="gw-ntype composite" style="height:18px;">Composite</span><span class="pn-id">T-0501</span><span class="pn-title">Node-view spine surface</span></div>
+                <div class="gw-plan-children">
+                  <div class="gw-plan-child"><div class="gw-plan-node"><span class="pn-id">T-0511</span><span class="pn-title">Ancestor breadcrumb rail</span></div></div>
+                  <div class="gw-plan-child"><div class="gw-plan-node"><span class="pn-id">T-0512</span><span class="pn-title">Focused-node detail panel</span></div></div>
+                  <div class="gw-plan-child"><div class="gw-plan-node"><span class="pn-id">T-0513</span><span class="pn-title">Children column + drag</span><span class="gw-dep-edge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h15M13 5l7 7-7 7"></path></svg>after T-0512</span></div></div>
+                  <div class="gw-plan-child"><div class="gw-plan-node"><span class="pn-id">T-0514</span><span class="pn-title">Dependency peek popover</span><span class="gw-dep-edge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h15M13 5l7 7-7 7"></path></svg>after T-0512</span></div></div>
+                  <div class="gw-plan-child"><div class="gw-plan-node"><span class="pn-id">T-0515</span><span class="pn-title">Provenance boundary marker</span></div></div>
+                </div>
+              </div>
+            </div>
+            <div class="gw-stack">
+              <div class="gw-panel">
+                <div class="gw-panel-head"><h3>Parent contract</h3></div>
+                <div class="gw-panel-body"><p class="gw-muted" style="font-size:12px; line-height:1.5;">Children collectively deliver the spine, its detail, and drag-to-prioritize. Shared interface: the <span class="gw-mono">focus</span> route param and <span class="gw-mono">/children</span> ordering.</p></div>
+              </div>
+              <div class="gw-panel">
+                <div class="gw-panel-head"><h3>Envelope</h3></div>
+                <div class="gw-panel-body" style="display:flex; flex-direction:column; gap:7px;">
+                  <div class="gw-scope-row"><span class="sk">scope</span><span class="sv">web/**</span></div>
+                  <div class="gw-scope-row"><span class="sk">depth</span><span class="sv">max 3</span></div>
+                  <div class="gw-scope-row"><span class="sk">risk</span><span class="sv">≤ medium</span></div>
+                </div>
+              </div>
+              <div style="display:flex; flex-direction:column; gap:8px;">
+                <button class="gw-btn primary" style="justify-content:center;">Approve · children → todo</button>
+                <button class="gw-btn" style="justify-content:center;">Request changes</button>
+                <button class="gw-btn ghost" style="justify-content:center;">Reject</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- Envelope editor -->
+      <div style="display:flex; align-items:baseline; gap:10px; margin-top:34px;">
+        <span class="gw-mono" style="font-size:11px; color:var(--gw-accent-line); font-weight:600;">L3</span>
+        <h3 style="font-family:var(--gw-ui); font-size:16px; font-weight:600;">Envelope editor — the progressive-elevation dial</h3>
+      </div>
+      <div style="border:1px solid var(--gw-border-2); border-radius:12px; overflow:hidden; margin-top:12px; box-shadow:var(--gw-sh-2);">
+        <div class="gw" style="padding:18px;">
+          <div style="display:grid; grid-template-columns:1fr 320px; gap:16px; align-items:start;">
+            <div class="gw-panel">
+              <div class="gw-panel-head"><h3>Propose envelope at R-0042</h3><span class="gw-spacer"></span><span class="gw-badge idle" style="height:19px;"><i class="bdot"></i>Draft</span></div>
+              <div class="gw-panel-body" style="display:flex; flex-direction:column; gap:2px;">
+                <div class="gw-field"><span class="gw-field-k">Allowed actions</span><span class="gw-field-v" style="display:flex; gap:6px; flex-wrap:wrap;"><span class="gw-chip">plan</span><span class="gw-chip">decompose_children</span><span class="gw-chip">execute</span></span></div>
+                <div class="gw-field"><span class="gw-field-k">Allowed roles</span><span class="gw-field-v" style="display:flex; gap:6px;"><span class="gw-actor ai" style="height:19px;"><span class="adot" style="width:13px;height:13px;">P</span>planner</span><span class="gw-actor ai" style="height:19px;"><span class="adot" style="width:13px;height:13px;">C</span>coder</span></span></div>
+                <div class="gw-field"><span class="gw-field-k">File scope</span><span class="gw-field-v"><input class="gw-input" value="web/**"></span></div>
+                <div class="gw-field"><span class="gw-field-k">Risk ceiling</span><span class="gw-field-v"><span class="gw-risk med"><span class="rbar"><i style="width:50%"></i></span>medium</span></span></div>
+                <div class="gw-field"><span class="gw-field-k">Planning budget</span><span class="gw-field-v"><span class="gw-mono gw-subtle" style="font-size:11.5px;">max depth 3 · max children 8 · work-types: ui, refactor</span></span></div>
+              </div>
+            </div>
+            <div class="gw-stack">
+              <div class="gw-panel" style="background:var(--gw-surface-2);">
+                <div class="gw-panel-body">
+                  <div class="gw-sect-label">What this changes</div>
+                  <p class="gw-muted" style="font-size:12px; line-height:1.5;">Approve scope <b style="color:var(--gw-fg); font-weight:600;">once</b> here and agents decompose below without a per-layer gate. Anything past the budget surfaces as an exception. This is how the human moves up the decision framework — a policy dial, not a UI rewrite.</p>
+                </div>
+              </div>
+              <button class="gw-btn primary" style="justify-content:center;">Propose → approve_envelope</button>
+              <button class="gw-btn" style="justify-content:center;">Inspect active envelope</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Review bundle + Run detail -->
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-top:34px; align-items:start;">
+        <div>
+          <div style="display:flex; align-items:baseline; gap:10px;"><span class="gw-mono" style="font-size:11px; color:var(--gw-accent-line); font-weight:600;">L4</span><h3 style="font-family:var(--gw-ui); font-size:16px; font-weight:600;">Review bundle</h3></div>
+          <div style="border:1px solid var(--gw-border-2); border-radius:12px; overflow:hidden; margin-top:12px; box-shadow:var(--gw-sh-2);">
+            <div class="gw" style="padding:16px;">
+              <div class="gw-panel">
+                <div class="gw-panel-head"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" style="color:var(--gw-fg-muted);"><path d="M12 3l9 5-9 5-9-5z"></path><path d="M3 13l9 5 9-5"></path></svg><h3>R-0038 · land to main</h3><span class="gw-spacer"></span><span class="gw-badge ok"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 6"></path></svg>48 passing</span></div>
+                <div class="gw-panel-body" style="display:flex; flex-direction:column; gap:10px;">
+                  <div class="gw-diff-head"><span class="gw-diff-stat gw-add">+612</span><span class="gw-diff-stat gw-del">−188</span><span class="gw-subtle">6 children landed to <span class="gw-mono">gw/root/R-0038</span></span></div>
+                  <div class="gw-diff-file"><span class="fpath">internal/envelope/authorize.go</span><span class="fnums"><span class="gw-add">+204</span><span class="gw-del">−12</span></span></div>
+                  <div class="gw-diff-file"><span class="fpath">internal/store/envelope.go</span><span class="fnums"><span class="gw-add">+156</span><span class="gw-del">−40</span></span></div>
+                  <div class="gw-diff-file"><span class="fpath">cmd/gw/envelope.go</span><span class="fnums"><span class="gw-add">+98</span><span class="gw-del">−6</span></span></div>
+                </div>
+              </div>
+              <div style="display:flex; gap:8px; margin-top:12px;">
+                <button class="gw-btn primary">Land to main</button>
+                <button class="gw-btn">Hold</button>
+                <button class="gw-btn ghost">Send child to rework</button>
+              </div>
+              <p class="gw-subtle" style="font-size:11px; margin-top:10px;">Override is a visibly break-glass, audited path — <span class="gw-mono">--override</span>.</p>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div style="display:flex; align-items:baseline; gap:10px;"><span class="gw-mono" style="font-size:11px; color:var(--gw-accent-line); font-weight:600;">L5</span><h3 style="font-family:var(--gw-ui); font-size:16px; font-weight:600;">Run detail</h3></div>
+          <div style="border:1px solid var(--gw-border-2); border-radius:12px; overflow:hidden; margin-top:12px; box-shadow:var(--gw-sh-2);">
+            <div class="gw" style="padding:16px;">
+              <div class="gw-panel">
+                <div class="gw-panel-head"><h3>run_5c2</h3><span class="gw-spacer"></span><span class="gw-badge run"><i class="bdot"></i>Running</span><span class="gw-badge idle" style="height:19px;">implementation</span></div>
+                <div class="gw-panel-body" style="display:flex; flex-direction:column; gap:12px;">
+                  <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                    <span class="gw-actor ai"><span class="adot">C</span>codex · gpt-5-codex</span>
+                    <span class="gw-mono gw-subtle" style="font-size:11px;">sandbox: worktree</span>
+                  </div>
+                  <div class="gw-scope-row"><span class="sk">worktree</span><span class="sv">gw/run/5c2</span></div>
+                  <div class="gw-scope-row"><span class="sk">step</span><span class="sv">Editing NodeView.tsx (4 / 7)</span></div>
+                  <div class="gw-scope-row"><span class="sk">elapsed</span><span class="sv">6m 12s</span></div>
+                  <div class="gw-divline"></div>
+                  <div class="gw-tl">
+                    <div class="gw-tl-item"><div class="gw-tl-rail"><div class="gw-tl-node run"></div><div class="gw-tl-line"></div></div><div class="gw-tl-body"><div class="gw-tl-text"><b>codex</b> wrote 38 lines to <span class="gw-mono">NodeView.tsx</span></div><div class="gw-tl-time">14:32:08</div></div></div>
+                    <div class="gw-tl-item"><div class="gw-tl-rail"><div class="gw-tl-node ok"></div><div class="gw-tl-line"></div></div><div class="gw-tl-body"><div class="gw-tl-text">Checkpoint saved</div><div class="gw-tl-time">14:29:40</div></div></div>
+                    <div class="gw-tl-item"><div class="gw-tl-rail"><div class="gw-tl-node accent"></div></div><div class="gw-tl-body"><div class="gw-tl-text">Run opened from resume packet</div><div class="gw-tl-time">14:26:02</div></div></div>
+                  </div>
+                </div>
+              </div>
+              <div style="display:flex; gap:8px; margin-top:12px;">
+                <button class="gw-btn">Pause</button>
+                <button class="gw-btn">Open workspace</button>
+                <button class="gw-btn ghost">Copy resume</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ STATES ============ -->
+    <section id="states" style="padding:44px 0 8px; border-top:1px solid var(--gw-border); margin-top:44px;">
+      <div class="gw-eyebrow">06 — State coverage</div>
+      <h2 style="font-family:var(--gw-ui); font-size:24px; font-weight:700; letter-spacing:-0.02em; margin-top:8px;">Every list, panel, and action, in all six states</h2>
+      <p class="gw-muted" style="font-size:13.5px; margin-top:8px; max-width:660px;">Request/response with light polling means loading and error are first-class, not afterthoughts. Blocked and waiting are deliberately two different colors; ineligible actions render disabled with the reason inline, never hidden.</p>
+
+      <div class="gw" style="display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-top:24px; background:transparent;">
+
+        <!-- empty -->
+        <div class="gw-panel">
+          <div class="gw-panel-head"><h3>Empty</h3></div>
+          <div class="gw-empty" style="padding:28px 18px;">
+            <div class="ec-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l9 5-9 5-9-5z"></path><path d="M3 13l9 5 9-5"></path></svg></div>
+            <div class="ec-t">Create your first root</div>
+            <div class="ec-s">Roots are parentless initiatives, typically human-created.</div>
+            <button class="gw-btn primary" style="margin-top:2px;">New root</button>
+          </div>
+        </div>
+
+        <!-- loading -->
+        <div class="gw-panel">
+          <div class="gw-panel-head"><h3>Loading</h3><span class="gw-spacer"></span><span class="gw-mono gw-subtle" style="font-size:10px;">skeleton</span></div>
+          <div class="gw-panel-body" style="display:flex; flex-direction:column; gap:11px;">
+            <div style="display:flex; align-items:center; gap:10px;"><div class="gw-skel" style="width:9px; height:9px; border-radius:50%;"></div><div class="gw-skel" style="width:44px; height:11px;"></div><div class="gw-skel" style="flex:1; height:11px;"></div></div>
+            <div style="display:flex; align-items:center; gap:10px;"><div class="gw-skel" style="width:9px; height:9px; border-radius:50%;"></div><div class="gw-skel" style="width:44px; height:11px;"></div><div class="gw-skel" style="flex:1; height:11px;"></div></div>
+            <div style="display:flex; align-items:center; gap:10px;"><div class="gw-skel" style="width:9px; height:9px; border-radius:50%;"></div><div class="gw-skel" style="width:44px; height:11px;"></div><div class="gw-skel" style="flex:1; height:11px;"></div></div>
+            <p class="gw-subtle" style="font-size:11px; margin-top:2px;">Panes keep last-known value — never blank-flash populated content.</p>
+          </div>
+        </div>
+
+        <!-- blocked / ineligible -->
+        <div class="gw-panel">
+          <div class="gw-panel-head"><h3>Blocked / ineligible</h3></div>
+          <div class="gw-panel-body" style="display:flex; flex-direction:column; gap:12px;">
+            <div class="gw-blocker">
+              <div class="gw-blocker-head"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4l9 16H3zM12 10v4M12 17h.01"></path></svg><span class="bh-t">Blocked — input requested</span></div>
+              <div style="padding:11px 15px;"><p class="gw-muted" style="font-size:12px; line-height:1.5;">Durable decision record: <i>"Which migration strategy — expand-contract or dual-write?"</i> Answering makes the node eligible and resumes a new run.</p></div>
+            </div>
+            <button class="gw-btn disabled" style="justify-content:flex-start;">Claim · waiting on T-0512</button>
+          </div>
+        </div>
+
+        <!-- error -->
+        <div class="gw-panel">
+          <div class="gw-panel-head"><h3>Error</h3></div>
+          <div class="gw-panel-body">
+            <div class="gw-error">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4l9 16H3zM12 10v4M12 17h.01"></path></svg>
+              <div><div class="er-code">not_a_repo</div><div class="er-msg">This path isn't a git repository. Land preview can't run.</div><button class="gw-btn sm" style="margin-top:9px;">Open settings →</button></div>
+            </div>
+            <p class="gw-subtle" style="font-size:11px; margin-top:10px;">The contract <span class="gw-mono">{error:{code,message}}</span> renders inline &amp; actionable — never a raw stack.</p>
+          </div>
+        </div>
+
+        <!-- pending-approval -->
+        <div class="gw-panel">
+          <div class="gw-panel-head"><h3>Pending-approval</h3></div>
+          <div class="gw-panel-body" style="display:flex; flex-direction:column; gap:12px;">
+            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;"><span class="gw-badge warn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z"></path></svg>Approval requested</span><span class="gw-attn-pill approvals" style="height:20px;">inbox</span></div>
+            <p class="gw-muted" style="font-size:12px; line-height:1.5;">The same gate appears three ways — a badge on the node, a count in the header strip, and an inbox entry — all deep-linkable.</p>
+          </div>
+        </div>
+
+        <!-- active-run -->
+        <div class="gw-panel">
+          <div class="gw-panel-head"><h3>Active-run</h3></div>
+          <div class="gw-panel-body" style="display:flex; flex-direction:column; gap:12px;">
+            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;"><span class="gw-badge run"><i class="bdot"></i>Active run</span><span class="gw-badge idle" style="height:20px;">implementation</span><span class="gw-badge idle" style="height:20px;">planning</span></div>
+            <p class="gw-muted" style="font-size:12px; line-height:1.5;">Indicated on the node, in the children column, and in the board row's attention badge. Planning vs implementation runs are badged differently; opens run detail.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- narrow-window note -->
+      <div class="gw-panel" style="margin-top:20px; padding:16px 18px; display:flex; gap:14px; align-items:flex-start;">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="color:var(--gw-fg-muted); flex:0 0 20px; margin-top:2px;"><path d="M7 4h10v16H7z"></path><path d="M11 18h2"></path></svg>
+        <div>
+          <div style="font-size:13px; font-weight:600;">Responsive — narrow window</div>
+          <p class="gw-muted" style="font-size:12.5px; line-height:1.55; margin-top:4px; max-width:720px;">Below ~900px the three-zone spine collapses to a single focused column: ancestors become a back-chip row, children move to a bottom sheet reachable by a "Down · N children" bar, and the action rail docks to the footer. The Roots board keeps its rows, dropping the owner glyph and progress bar first, then folding attention pills into a single count. No separate mobile IA — the same routes, reflowed.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ TOKENS EXPORT ============ -->
+    <section id="tokens" style="padding:44px 0 8px; border-top:1px solid var(--gw-border); margin-top:44px;">
+      <div class="gw-eyebrow">07 — Handoff</div>
+      <h2 style="font-family:var(--gw-ui); font-size:24px; font-weight:700; letter-spacing:-0.02em; margin-top:8px;">Exportable design tokens</h2>
+      <p class="gw-muted" style="font-size:13.5px; margin-top:8px; max-width:660px;">Everything here is driven by one token set with a light and a dark map. Consume the CSS custom properties directly, or the JSON for a build step. Both live in <span class="gw-mono">/tokens</span>.</p>
+
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:24px; align-items:start;">
+        <div class="gw-cmd">
+          <div class="gw-cmd-head"><span class="lbl">tokens/groundwork-ui.css</span><span class="copy">CSS custom properties + components</span></div>
+          <div class="gw-cmd-body"><span class="prompt">/* one source of truth, two themes */</span><br>:root, [data-theme=<span class="str">"light"</span>] {<br>&nbsp;&nbsp;--gw-bg: <span class="flag">#F4F2EE</span>;<br>&nbsp;&nbsp;--gw-surface: <span class="flag">#FFFFFF</span>;<br>&nbsp;&nbsp;--gw-accent: <span class="flag">#6B1D1F</span>;<br>&nbsp;&nbsp;<span class="prompt">/* … semantic, actor, prov … */</span><br>}<br>[data-theme=<span class="str">"dark"</span>] {<br>&nbsp;&nbsp;--gw-bg: <span class="flag">#16171A</span>;<br>&nbsp;&nbsp;--gw-accent-line: <span class="flag">#C77A6B</span>;<br>}</div>
+        </div>
+        <div class="gw-cmd">
+          <div class="gw-cmd-head"><span class="lbl">tokens/tokens.json</span><span class="copy">for the Vite build step</span></div>
+          <div class="gw-cmd-body">{<br>&nbsp;&nbsp;<span class="str">"color"</span>: {<br>&nbsp;&nbsp;&nbsp;&nbsp;<span class="str">"light"</span>: { <span class="str">"accent"</span>: <span class="flag">"#6B1D1F"</span>, … },<br>&nbsp;&nbsp;&nbsp;&nbsp;<span class="str">"dark"</span>:&nbsp; { <span class="str">"accent"</span>: <span class="flag">"#6B1D1F"</span>, … }<br>&nbsp;&nbsp;},<br>&nbsp;&nbsp;<span class="str">"space"</span>: { <span class="str">"4"</span>: <span class="flag">"16px"</span>, … },<br>&nbsp;&nbsp;<span class="str">"radius"</span>: { <span class="str">"md"</span>: <span class="flag">"8px"</span> }<br>}</div>
+        </div>
+      </div>
+
+      <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-top:16px;">
+        <div class="gw-panel" style="padding:14px 16px;"><div class="gw-sect-label" style="margin-bottom:6px;">Ships as</div><p class="gw-muted" style="font-size:12px; line-height:1.5;">Static Vite build + <span class="gw-mono">go:embed</span>. No SSR, no runtime Node. Theme via <span class="gw-mono">[data-theme]</span> on the root, persisted to <span class="gw-mono">localStorage</span>.</p></div>
+        <div class="gw-panel" style="padding:14px 16px;"><div class="gw-sect-label" style="margin-bottom:6px;">Realtime-ready</div><p class="gw-muted" style="font-size:12px; line-height:1.5;">Request/response + light polling now. The digest, active-run, and pending states are polled; the same components accept a WebSocket push later with no rewrite.</p></div>
+        <div class="gw-panel" style="padding:14px 16px;"><div class="gw-sect-label" style="margin-bottom:6px;">CLI parity</div><p class="gw-muted" style="font-size:12px; line-height:1.5;">Every action maps to a <span class="gw-mono">gw</span> command; the UI is a client of the JSON API and never bypasses a gate. <span class="gw-mono">export/import/sync</span> stay CLI-only in v1.</p></div>
+      </div>
+
+      <!-- decisions needed -->
+      <div class="gw-panel" style="margin-top:22px; border-color:var(--gw-warn-bd); overflow:hidden;">
+        <div style="padding:11px 16px; background:var(--gw-warn-bg); border-bottom:1px solid var(--gw-warn-bd); display:flex; align-items:center; gap:9px;"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="color:var(--gw-warn);"><path d="M12 4a8 8 0 1 0 0 16 8 8 0 0 0 0-16zM12 8v4l3 2"></path></svg><span style="font-size:13px; font-weight:600; color:var(--gw-warn);">Decisions I need from you</span></div>
+        <div class="gw-panel-body" style="display:flex; flex-direction:column; gap:0; padding:0 16px;">
+          <div style="padding:12px 0; border-bottom:1px solid var(--gw-border);"><span class="gw-mono" style="font-size:10px; color:var(--gw-accent-line); font-weight:600;">D1</span> <span style="font-size:12.5px;">Default theme — I set <b>dark</b> as the dev-tool default with a light option. Confirm, or flip to light-default.</span></div>
+          <div style="padding:12px 0; border-bottom:1px solid var(--gw-border);"><span class="gw-mono" style="font-size:10px; color:var(--gw-accent-line); font-weight:600;">D2</span> <span style="font-size:12.5px;">Actor glyphs (H / P / C / R) are a placeholder scheme. Want distinct icons per role, or is the letter + color enough?</span></div>
+          <div style="padding:12px 0; border-bottom:1px solid var(--gw-border);"><span class="gw-mono" style="font-size:10px; color:var(--gw-accent-line); font-weight:600;">D3</span> <span style="font-size:12.5px;">Optional <b>lane grouping</b> on the Roots board (cross-root status board) — build it now, or defer as the IA suggests?</span></div>
+          <div style="padding:12px 0;"><span class="gw-mono" style="font-size:10px; color:var(--gw-accent-line); font-weight:600;">D4</span> <span style="font-size:12.5px;">Config surfaces (Policies, Actors, Settings) are in the IA but weren't in the priority screen list — want comps for those next?</span></div>
+        </div>
+      </div>
+    </section>
+
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{
+  &quot;$preview&quot;: { &quot;width&quot;: &quot;1280px&quot;, &quot;height&quot;: &quot;860px&quot; },
+  &quot;defaultTheme&quot;: { &quot;editor&quot;: &quot;enum&quot;, &quot;options&quot;: [&quot;dark&quot;, &quot;light&quot;], &quot;default&quot;: &quot;dark&quot;, &quot;tsType&quot;: &quot;'dark' | 'light'&quot;, &quot;section&quot;: &quot;Theme&quot; },
+  &quot;accent&quot;: { &quot;editor&quot;: &quot;color&quot;, &quot;default&quot;: &quot;#6B1D1F&quot;, &quot;options&quot;: [&quot;#6B1D1F&quot;, &quot;#7E2A2B&quot;, &quot;#8C3A2E&quot;, &quot;#9B4F3B&quot;], &quot;tsType&quot;: &quot;string&quot;, &quot;section&quot;: &quot;Theme&quot; }
+}">
+class Component extends DCLogic {
+  state = { theme: null, focus: 'T-0501', cmdk: false, query: '', peek: null, childOrder: null, dragId: null };
+
+  ROOTS() {
+    return [
+      { id: 'R-0042', title: 'Web UI — embedded static SPA', kind: 'goal' },
+      { id: 'R-0038', title: 'Approval envelopes v1', kind: 'epic' },
+    ];
+  }
+  NODELIST() {
+    return [
+      { id: 'T-0501', title: 'Node-view spine surface', kind: 'ticket' },
+      { id: 'T-0502', title: 'Roots board index', kind: 'ticket' },
+      { id: 'T-0512', title: 'Focused-node detail panel', kind: 'task' },
+      { id: 'T-0513', title: 'Children column + drag-to-prioritize', kind: 'task' },
+      { id: 'T-0514', title: 'Dependency peek popover', kind: 'task' },
+    ];
+  }
+
+  NODES() {
+    return {
+      'R-0042': { id:'R-0042', title:'Web UI — embedded static SPA', type:'composite', kind:'goal', status:'in_progress', parent:null, children:['T-0501','T-0502','T-0503'], actor:'human', envelope:'env-E-0006', priority:1, blockedBy:[], blocks:[] },
+      'T-0501': { id:'T-0501', title:'Node-view spine surface', type:'composite', kind:'ticket', status:'in_progress', parent:'R-0042', children:['T-0511','T-0512','T-0513','T-0514','T-0515'], actor:'ai-planner', prov:true, run:true, priority:1, blockedBy:[], blocks:['T-0502'] },
+      'T-0502': { id:'T-0502', title:'Roots board index', type:'composite', kind:'ticket', status:'todo', parent:'R-0042', children:[], actor:'ai-planner', prov:true, priority:2, blockedBy:['T-0501'], blocks:[] },
+      'T-0503': { id:'T-0503', title:'Design tokens + light/dark theme', type:'leaf', kind:'task', status:'done', parent:'R-0042', children:[], actor:'ai-coder', prov:true, priority:3, blockedBy:[], blocks:[] },
+      'T-0511': { id:'T-0511', title:'Ancestor breadcrumb rail', type:'leaf', kind:'task', status:'done', parent:'T-0501', children:[], actor:'ai-coder', prov:true, priority:1, blockedBy:[], blocks:[] },
+      'T-0512': { id:'T-0512', title:'Focused-node detail panel', type:'leaf', kind:'task', status:'in_progress', parent:'T-0501', children:[], actor:'ai-coder', prov:true, run:'run_5c2', priority:2, blockedBy:[], blocks:['T-0513','T-0514'] },
+      'T-0513': { id:'T-0513', title:'Children column + drag-to-prioritize', type:'leaf', kind:'task', status:'todo', parent:'T-0501', children:[], actor:'ai-coder', prov:true, waiting:true, priority:3, blockedBy:['T-0512'], blocks:[] },
+      'T-0514': { id:'T-0514', title:'Dependency peek popover', type:'leaf', kind:'task', status:'blocked', parent:'T-0501', children:[], actor:'ai-coder', prov:true, priority:4, blockedBy:['T-0512'], blocks:[] },
+      'T-0515': { id:'T-0515', title:'Provenance boundary marker', type:'leaf', kind:'task', status:'backlog', parent:'T-0501', children:[], actor:'human', prov:true, priority:5, blockedBy:[], blocks:[] },
+    };
+  }
+  STATUS() {
+    return {
+      in_progress: { cls:'run',  label:'In progress' },
+      todo:        { cls:'idle', label:'Todo' },
+      blocked:     { cls:'bad',  label:'Blocked' },
+      done:        { cls:'idle', label:'Done' },
+      review:      { cls:'warn', label:'In review' },
+      backlog:     { cls:'idle', label:'Backlog' },
+      approved:    { cls:'ok',   label:'Approved' },
+    };
+  }
+  actorMeta(a) {
+    const m = {
+      'human':      { cls:'human', label:'You', glyph:'H' },
+      'ai-planner': { cls:'ai',    label:'AI · planner', glyph:'P' },
+      'ai-coder':   { cls:'ai',    label:'AI · coder', glyph:'C' },
+      'ai-judge':   { cls:'judge', label:'AI · reviewer', glyph:'R' },
+    };
+    return m[a] || m['human'];
+  }
+  displayChild(n, i) {
+    const N = this.NODES();
+    const st = this.STATUS()[n.status] || { cls:'idle', label:n.status };
+    const act = this.actorMeta(n.actor);
+    return {
+      id: n.id, title: n.title,
+      typeLabel: n.type === 'composite' ? 'Composite' : 'Leaf',
+      isComposite: n.type === 'composite',
+      kind: n.kind,
+      statusCls: 'gw-badge ' + st.cls, statusLabel: st.label,
+      actorCls: 'gw-actor ' + act.cls, actorLabel: act.label, actorGlyph: act.glyph,
+      waiting: !!n.waiting, blocked: n.status === 'blocked',
+      showStatus: !n.waiting,
+      run: !!n.run,
+      prov: !!n.prov,
+      order: String(i + 1).padStart(2, '0'),
+      hasBlockedBy: (n.blockedBy || []).length > 0,
+      blockedByN: (n.blockedBy || []).length,
+      hasBlocks: (n.blocks || []).length > 0,
+      blocksN: (n.blocks || []).length,
+      peekOpen: this.state.peek === n.id,
+      peekItems: (n.blockedBy || []).map(id => ({ id, title: (N[id] || {}).title || '—', status: this.STATUS()[(N[id]||{}).status] ? this.STATUS()[(N[id]||{}).status].label : '', xtree: false })),
+      rowCls: 'gw-child' + (n.prov ? ' prov' : '') + (this.state.dragId === n.id ? ' dragging' : ''),
+      onDrill: () => this.setState({ focus: n.id, peek: null, childOrder: null }),
+      togglePeek: (e) => { e.stopPropagation(); this.setState({ peek: this.state.peek === n.id ? null : n.id }); },
+      reqBreakdown: (e) => { e.stopPropagation(); },
+      onDragStart: () => this.setState({ dragId: n.id }),
+      onDragOver: (e) => { e.preventDefault(); },
+      onDrop: (e) => { e.preventDefault(); this.reorder(n.id); },
+    };
+  }
+  reorder(targetId) {
+    const from = this.state.dragId;
+    if (!from || from === targetId) { this.setState({ dragId: null }); return; }
+    const focus = this.NODES()[this.state.focus];
+    let ids = (this.state.childOrder && this.state.childOrder.focus === this.state.focus) ? [...this.state.childOrder.ids] : [...focus.children];
+    ids = ids.filter(x => x !== from);
+    const ti = ids.indexOf(targetId);
+    ids.splice(ti, 0, from);
+    this.setState({ childOrder: { focus: this.state.focus, ids }, dragId: null });
+  }
+
+  renderVals() {
+    const theme = this.state.theme || this.props.defaultTheme || 'dark';
+    const dark = theme === 'dark';
+    const q = (this.state.query || '').toLowerCase();
+    const match = (r) => !q || r.id.toLowerCase().includes(q) || r.title.toLowerCase().includes(q);
+    const mk = (r) => ({ ...r, go: () => this.setState({ cmdk: false, query: '' }) });
+    return {
+      theme: theme,
+      accent: this.props.accent || '#6B1D1F',
+      themeLabel: dark ? 'Dark' : 'Light',
+      themeIcon: dark ? '☾' : '☀',
+      cmdk: this.state.cmdk,
+      query: this.state.query,
+      toggleTheme: () => this.setState({ theme: dark ? 'light' : 'dark' }),
+      openCmdk: () => this.setState({ cmdk: true }),
+      closeCmdk: () => this.setState({ cmdk: false, query: '' }),
+      stop: (e) => { e.stopPropagation(); },
+      onQuery: (e) => this.setState({ query: e.target.value }),
+      cmdkRoots: this.ROOTS().filter(match).map(mk),
+      cmdkNodes: this.NODELIST().filter(match).map(mk),
+      ...this.nodeViewVals(),
+    };
+  }
+
+  nodeViewVals() {
+    const N = this.NODES();
+    const focus = N[this.state.focus] || N['T-0501'];
+    const st = this.STATUS()[focus.status] || { cls:'idle', label:focus.status };
+    const act = this.actorMeta(focus.actor);
+    // ancestors up the parent chain
+    const anc = [];
+    let p = focus.parent;
+    while (p) { const node = N[p]; anc.unshift({ id: node.id, title: node.title, envelope: node.envelope, onClick: () => this.setState({ focus: node.id, peek: null, childOrder: null }) }); p = node.parent; }
+    // children, honoring drag order
+    let childIds = focus.children;
+    if (this.state.childOrder && this.state.childOrder.focus === this.state.focus) childIds = this.state.childOrder.ids;
+    const children = childIds.map((id, i) => this.displayChild(N[id], i));
+    // provenance: boundary where the nearest ancestor's envelope begins to authorize agents
+    const envAnc = anc.find(a => a.envelope);
+    return {
+      f_id: focus.id, f_title: focus.title,
+      f_statusCls: 'gw-badge ' + st.cls, f_statusLabel: st.label,
+      f_typeLabel: focus.type === 'composite' ? 'Composite' : 'Leaf',
+      f_isComposite: focus.type === 'composite',
+      f_kind: focus.kind,
+      f_actorCls: 'gw-actor ' + act.cls, f_actorLabel: act.label, f_actorGlyph: act.glyph,
+      f_run: !!focus.run,
+      f_hasBlocks: (focus.blocks||[]).length > 0, f_blocksN: (focus.blocks||[]).length,
+      f_hasBlockedBy: (focus.blockedBy||[]).length > 0, f_blockedByN: (focus.blockedBy||[]).length,
+      ancestors: anc,
+      hasChildren: children.length > 0,
+      noChildren: children.length === 0,
+      children,
+      childCountLabel: children.length + ' children',
+      envName: envAnc ? envAnc.envelope : 'env-E-0006',
+      hasProvMark: !!envAnc && focus.prov,
+      f_actions: this.actionsFor(focus),
+      f_isLeaf: focus.type === 'leaf',
+      rootTitle: (N[this.rootOf(focus)] || {}).title || '',
+      rootId: this.rootOf(focus),
+    };
+  }
+  rootOf(node) { const N = this.NODES(); let n = node; while (n.parent) n = N[n.parent]; return n.id; }
+  actionsFor(focus) {
+    if (focus.type === 'composite') {
+      return [
+        { label: 'Propose / approve envelope', cls: 'gw-btn primary' },
+        { label: 'Request breakdown', cls: 'gw-btn' },
+        { label: 'Review bundle', cls: 'gw-btn' },
+        { label: 'Request replan', cls: 'gw-btn' },
+        { label: 'Link dependency', cls: 'gw-btn ghost' },
+        { label: 'Reparent', cls: 'gw-btn ghost' },
+      ];
+    }
+    const claimable = focus.status !== 'blocked' && !focus.waiting;
+    return [
+      { label: claimable ? 'Claim' : 'Claim · ineligible', cls: claimable ? 'gw-btn primary' : 'gw-btn disabled' },
+      { label: 'Transition…', cls: 'gw-btn' },
+      { label: 'Land (auto-routed)', cls: 'gw-btn' },
+      { label: 'Request replan', cls: 'gw-btn' },
+      { label: 'Link dependency', cls: 'gw-btn ghost' },
+      { label: 'Reparent', cls: 'gw-btn ghost' },
+    ];
+  }
+
+  componentDidMount() {
+    this._key = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); this.setState({ cmdk: !this.state.cmdk }); }
+      if (e.key === 'Escape') this.setState({ cmdk: false });
+    };
+    window.addEventListener('keydown', this._key);
+  }
+  componentWillUnmount() { window.removeEventListener('keydown', this._key); }
+}
+</script>
+</body>
+</html>
