@@ -15,6 +15,9 @@ docs/design/wireframes/.design-canvas.state.json
 *.test
 *.out
 
+# Frontend dependencies are developer-only. The production dist is committed
+# because it is embedded into the Go binary.
+/web/node_modules/
+
 # CodeGraph index (local code-intelligence sidecar)
 .codegraph/
-
