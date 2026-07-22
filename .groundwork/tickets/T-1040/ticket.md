@@ -4,7 +4,7 @@ kind: ticket
 node_type: leaf
 work_type: technical_implementation
 title: Build web-UI design-system components from the design handoff tokens
-status: backlog
+status: done
 assignee: null
 requested_actor: null
 priority: 0.52
@@ -14,7 +14,7 @@ parent: T-1036
 depends_on:
     - T-1039
 created_at: "2026-06-24T15:37:14Z"
-updated_at: "2026-07-15T01:18:45Z"
+updated_at: "2026-07-22T12:14:23Z"
 ---
 
 ## Problem
