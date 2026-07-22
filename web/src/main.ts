@@ -3,14 +3,19 @@ import {
   ChevronRight,
   GitBranch,
   Home,
+  Link,
   Moon,
+  Pencil,
+  Plus,
   Search,
+  Split,
   Sun,
 } from 'lucide'
 import './style.css'
 import {
   ActorBadge,
   Badge,
+  Button,
   ChecklistItem,
   DependencyBadge,
   EmptyState,
@@ -19,6 +24,7 @@ import {
   IconButton,
   NodeTypeBadge,
   Panel,
+  TextInput,
   type SemanticTone,
 } from './design-system/components'
 import { applyTheme, initializeTheme } from './design-system/theme'
@@ -33,6 +39,8 @@ type Ticket = {
   description?: string
   status: string
   assignee?: string
+  requested_actor?: string
+  priority?: number
   acceptance: string[]
   labels: string[]
   created_at: string
@@ -109,6 +117,18 @@ let searchTerm = ''
 
 const settledStatuses = new Set(['done', 'cancelled', 'archived'])
 const runningStatuses = new Set(['running', 'starting', 'paused'])
+const transitions: Record<string, string[]> = {
+  backlog: ['todo', 'cancelled'],
+  todo: ['backlog', 'in_progress', 'blocked', 'cancelled'],
+  in_progress: ['blocked', 'review', 'done', 'cancelled'],
+  blocked: ['todo', 'in_progress', 'cancelled'],
+  review: ['approved', 'rework', 'cancelled'],
+  rework: ['in_progress', 'review', 'cancelled'],
+  approved: ['landing', 'cancelled'],
+  landing: ['done', 'blocked', 'cancelled'],
+  done: [],
+  cancelled: [],
+}
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, className?: string, text?: string) {
   const node = document.createElement(tag)
@@ -155,6 +175,106 @@ async function getJSON<T>(path: string): Promise<T> {
     throw new Error(message)
   }
   return response.json() as Promise<T>
+}
+
+async function requestJSON<T>(path: string, method: string, body?: unknown): Promise<T> {
+  const response = await fetch(path, {
+    method,
+    headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  })
+  if (!response.ok) {
+    let message = `HTTP ${response.status}`
+    try {
+      const payload = await response.json() as { error?: { message?: string } }
+      message = payload.error?.message ?? message
+    } catch {
+      // Preserve the HTTP status for non-JSON failures.
+    }
+    throw new Error(message)
+  }
+  return response.json() as Promise<T>
+}
+
+async function refresh() {
+  data = await loadAppData()
+  await render()
+}
+
+function field(label: string, control: HTMLElement, hint?: string) {
+  const wrap = el('label', 'gw-field')
+  wrap.append(el('span', 'gw-field-label', label), control)
+  if (hint) wrap.append(el('span', 'gw-field-hint', hint))
+  return wrap
+}
+
+function selectInput(label: string, values: string[], selected = '', includeBlank?: string) {
+  const select = el('select', 'gw-input')
+  select.setAttribute('aria-label', label)
+  if (includeBlank !== undefined) {
+    const option = el('option', undefined, includeBlank)
+    option.value = ''
+    select.append(option)
+  }
+  for (const value of values) {
+    const option = el('option', undefined, pretty(value))
+    option.value = value
+    option.selected = value === selected
+    select.append(option)
+  }
+  return select
+}
+
+function openForm(
+  title: string,
+  description: string,
+  build: (form: HTMLFormElement) => void,
+  submit: (values: FormData) => Promise<void>,
+) {
+  const dialog = el('dialog', 'gw-dialog')
+  const form = el('form', 'gw-form')
+  form.method = 'dialog'
+  form.append(el('p', 'gw-eyebrow', 'Focused node action'), el('h2', undefined, title), el('p', 'gw-page-subtitle', description))
+  build(form)
+  const error = el('p', 'gw-form-error')
+  error.setAttribute('role', 'alert')
+  const actions = el('div', 'gw-form-actions')
+  const cancel = Button('Cancel', { variant: 'ghost', onClick: () => dialog.close() })
+  const save = Button('Apply', { variant: 'primary', type: 'submit' })
+  actions.append(cancel, save)
+  form.append(error, actions)
+  form.addEventListener('submit', (event) => {
+    event.preventDefault()
+    save.disabled = true
+    error.textContent = ''
+    void submit(new FormData(form)).then(async () => {
+      dialog.close()
+      await refresh()
+    }).catch((cause) => {
+      error.textContent = cause instanceof Error ? cause.message : 'The coordinator rejected the action.'
+      save.disabled = false
+    })
+  })
+  dialog.append(form)
+  dialog.addEventListener('close', () => dialog.remove())
+  document.body.append(dialog)
+  dialog.showModal()
+  const first = dialog.querySelector<HTMLElement>('input, textarea, select')
+  first?.focus()
+}
+
+function namedInput(name: string, options: Parameters<typeof TextInput>[0]) {
+  const input = TextInput(options)
+  input.name = name
+  return input
+}
+
+function values(value: FormDataEntryValue | null) {
+  return String(value ?? '').trim()
+}
+
+function lines(value: FormDataEntryValue | null) {
+  return String(value ?? '').split('\n').map((item) => item.trim()).filter(Boolean)
 }
 
 function navigate(ticket: Ticket) {
@@ -249,7 +369,11 @@ function renderRootsBoard(appData: AppData) {
     renderRootRows(rows, roots, appData)
   })
   search.append(input)
-  controls.append(search, el('span', 'gw-count-copy', `${roots.length} root${roots.length === 1 ? '' : 's'}`))
+  controls.append(
+    search,
+    el('span', 'gw-count-copy', `${roots.length} root${roots.length === 1 ? '' : 's'}`),
+    Button('New root', { variant: 'primary', icon: Plus, onClick: () => openCreateForm() }),
+  )
   app.append(controls)
 
   const rows = el('section', 'gw-rows')
@@ -257,6 +381,45 @@ function renderRootsBoard(appData: AppData) {
   renderRootRows(rows, roots, appData)
   app.append(rows)
   mount.replaceChildren(app)
+}
+
+function openCreateForm(parent?: Ticket) {
+  openForm(
+    parent ? `New child of ${parent.id}` : 'New root',
+    parent ? 'Create one scoped work node below the current focus.' : 'Create a parentless human planning handle.',
+    (form) => {
+      form.append(
+        field('Title', namedInput('title', { label: 'Title', placeholder: 'One clear outcome' })),
+        field('Description', namedInput('description', { label: 'Description', multiline: true, placeholder: 'Problem or scope' })),
+      )
+      const row = el('div', 'gw-form-row')
+      const kind = namedInput('kind', { label: 'Kind', value: 'ticket' })
+      const workType = namedInput('work_type', { label: 'Work type', placeholder: 'technical_implementation' })
+      row.append(field('Kind', kind), field('Work type', workType))
+      const status = selectInput('Initial status', ['backlog', 'todo'], 'backlog')
+      status.name = 'status'
+      const priority = namedInput('priority', { label: 'Priority', placeholder: '0.0 – 1.0' })
+      form.append(row, field('Initial status', status), field('Priority', priority, 'Optional value from 0 to 1.'),
+        field('Labels', namedInput('labels', { label: 'Labels', multiline: true, placeholder: 'One label per line' })),
+        field('Acceptance', namedInput('acceptance', { label: 'Acceptance', multiline: true, placeholder: 'One criterion per line' })))
+    },
+    async (form) => {
+      const priorityText = values(form.get('priority'))
+      const payload: Partial<Ticket> = {
+        title: values(form.get('title')),
+        kind: values(form.get('kind')) || 'ticket',
+        parent_id: parent?.id,
+        status: values(form.get('status')) || 'backlog',
+        description: values(form.get('description')),
+        work_type: values(form.get('work_type')),
+        labels: lines(form.get('labels')),
+        acceptance: lines(form.get('acceptance')),
+      }
+      if (priorityText) payload.priority = Number(priorityText)
+      const created = await requestJSON<Ticket>('/api/v1/tickets', 'POST', payload)
+      navigate(created)
+    },
+  )
 }
 
 function renderRootRows(rows: HTMLElement, roots: Ticket[], appData: AppData) {
@@ -322,11 +485,178 @@ async function renderNode(appData: AppData, id: string) {
     app.append(
       renderBreadcrumbs(brief, appData.tickets),
       renderSpine(ticket, children, brief, dependencies, appData),
+      renderActionRail(ticket, dependencies, appData.tickets),
       renderFocusedDetail(ticket, brief, validations, runs, runEvents, preview),
     )
   } catch (error) {
     loading.replaceWith(ErrorState('Unable to load node', error instanceof Error ? error.message : 'Unknown coordinator error'))
   }
+}
+
+function renderActionRail(ticket: Ticket, dependencies: Dependencies, tickets: Ticket[]) {
+  const rail = el('section', 'gw-action-rail')
+  const copy = el('div', 'gw-action-copy')
+  copy.append(el('p', 'gw-eyebrow', 'Act on focus'), el('h2', undefined, 'Node actions'))
+  const actions = el('div', 'gw-action-buttons')
+  const unmet = dependencies.depends_on
+    .map((id) => tickets.find((item) => item.id === id))
+    .filter((item) => item && item.status !== 'done')
+  const claim = Button('Claim', {
+    variant: 'primary',
+    disabled: ticket.status !== 'todo' || unmet.length > 0,
+    onClick: () => void requestJSON(`/api/v1/tickets/${encodeURIComponent(ticket.id)}/claim`, 'POST', { actor: 'human.owner' }).then(refresh).catch((error) => showActionError(rail, error)),
+  })
+  actions.append(
+    claim,
+    Button('Edit', { icon: Pencil, onClick: () => openEditForm(ticket) }),
+    Button('Transition', { onClick: () => openTransitionForm(ticket) }),
+    Button('Dependencies', { icon: Link, onClick: () => openDependencyForm(ticket, dependencies, tickets) }),
+    Button('Reparent', { onClick: () => openReparentForm(ticket, tickets) }),
+    Button('Triage', { onClick: () => openTriageForm(ticket) }),
+    Button('Add child', { icon: Plus, onClick: () => openCreateForm(ticket) }),
+    Button('Request breakdown', { icon: Split, onClick: () => openDecomposeForm(ticket) }),
+    Button('Request replan', { variant: 'ghost', onClick: () => openEscalateForm(ticket) }),
+  )
+  const hint = el('p', 'gw-action-hint')
+  if (ticket.status !== 'todo') hint.textContent = `Claim is unavailable while this node is ${pretty(ticket.status)}.`
+  else if (unmet.length) hint.textContent = `Claim is waiting on ${unmet.map((item) => item!.id).join(', ')}.`
+  rail.append(copy, actions, hint)
+  return rail
+}
+
+function showActionError(container: HTMLElement, cause: unknown) {
+  let error = container.querySelector<HTMLElement>('.gw-action-error')
+  if (!error) {
+    error = el('p', 'gw-action-error')
+    error.setAttribute('role', 'alert')
+    container.append(error)
+  }
+  error.textContent = cause instanceof Error ? cause.message : 'The coordinator rejected the action.'
+}
+
+function openEditForm(ticket: Ticket) {
+  openForm(`Edit ${ticket.id}`, 'Update mutable node metadata. Status and parentage have dedicated guarded actions.', (form) => {
+    form.append(
+      field('Title', namedInput('title', { label: 'Title', value: ticket.title })),
+      field('Description', namedInput('description', { label: 'Description', value: ticket.description, multiline: true })),
+    )
+    const row = el('div', 'gw-form-row')
+    row.append(
+      field('Kind', namedInput('kind', { label: 'Kind', value: ticket.kind })),
+      field('Work type', namedInput('work_type', { label: 'Work type', value: ticket.work_type })),
+    )
+    const owner = el('div', 'gw-form-row')
+    owner.append(
+      field('Assignee', namedInput('assignee', { label: 'Assignee', value: ticket.assignee })),
+      field('Requested actor', namedInput('requested_actor', { label: 'Requested actor', value: ticket.requested_actor })),
+    )
+    form.append(row, owner,
+      field('Priority', namedInput('priority', { label: 'Priority', value: ticket.priority?.toString() ?? '', placeholder: '0.0 – 1.0' })),
+      field('Labels', namedInput('labels', { label: 'Labels', value: ticket.labels.join('\n'), multiline: true })),
+      field('Acceptance', namedInput('acceptance', { label: 'Acceptance', value: ticket.acceptance.join('\n'), multiline: true })))
+  }, async (form) => {
+    const priorityText = values(form.get('priority'))
+    await requestJSON<Ticket>(`/api/v1/tickets/${encodeURIComponent(ticket.id)}`, 'PATCH', {
+      ...ticket,
+      title: values(form.get('title')),
+      description: values(form.get('description')),
+      kind: values(form.get('kind')),
+      work_type: values(form.get('work_type')),
+      assignee: values(form.get('assignee')),
+      requested_actor: values(form.get('requested_actor')),
+      priority: priorityText ? Number(priorityText) : null,
+      labels: lines(form.get('labels')),
+      acceptance: lines(form.get('acceptance')),
+    })
+  })
+}
+
+function openTransitionForm(ticket: Ticket) {
+  const allowed = transitions[ticket.status] ?? []
+  openForm(`Transition ${ticket.id}`, `Choose a lifecycle edge valid from ${pretty(ticket.status)}.`, (form) => {
+    const status = selectInput('New status', allowed)
+    status.name = 'status'
+    status.required = true
+    form.append(field('New status', status, allowed.length ? undefined : 'This node has no outgoing lifecycle transitions.'))
+  }, async (form) => {
+    await requestJSON(`/api/v1/tickets/${encodeURIComponent(ticket.id)}/transition`, 'POST', { status: values(form.get('status')) })
+  })
+}
+
+function openTriageForm(ticket: Ticket) {
+  openForm(`Triage ${ticket.id}`, 'Classify structure before execution: a leaf is one verifiable change; a composite needs children.', (form) => {
+    const type = selectInput('Node type', ['leaf', 'composite'], ticket.node_type)
+    type.name = 'node_type'
+    form.append(field('Node type', type))
+  }, async (form) => {
+    await requestJSON(`/api/v1/tickets/${encodeURIComponent(ticket.id)}/triage`, 'POST', { node_type: values(form.get('node_type')) })
+  })
+}
+
+function openDependencyForm(ticket: Ticket, dependencies: Dependencies, tickets: Ticket[]) {
+  const candidates = tickets.filter((item) => item.id !== ticket.id).map((item) => item.id)
+  openForm(`Link dependency for ${ticket.id}`, 'The focused node will wait for the selected node. Cycle checks run on the server.', (form) => {
+    if (dependencies.depends_on.length) {
+      const current = el('div', 'gw-linked-list')
+      current.append(el('span', 'gw-field-label', 'Current dependencies'))
+      for (const id of dependencies.depends_on) {
+        const row = el('div', 'gw-linked-row')
+        row.append(el('span', 'gw-mono', id), Button('Remove', {
+          variant: 'danger',
+          size: 'small',
+          onClick: () => void requestJSON(`/api/v1/tickets/${encodeURIComponent(ticket.id)}/dependencies/${encodeURIComponent(id)}`, 'DELETE')
+            .then(() => { form.closest('dialog')?.close(); return refresh() })
+            .catch((error) => showActionError(form, error)),
+        }))
+        current.append(row)
+      }
+      form.append(current)
+    }
+    const target = selectInput('Depends on', candidates, '', 'Choose a node')
+    target.name = 'depends_on'
+    target.required = true
+    form.append(field('Depends on', target))
+  }, async (form) => {
+    await requestJSON(`/api/v1/tickets/${encodeURIComponent(ticket.id)}/dependencies`, 'POST', { depends_on: values(form.get('depends_on')) })
+  })
+}
+
+function openReparentForm(ticket: Ticket, tickets: Ticket[]) {
+  const candidates = tickets.filter((item) => item.id !== ticket.id).map((item) => item.id)
+  openForm(`Reparent ${ticket.id}`, 'Move this node beneath another node. Parent-cycle checks run on the server.', (form) => {
+    const parent = selectInput('New parent', candidates, ticket.parent_id, 'No parent · make root')
+    parent.name = 'parent'
+    form.append(field('New parent', parent))
+  }, async (form) => {
+    await requestJSON(`/api/v1/tickets/${encodeURIComponent(ticket.id)}/reparent`, 'POST', { parent: values(form.get('parent')) })
+  })
+}
+
+function openDecomposeForm(ticket: Ticket) {
+  openForm(`Request breakdown for ${ticket.id}`, 'Propose child nodes through the human-gated decomposition flow.', (form) => {
+    form.append(
+      field('Child titles', namedInput('children', { label: 'Child titles', multiline: true, placeholder: 'One child title per line' })),
+      field('Parent contract JSON', namedInput('contract', { label: 'Parent contract JSON', multiline: true, value: '{}' })),
+    )
+  }, async (form) => {
+    const children = lines(form.get('children')).map((title) => ({ title }))
+    if (!children.length) throw new Error('Add at least one child title.')
+    let contract: unknown
+    try {
+      contract = JSON.parse(values(form.get('contract')) || '{}')
+    } catch {
+      throw new Error('Parent contract must be valid JSON.')
+    }
+    await requestJSON(`/api/v1/tickets/${encodeURIComponent(ticket.id)}/decompose`, 'POST', { contract, children })
+  })
+}
+
+function openEscalateForm(ticket: Ticket) {
+  openForm(`Request replan for ${ticket.id}`, 'Escalation opens a human-gated re-plan decision and propagates revision upward.', (form) => {
+    form.append(field('Reason', namedInput('reason', { label: 'Reason', multiline: true, placeholder: 'What changed or needs reconsideration?' })))
+  }, async (form) => {
+    await requestJSON(`/api/v1/tickets/${encodeURIComponent(ticket.id)}/escalate`, 'POST', { reason: values(form.get('reason')) })
+  })
 }
 
 function renderBreadcrumbs(brief: Brief, tickets: Ticket[]) {

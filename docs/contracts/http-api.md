@@ -10,7 +10,10 @@ GET  /api/v1/tickets
 POST /api/v1/tickets
 GET  /api/v1/tickets/:id
 PATCH /api/v1/tickets/:id
+POST /api/v1/tickets/:id/claim
 POST /api/v1/tickets/:id/transition
+POST /api/v1/tickets/:id/triage
+POST /api/v1/tickets/:id/reparent
 GET  /api/v1/tickets/:id/children
 GET  /api/v1/tickets/:id/context
 GET  /api/v1/tickets/:id/decisions
@@ -51,6 +54,13 @@ GET  /api/v1/events
 ```
 
 `POST /api/v1/tickets/:id/decompose` opens a planning run; the resulting decomposition proposal is decided through the approvals endpoints (`approve` accepts the proposal, `clarify` asks the agent for more detail). `approve`/`reject` cover the `decompose`, landing, and tactical gates uniformly.
+
+`POST /api/v1/tickets/:id/claim` mirrors the guided human claim: it verifies the
+node is `todo` with all dependencies satisfied, assigns the requested actor (default
+`human.owner`), and transitions it to `in_progress`. `POST
+/api/v1/tickets/:id/triage` classifies the node as `leaf` or `composite`, and
+`POST /api/v1/tickets/:id/reparent` moves it under the supplied `parent` (an empty
+parent makes it a root); both retain the store's cycle and validation checks.
 
 `GET/POST /api/v1/tickets/:id/decisions` reads and appends durable ticket-attached
 decision records (`decision-records.md`). Pending durable `approval_requested` and

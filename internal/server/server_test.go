@@ -338,6 +338,48 @@ func TestTicketTransition(t *testing.T) {
 	}
 }
 
+func TestTicketClaim(t *testing.T) {
+	srv, db := newTestServer(t)
+	ready := mustCreate(t, db, &ticket.Ticket{Title: "ready", Status: ticket.StatusTodo})
+
+	var claimed map[string]string
+	if code := req(t, srv, "POST", "/api/v1/tickets/"+ready.ID+"/claim",
+		map[string]string{"actor": "human.owner"}, &claimed); code != http.StatusOK {
+		t.Fatalf("claim status = %d, want 200", code)
+	}
+	if claimed["status"] != "in_progress" || claimed["assignee"] != "human.owner" {
+		t.Fatalf("claim = %v", claimed)
+	}
+
+	dep := mustCreate(t, db, &ticket.Ticket{Title: "dependency", Status: ticket.StatusTodo})
+	blocked := mustCreate(t, db, &ticket.Ticket{Title: "blocked", Status: ticket.StatusTodo})
+	if err := db.AddDependency(blocked.ID, dep.ID, "test"); err != nil {
+		t.Fatal(err)
+	}
+	var env errorEnvelope
+	if code := req(t, srv, "POST", "/api/v1/tickets/"+blocked.ID+"/claim",
+		map[string]string{}, &env); code != http.StatusConflict || env.Error.Code != "blocked" {
+		t.Fatalf("blocked claim status/code = %d/%q, want 409/blocked", code, env.Error.Code)
+	}
+}
+
+func TestTicketTriage(t *testing.T) {
+	srv, db := newTestServer(t)
+	tk := mustCreate(t, db, &ticket.Ticket{Title: "untriaged", Status: ticket.StatusTodo})
+
+	if code := req(t, srv, "POST", "/api/v1/tickets/"+tk.ID+"/triage",
+		map[string]string{"node_type": "leaf"}, nil); code != http.StatusOK {
+		t.Fatalf("triage status = %d, want 200", code)
+	}
+	got, err := db.GetTicket(tk.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.NodeType != ticket.NodeLeaf {
+		t.Fatalf("node_type = %q, want leaf", got.NodeType)
+	}
+}
+
 func TestTicketAddRemoveDependency(t *testing.T) {
 	srv, db := newTestServer(t)
 	a := mustCreate(t, db, &ticket.Ticket{Title: "a", Status: ticket.StatusTodo})
