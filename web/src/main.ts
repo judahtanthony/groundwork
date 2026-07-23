@@ -10,6 +10,7 @@ import {
   Pencil,
   Plus,
   Search,
+  ShieldCheck,
   Split,
   Sun,
 } from 'lucide'
@@ -153,6 +154,25 @@ type RunDetail = Run & {
   cost?: number
 }
 type LandPreview = { id: string; staged: boolean; diff: string }
+type TrustMatch = Record<string, unknown>
+type TrustRule = { id: string; description?: string; when: TrustMatch; actions?: string[]; require_roles?: string[] }
+type TrustPolicy = {
+  schema: string
+  require_human: TrustRule[]
+  auto_approve: TrustRule[]
+  allow_claim: TrustRule[]
+}
+type TrustGroup = 'require_human' | 'auto_approve' | 'allow_claim'
+type PolicyRuleView = { group: TrustGroup; order: number; rule: TrustRule }
+type ValidationTemplate = {
+  name: string
+  template: { match: { files?: string[] }; required: Array<{ name: string; command?: string }>; landing_risk_floor?: string }
+}
+type Policies = { trust?: TrustPolicy; rules: PolicyRuleView[]; validation_templates: ValidationTemplate[]; warnings: string[] }
+type PolicySuggestion = {
+  id: string; kind: string; action_type: string; work_type: string; level: string
+  rationale: string; status: string; created_at: string
+}
 
 type AppData = { state: State; tickets: Ticket[]; runs: Run[]; readiness: Readiness; approvals: Approval[] }
 
@@ -163,6 +183,7 @@ const mount = mountPoint
 let theme = initializeTheme()
 let data: AppData | undefined
 let searchTerm = ''
+let selectedPolicyRuleID = ''
 
 const settledStatuses = new Set(['done', 'cancelled', 'archived'])
 const runningStatuses = new Set(['running', 'starting', 'paused'])
@@ -330,9 +351,10 @@ function navigate(ticket: Ticket) {
   window.location.hash = ticket.parent_id ? `#/node/${ticket.id}` : `#/root/${ticket.id}`
 }
 
-function parseRoute(): { view: 'roots' } | { view: 'readiness' } | { view: 'approvals' } | { view: 'approval'; id: string } | { view: 'node'; id: string } | { view: 'run'; id: string } {
+function parseRoute(): { view: 'roots' } | { view: 'readiness' } | { view: 'policies' } | { view: 'approvals' } | { view: 'approval'; id: string } | { view: 'node'; id: string } | { view: 'run'; id: string } {
   if (window.location.hash === '#/ready') return { view: 'readiness' }
   if (window.location.hash === '#/approvals') return { view: 'approvals' }
+  if (window.location.hash === '#/policies') return { view: 'policies' }
   const approvalMatch = window.location.hash.match(/^#\/approval\/([^/]+)$/)
   if (approvalMatch) return { view: 'approval', id: decodeURIComponent(approvalMatch[1]!) }
   const runMatch = window.location.hash.match(/^#\/run\/([^/]+)$/)
@@ -384,6 +406,11 @@ function appHeader(title: string, subtitle: string, showHome = false) {
     variant: parseRoute().view === 'approvals' || parseRoute().view === 'approval' ? 'primary' : 'ghost',
     icon: LockKeyhole,
     onClick: () => { window.location.hash = '#/approvals' },
+  }))
+  actions.append(Button('Policies', {
+    variant: parseRoute().view === 'policies' ? 'primary' : 'ghost',
+    icon: ShieldCheck,
+    onClick: () => { window.location.hash = '#/policies' },
   }))
   if (showHome) {
     const home = IconButton('Back to roots board', Home, () => { window.location.hash = '#/' })
@@ -1198,6 +1225,146 @@ function renderApprovalsInbox(appData: AppData) {
   mount.replaceChildren(app)
 }
 
+async function renderPolicies() {
+  const app = el('main', 'gw gw-app gw-policies-page')
+  app.append(appHeader('Policies', 'Ordered trust rules, validation gates, and human-reviewed policy learning.', true))
+  const loading = el('div', 'gw-loading', 'Loading policy canon…')
+  app.append(loading)
+  mount.replaceChildren(app)
+  try {
+    const [policies, suggestions] = await Promise.all([
+      getJSON<Policies>('/api/v1/policies'),
+      getJSON<PolicySuggestion[]>('/api/v1/policies/suggestions'),
+    ])
+    loading.remove()
+    if (!selectedPolicyRuleID || !policies.rules.some((item) => item.rule.id === selectedPolicyRuleID)) {
+      selectedPolicyRuleID = policies.rules[0]?.rule.id ?? ''
+    }
+    const layout = el('div', 'gw-policy-layout')
+    const primary = el('div', 'gw-policy-primary')
+    primary.append(renderTrustRules(policies), renderValidationTemplates(policies.validation_templates))
+    const rail = el('aside', 'gw-policy-rail')
+    rail.append(renderRuleEditor(policies), renderSuggestionQueue(suggestions))
+    layout.append(primary, rail)
+    app.append(layout)
+  } catch (error) {
+    loading.replaceWith(ErrorState('Unable to load policies', error instanceof Error ? error.message : 'Unknown coordinator error'))
+  }
+}
+
+function renderTrustRules(policies: Policies) {
+  const list = el('div', 'gw-policy-list')
+  for (const item of policies.rules) {
+    const row = button(`gw-policy-row${item.rule.id === selectedPolicyRuleID ? ' selected' : ''}`, '', () => {
+      selectedPolicyRuleID = item.rule.id
+      void renderPolicies()
+    })
+    const copy = el('div', 'gw-policy-copy')
+    copy.append(el('span', 'gw-id', item.rule.id), el('strong', undefined, item.rule.description || summarizeMatch(item.rule.when)))
+    copy.append(el('span', 'gw-row-detail gw-mono', summarizeMatch(item.rule.when)))
+    row.append(copy, Badge(pretty(item.group), item.group === 'require_human' ? 'warn' : item.group === 'auto_approve' ? 'ok' : 'run'))
+    list.append(row)
+  }
+  if (!policies.rules.length) list.append(EmptyState('No trust rules', 'Add rules to .groundwork/policies/trust.yaml to establish explicit policy.'))
+  return Panel('Trust rules · evaluated top-down', [list], [el('span', 'gw-id', `${policies.rules.length} rules · stable ids`)])
+}
+
+function summarizeMatch(match: TrustMatch) {
+  const entries = Object.entries(match)
+  if (!entries.length) return 'matches every action'
+  return entries.map(([key, value]) => `${pretty(key)}: ${Array.isArray(value) ? value.join(', ') : String(value)}`).join(' · ')
+}
+
+function renderValidationTemplates(templates: ValidationTemplate[]) {
+  const section = el('section', 'gw-validation-section')
+  section.append(el('p', 'gw-sect-label', 'Validation templates · by file type'))
+  const cards = el('div', 'gw-validation-grid')
+  for (const item of templates) {
+    const body = el('div', 'gw-validation-card-body')
+    const globs = item.template.match.files ?? []
+    body.append(el('div', 'gw-mono gw-row-detail', globs.length ? globs.join(', ') : 'All files'))
+    if (item.template.required.length) {
+      for (const check of item.template.required) {
+        const line = el('div', 'gw-validation-check')
+        line.append(Icon(ShieldCheck), el('span', undefined, check.command || check.name))
+        body.append(line)
+      }
+    } else body.append(el('p', 'gw-quiet', 'No command checks required.'))
+    if (item.template.landing_risk_floor) body.append(Badge(`risk floor · ${item.template.landing_risk_floor}`, 'idle'))
+    cards.append(Panel(pretty(item.name), [body]))
+  }
+  if (!templates.length) cards.append(EmptyState('No validation templates', 'No file-type validation policy is configured.'))
+  section.append(cards)
+  return section
+}
+
+function renderRuleEditor(policies: Policies) {
+  const selected = policies.rules.find((item) => item.rule.id === selectedPolicyRuleID)
+  if (!selected || !policies.trust) return Panel('Rule editor', [el('p', 'gw-quiet', 'Select a trust rule to inspect it.')])
+  const form = el('form', 'gw-rule-form')
+  const id = namedInput('id', { label: 'Stable rule id', value: selected.rule.id, readOnly: true })
+  const ruleJSON = namedInput('rule', { label: 'Rule JSON', value: JSON.stringify(selected.rule, null, 2), multiline: true })
+  const ticketID = namedInput('ticket_id', { label: 'Change ticket', placeholder: 'T-0000' })
+  const notice = el('p', 'gw-form-notice')
+  notice.setAttribute('role', 'status')
+  form.append(
+    field('Stable rule id', id, 'IDs and top-down order cannot change in this editor.'),
+    field('Rule · JSON', ruleJSON, 'Edit description, match conditions, actions, or reviewer requirements. The stable id must remain unchanged.'),
+    field('Change ticket', ticketID, 'Policy amendments are attached to work and require human approval.'),
+  )
+  const controls = el('div', 'gw-rule-controls')
+  const save = Button('Request amendment', { variant: 'primary', type: 'submit' })
+  controls.append(save, Button('Reset', { onClick: () => void renderPolicies() }))
+  form.append(controls, notice)
+  form.addEventListener('submit', (event) => {
+    event.preventDefault()
+    void (async () => {
+      save.disabled = true
+      notice.className = 'gw-form-notice'
+      notice.textContent = ''
+      try {
+        const edited = JSON.parse(ruleJSON.value) as TrustRule
+        if (edited.id !== selected.rule.id) throw new Error(`Rule id must remain ${selected.rule.id}.`)
+        const next = structuredClone(policies.trust!)
+        const rule = next[selected.group][selected.order - 1]
+        if (!rule || rule.id !== selected.rule.id) throw new Error('The selected rule changed; reload the policy surface.')
+        next[selected.group][selected.order - 1] = edited
+        const result = await requestJSON<{ approval: Approval }>('/api/v1/policies', 'PUT', { ticket_id: ticketID.value.trim(), trust: next })
+        notice.className = 'gw-form-notice ok'
+        notice.textContent = `Amendment queued as ${result.approval.id}. Approve it in the inbox to apply trust.yaml.`
+      } catch (error) {
+        notice.className = 'gw-form-notice bad'
+        notice.textContent = error instanceof Error ? error.message : 'The coordinator rejected the amendment.'
+      } finally {
+        save.disabled = false
+      }
+    })()
+  })
+  return Panel('Rule editor', [form], [el('span', 'gw-id', selected.rule.id)])
+}
+
+function renderSuggestionQueue(suggestions: PolicySuggestion[]) {
+  const list = el('div', 'gw-suggestion-list')
+  for (const item of suggestions) {
+    const card = el('article', 'gw-suggestion')
+    card.append(el('strong', undefined, `${pretty(item.action_type)} · ${pretty(item.work_type)} → ${item.level}`))
+    card.append(el('p', 'gw-quiet', item.rationale), el('span', 'gw-id', `${item.id} · ${timeLabel(item.created_at)}`))
+    const actions = el('div', 'gw-suggestion-actions')
+    const decide = (operation: 'promote' | 'dismiss') => async () => {
+      await requestJSON(`/api/v1/policies/suggestions/${encodeURIComponent(item.id)}/${operation}`, 'POST')
+      await renderPolicies()
+    }
+    actions.append(
+      Button('Promote', { variant: 'primary', size: 'small', onClick: () => void decide('promote')().catch((error) => window.alert(error instanceof Error ? error.message : 'Promotion failed')) }),
+      Button('Dismiss', { size: 'small', onClick: () => void decide('dismiss')().catch((error) => window.alert(error instanceof Error ? error.message : 'Dismissal failed')) }),
+    )
+    card.append(actions)
+    list.append(card)
+  }
+  if (!suggestions.length) list.append(EmptyState('Queue clear', 'Groundwork has no pending policy-learning suggestions.'))
+  return Panel('Suggestion queue', [list], [Badge(String(suggestions.length), suggestions.length ? 'warn' : 'idle')])
+}
+
 function approvalInboxRow(approval: Approval, appData: AppData) {
   const ticket = appData.tickets.find((candidate) => candidate.id === approval.ticket_id)
   const row = el('button', `gw-approval-row${approval.type === 'exception' ? ' exception' : ''}`)
@@ -1395,6 +1562,7 @@ async function render() {
   else if (route.view === 'node') await renderNode(data, route.id)
   else if (route.view === 'readiness') renderReadiness(data)
   else if (route.view === 'approvals') renderApprovalsInbox(data)
+  else if (route.view === 'policies') await renderPolicies()
   else renderRootsBoard(data)
 }
 

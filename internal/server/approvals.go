@@ -108,6 +108,11 @@ func (s *Server) recordDecision(id string, to approval.Status, reason string) (*
 			return nil, err
 		}
 	}
+	if to == approval.StatusApproved && approval.Type(a.Type) == approval.TypeAmendPolicy {
+		if err := s.applyPolicyAmendment(a.ActionJSON); err != nil {
+			return nil, err
+		}
+	}
 	return a, nil
 }
 

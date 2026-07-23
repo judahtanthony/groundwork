@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 
 	"gopkg.in/yaml.v3"
 )
@@ -14,9 +15,19 @@ import (
 // absent; the gate engine treats a nil policy conservatively (default-deny for
 // claims, human-required for gated actions).
 type Set struct {
+	mu         sync.RWMutex
 	Trust      *TrustPolicy
 	Autonomy   *AutonomyPolicy
 	Validation *ValidationPolicy
+}
+
+// ReplaceTrust swaps the live trust policy after a validated, gated policy
+// amendment. Gate evaluation takes the same lock, so schedulers never observe a
+// partially replaced rule set.
+func (s *Set) ReplaceTrust(trust *TrustPolicy) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.Trust = trust
 }
 
 // Load reads every *.yaml under dir, dispatches each by its `schema` field, and

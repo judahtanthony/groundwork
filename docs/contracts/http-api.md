@@ -110,6 +110,44 @@ gates with an audited override. These were added in M2; the changed-file set tha
 selects template-required checks and enables docs auto-approval of landing is
 supplied by the Phase 6 runtime.
 
+### Policies
+
+`GET /api/v1/policies` reads the committed policy files and returns the parsed
+trust and validation policies. `rules` is the UI-oriented ordered trust-rule
+view; each item is `{"group", "order", "rule"}`, where `group` is
+`require_human`, `auto_approve`, or `allow_claim`, `order` is one-based within
+that group, and `rule.id` is the durable stable id. `validation_templates` is
+sorted by template name and contains `{"name", "template"}` entries with file
+globs, required checks, and any landing risk floor. Parse/load warnings are
+returned in `warnings`.
+
+`PUT /api/v1/policies` requests replacement of the complete ordered trust
+policy. The body is:
+
+```json
+{
+  "ticket_id": "T-1045",
+  "trust": {
+    "schema": "groundwork_trust_policy/v1",
+    "require_human": [],
+    "auto_approve": [],
+    "allow_claim": []
+  }
+}
+```
+
+The referenced ticket makes the change auditable. The replacement must parse
+successfully and preserve every existing stable rule id, group, and order. A
+valid request returns `202` with `{"approval": …}` for an `amend_policy` gate;
+`trust.yaml` is not changed until that approval is accepted. Acceptance writes
+the file atomically and reloads the coordinator's trust-policy view.
+
+`GET /api/v1/policies/suggestions` lists pending policy-learning suggestions;
+`?status=all` includes prior decisions. `POST .../:id/promote` and `POST
+.../:id/dismiss` record the human review outcome and return the updated
+suggestion. As with `gw policy promote`, promotion records intent only and never
+self-elevates or rewrites autonomy policy.
+
 Actor endpoints expose the current local actor registry from `.groundwork/actors.yaml`. Runs expose actor ids and snapshots through the run endpoints; snapshots are runtime audit records, not edits to the actor registry.
 
 `GET /api/v1/runs/:id` returns the run record plus run-detail evidence:
