@@ -1,4 +1,4 @@
-.PHONY: build install test race smoke vet fmt sizecheck
+.PHONY: build install test race smoke vet fmt sizecheck web-build
 
 # Guardrail: the web UI will be embedded into the binary via go:embed (ADR 0042),
 # so warn when gw inflates past this. Override to tune: make build MAX_BIN_MB=120.
@@ -36,3 +36,8 @@ vet:
 
 fmt:
 	gofmt -l .
+
+# Rebuild the static SPA that is committed and embedded into the gw binary.
+web-build:
+	npm --prefix web ci
+	npm --prefix web run build

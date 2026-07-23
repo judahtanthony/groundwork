@@ -1,0 +1,41 @@
+id: ENV-0004
+node_id: T-1036
+status: active
+approved_by: human.owner
+approved_at: "2026-07-23T12:24:52Z"
+approved_actions:
+    - execute_children
+    - land_children_to_parent
+planning:
+    max_depth: 0
+    max_children: 0
+    allowed_work_types:
+        - technical_implementation
+        - test_implementation
+        - documentation
+scope:
+    files:
+        allow:
+            - web/**
+            - internal/server/**
+            - internal/policy/**
+            - internal/doctor/**
+            - internal/agentsync/**
+            - internal/cli/**
+            - Makefile
+            - .gitignore
+            - docs/contracts/**
+        require_review: []
+        deny: []
+validation:
+    required_templates: []
+risk_ceiling: medium
+allowed_roles:
+    - coding
+    - implementer
+escalation:
+    on_unexpected_files: false
+    on_contract_change: false
+    on_validation_failure: false
+    on_risk_above_ceiling: false
+    on_public_api_change: false

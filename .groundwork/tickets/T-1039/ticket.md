@@ -4,17 +4,16 @@ kind: ticket
 node_type: leaf
 work_type: technical_implementation
 title: Bootstrap embedded static SPA (Vite) served by gw server via go:embed
-status: backlog
+status: done
 assignee: null
 requested_actor: null
 priority: 0.58
 labels:
     - web-ui
 parent: T-1036
-depends_on:
-    - T-1037
+depends_on: []
 created_at: "2026-06-24T15:37:14Z"
-updated_at: "2026-07-15T01:18:45Z"
+updated_at: "2026-07-16T01:31:06Z"
 ---
 
 ## Problem

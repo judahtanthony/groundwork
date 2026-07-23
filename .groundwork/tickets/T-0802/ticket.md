@@ -4,7 +4,7 @@ kind: ticket
 node_type: leaf
 work_type: technical_implementation
 title: Implement ticket board and detail pages
-status: todo
+status: cancelled
 assignee: null
 requested_actor: null
 priority: 0.5
@@ -14,7 +14,7 @@ depends_on:
     - T-0801
     - T-1040
 created_at: "2026-06-22T12:20:48Z"
-updated_at: "2026-06-24T22:23:28Z"
+updated_at: "2026-07-22T12:23:58Z"
 ---
 
 ## Problem

@@ -25,55 +25,55 @@ const (
 // (actor_ids, prefix-matched) and capability/role are independent dimensions of
 // the same AND.
 type Match struct {
-	ActorIDs           []string `yaml:"actor_ids,omitempty"`
-	ActorTypes         []string `yaml:"actor_types,omitempty"`
-	Roles              []string `yaml:"roles,omitempty"`
-	WorkTypes          []string `yaml:"work_types,omitempty"`
-	ActionTypes        []string `yaml:"action_types,omitempty"`
-	Files              []string `yaml:"files,omitempty"`
-	RiskClass          string   `yaml:"risk_class,omitempty"`
-	RiskClassAtMost    string   `yaml:"risk_class_at_most,omitempty"`
-	Reversible         *bool    `yaml:"reversible,omitempty"`
-	CommandRegex       string   `yaml:"command_regex,omitempty"`
-	CommandCategories  []string `yaml:"command_categories,omitempty"`
-	ChangeType         string   `yaml:"change_type,omitempty"`
-	MaxDiffLines       int      `yaml:"max_diff_lines,omitempty"`
-	CwdWithinWorkspace *bool    `yaml:"cwd_within_workspace,omitempty"`
-	Network            *bool    `yaml:"network,omitempty"`
+	ActorIDs           []string `json:"actor_ids,omitempty" yaml:"actor_ids,omitempty"`
+	ActorTypes         []string `json:"actor_types,omitempty" yaml:"actor_types,omitempty"`
+	Roles              []string `json:"roles,omitempty" yaml:"roles,omitempty"`
+	WorkTypes          []string `json:"work_types,omitempty" yaml:"work_types,omitempty"`
+	ActionTypes        []string `json:"action_types,omitempty" yaml:"action_types,omitempty"`
+	Files              []string `json:"files,omitempty" yaml:"files,omitempty"`
+	RiskClass          string   `json:"risk_class,omitempty" yaml:"risk_class,omitempty"`
+	RiskClassAtMost    string   `json:"risk_class_at_most,omitempty" yaml:"risk_class_at_most,omitempty"`
+	Reversible         *bool    `json:"reversible,omitempty" yaml:"reversible,omitempty"`
+	CommandRegex       string   `json:"command_regex,omitempty" yaml:"command_regex,omitempty"`
+	CommandCategories  []string `json:"command_categories,omitempty" yaml:"command_categories,omitempty"`
+	ChangeType         string   `json:"change_type,omitempty" yaml:"change_type,omitempty"`
+	MaxDiffLines       int      `json:"max_diff_lines,omitempty" yaml:"max_diff_lines,omitempty"`
+	CwdWithinWorkspace *bool    `json:"cwd_within_workspace,omitempty" yaml:"cwd_within_workspace,omitempty"`
+	Network            *bool    `json:"network,omitempty" yaml:"network,omitempty"`
 	// WithinEnvelope matches the coordinator-computed fact that an action sits
 	// inside an approved parent/root envelope (ADR 0056), so allow_claim rules can
 	// require bounded-autonomy authorization.
-	WithinEnvelope *bool `yaml:"within_envelope,omitempty"`
+	WithinEnvelope *bool `json:"within_envelope,omitempty" yaml:"within_envelope,omitempty"`
 }
 
 // ReviewAllowedBy names who may review/decide for an auto_approve rule that
 // delegates to a reviewer (e.g. an ai_judge). Reviewer-agent execution is a
 // later phase; the field is parsed now for forward compatibility.
 type ReviewAllowedBy struct {
-	ActorIDs []string `yaml:"actor_ids,omitempty"`
-	Roles    []string `yaml:"roles,omitempty"`
+	ActorIDs []string `json:"actor_ids,omitempty" yaml:"actor_ids,omitempty"`
+	Roles    []string `json:"roles,omitempty" yaml:"roles,omitempty"`
 }
 
 // Rule is one trust-policy rule with a stable id (surfaced as R-01 etc.).
 type Rule struct {
-	ID              string           `yaml:"id"`
-	Description     string           `yaml:"description,omitempty"`
-	When            Match            `yaml:"when"`
-	Actions         []string         `yaml:"actions,omitempty"`
-	ReviewAllowedBy *ReviewAllowedBy `yaml:"review_allowed_by,omitempty"`
+	ID              string           `json:"id" yaml:"id"`
+	Description     string           `json:"description,omitempty" yaml:"description,omitempty"`
+	When            Match            `json:"when" yaml:"when"`
+	Actions         []string         `json:"actions,omitempty" yaml:"actions,omitempty"`
+	ReviewAllowedBy *ReviewAllowedBy `json:"review_allowed_by,omitempty" yaml:"review_allowed_by,omitempty"`
 	// RequireRoles names the approver role(s) a matching require_human rule
 	// demands (ADR 0055/0048): the approval then records which role was required
 	// and why. In v1 the owner satisfies every role; this keeps the record honest
 	// for later multi-human identity.
-	RequireRoles []string `yaml:"require_roles,omitempty"`
+	RequireRoles []string `json:"require_roles,omitempty" yaml:"require_roles,omitempty"`
 }
 
 // TrustPolicy is the ordered, first-match trust rule set.
 type TrustPolicy struct {
-	Schema       string `yaml:"schema"`
-	AutoApprove  []Rule `yaml:"auto_approve"`
-	RequireHuman []Rule `yaml:"require_human"`
-	AllowClaim   []Rule `yaml:"allow_claim"`
+	Schema       string `json:"schema" yaml:"schema"`
+	AutoApprove  []Rule `json:"auto_approve" yaml:"auto_approve"`
+	RequireHuman []Rule `json:"require_human" yaml:"require_human"`
+	AllowClaim   []Rule `json:"allow_claim" yaml:"allow_claim"`
 }
 
 // AutonomyRequires lists what an elevated autonomy level depends on.
@@ -102,26 +102,26 @@ type AutonomyPolicy struct {
 
 // ValidationCheck is one required validation command.
 type ValidationCheck struct {
-	Name    string `yaml:"name"`
-	Command string `yaml:"command,omitempty"`
+	Name    string `json:"name" yaml:"name"`
+	Command string `json:"command,omitempty" yaml:"command,omitempty"`
 }
 
 // ValidationMatch selects files a template applies to.
 type ValidationMatch struct {
-	Files []string `yaml:"files,omitempty"`
+	Files []string `json:"files,omitempty" yaml:"files,omitempty"`
 }
 
 // ValidationTemplate maps changed files to required checks.
 type ValidationTemplate struct {
-	Match            ValidationMatch   `yaml:"match"`
-	Required         []ValidationCheck `yaml:"required"`
-	LandingRiskFloor string            `yaml:"landing_risk_floor,omitempty"`
+	Match            ValidationMatch   `json:"match" yaml:"match"`
+	Required         []ValidationCheck `json:"required" yaml:"required"`
+	LandingRiskFloor string            `json:"landing_risk_floor,omitempty" yaml:"landing_risk_floor,omitempty"`
 }
 
 // ValidationPolicy holds validation templates by name.
 type ValidationPolicy struct {
-	Schema    string                        `yaml:"schema"`
-	Templates map[string]ValidationTemplate `yaml:"templates"`
+	Schema    string                        `json:"schema" yaml:"schema"`
+	Templates map[string]ValidationTemplate `json:"templates" yaml:"templates"`
 }
 
 // validAutonomyLevels are the accepted autonomy levels (reviewer is parsed but

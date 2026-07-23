@@ -1,5 +1,10 @@
 schema: groundwork_config/v1
 runtime: codex
+# Extra flags passed to `codex exec`. Enable network in the workspace-write sandbox
+# so coding agents can fetch packages (npm/go modules) and look up documentation.
+runtime_args:
+    - "-c"
+    - "sandbox_workspace_write.network_access=true"
 server:
     addr: 127.0.0.1:4500
 max_concurrency: 4

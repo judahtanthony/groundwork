@@ -6,11 +6,15 @@ The v1 server binds to `127.0.0.1:4500` by default and is single-user.
 
 ```text
 GET  /api/v1/state
+GET  /api/v1/readiness
 GET  /api/v1/tickets
 POST /api/v1/tickets
 GET  /api/v1/tickets/:id
 PATCH /api/v1/tickets/:id
+POST /api/v1/tickets/:id/claim
 POST /api/v1/tickets/:id/transition
+POST /api/v1/tickets/:id/triage
+POST /api/v1/tickets/:id/reparent
 GET  /api/v1/tickets/:id/children
 GET  /api/v1/tickets/:id/context
 GET  /api/v1/tickets/:id/decisions
@@ -47,10 +51,28 @@ PUT  /api/v1/policies
 GET  /api/v1/policies/suggestions
 POST /api/v1/policies/suggestions/:id/promote
 POST /api/v1/policies/suggestions/:id/dismiss
+GET  /api/v1/settings
+POST /api/v1/settings/agents-md/sync
+POST /api/v1/doctor
 GET  /api/v1/events
 ```
 
 `POST /api/v1/tickets/:id/decompose` opens a planning run; the resulting decomposition proposal is decided through the approvals endpoints (`approve` accepts the proposal, `clarify` asks the agent for more detail). `approve`/`reject` cover the `decompose`, landing, and tactical gates uniformly.
+
+`GET /api/v1/readiness` returns the operator's current next/ready/blocked view:
+`{"next":{"ticket": …, "brief": …}|null, "ready":[…], "blocked":[…]}`.
+`ready` is the eligible set (`todo` with dependencies satisfied) in the same
+ancestor-priority value order used by `gw next`, `gw ticket list --ready`, and
+the scheduler. `next` is its first node plus the bounded context brief returned
+by the ticket context endpoint. Each `blocked` entry is a `todo` node excluded
+by unmet dependencies and includes `blocked_by: [{"id", "status"}]`.
+
+`POST /api/v1/tickets/:id/claim` mirrors the guided human claim: it verifies the
+node is `todo` with all dependencies satisfied, assigns the requested actor (default
+`human.owner`), and transitions it to `in_progress`. `POST
+/api/v1/tickets/:id/triage` classifies the node as `leaf` or `composite`, and
+`POST /api/v1/tickets/:id/reparent` moves it under the supplied `parent` (an empty
+parent makes it a root); both retain the store's cycle and validation checks.
 
 `GET/POST /api/v1/tickets/:id/decisions` reads and appends durable ticket-attached
 decision records (`decision-records.md`). Pending durable `approval_requested` and
@@ -91,7 +113,73 @@ gates with an audited override. These were added in M2; the changed-file set tha
 selects template-required checks and enables docs auto-approval of landing is
 supplied by the Phase 6 runtime.
 
+### Policies
+
+`GET /api/v1/policies` reads the committed policy files and returns the parsed
+trust and validation policies. `rules` is the UI-oriented ordered trust-rule
+view; each item is `{"group", "order", "rule"}`, where `group` is
+`require_human`, `auto_approve`, or `allow_claim`, `order` is one-based within
+that group, and `rule.id` is the durable stable id. `validation_templates` is
+sorted by template name and contains `{"name", "template"}` entries with file
+globs, required checks, and any landing risk floor. Parse/load warnings are
+returned in `warnings`.
+
+`PUT /api/v1/policies` requests replacement of the complete ordered trust
+policy. The body is:
+
+```json
+{
+  "ticket_id": "T-1045",
+  "trust": {
+    "schema": "groundwork_trust_policy/v1",
+    "require_human": [],
+    "auto_approve": [],
+    "allow_claim": []
+  }
+}
+```
+
+The referenced ticket makes the change auditable. The replacement must parse
+successfully and preserve every existing stable rule id, group, and order. A
+valid request returns `202` with `{"approval": …}` for an `amend_policy` gate;
+`trust.yaml` is not changed until that approval is accepted. Acceptance writes
+the file atomically and reloads the coordinator's trust-policy view.
+
+`GET /api/v1/policies/suggestions` lists pending policy-learning suggestions;
+`?status=all` includes prior decisions. `POST .../:id/promote` and `POST
+.../:id/dismiss` record the human review outcome and return the updated
+suggestion. As with `gw policy promote`, promotion records intent only and never
+self-elevates or rewrites autonomy policy.
+
 Actor endpoints expose the current local actor registry from `.groundwork/actors.yaml`. Runs expose actor ids and snapshots through the run endpoints; snapshots are runtime audit records, not edits to the actor registry.
+
+### Settings and diagnostics
+
+`GET /api/v1/settings` returns the resolved repository, SQLite, and config paths;
+the configured server address split into bind and port; the agent engine, optional
+model, and sandbox mode; maximum concurrency and lease TTL/heartbeat; and AGENTS.md
+sync status (`missing`, `out_of_sync`, or `synced`).
+
+`POST /api/v1/settings/agents-md/sync` creates or refreshes a marker-delimited
+Groundwork section in the repository's `AGENTS.md`. Text outside that managed
+section is preserved. The response is the updated sync status.
+
+`POST /api/v1/doctor` runs the same project, configuration, actor-registry, and
+database checks as `gw doctor --json` and returns
+`{"healthy": bool, "checks": [{"name", "status", "detail"}]}`. Diagnostic
+failures are represented by `healthy: false` and error-status checks rather than
+an HTTP error.
+
+`GET /api/v1/runs/:id` returns the run record plus run-detail evidence:
+`plan` (plan/triage/decomposition events), `changed_files`, `validations`, an optional
+linked `approval`, and optional `cost`. Token metrics remain the run record's
+`input_tokens`, `output_tokens`, and `total_tokens` fields. `GET
+/api/v1/runs/:id/events` reads `.groundwork/runs/<run-id>/events.ndjson` through
+the coordinator and returns events oldest-first as
+`{"id","run_id","event_type","message","payload","created_at"}`. A missing log
+returns an empty array. Malformed JSON records, a torn trailing append, and
+individual oversized records are skipped without failing the response; genuine
+filesystem/read errors return `500 transcript_read_failed`.
 
 `GET /api/v1/events` should use Server-Sent Events for realtime dashboard updates.
 

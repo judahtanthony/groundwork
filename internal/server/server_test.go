@@ -338,6 +338,48 @@ func TestTicketTransition(t *testing.T) {
 	}
 }
 
+func TestTicketClaim(t *testing.T) {
+	srv, db := newTestServer(t)
+	ready := mustCreate(t, db, &ticket.Ticket{Title: "ready", Status: ticket.StatusTodo})
+
+	var claimed map[string]string
+	if code := req(t, srv, "POST", "/api/v1/tickets/"+ready.ID+"/claim",
+		map[string]string{"actor": "human.owner"}, &claimed); code != http.StatusOK {
+		t.Fatalf("claim status = %d, want 200", code)
+	}
+	if claimed["status"] != "in_progress" || claimed["assignee"] != "human.owner" {
+		t.Fatalf("claim = %v", claimed)
+	}
+
+	dep := mustCreate(t, db, &ticket.Ticket{Title: "dependency", Status: ticket.StatusTodo})
+	blocked := mustCreate(t, db, &ticket.Ticket{Title: "blocked", Status: ticket.StatusTodo})
+	if err := db.AddDependency(blocked.ID, dep.ID, "test"); err != nil {
+		t.Fatal(err)
+	}
+	var env errorEnvelope
+	if code := req(t, srv, "POST", "/api/v1/tickets/"+blocked.ID+"/claim",
+		map[string]string{}, &env); code != http.StatusConflict || env.Error.Code != "blocked" {
+		t.Fatalf("blocked claim status/code = %d/%q, want 409/blocked", code, env.Error.Code)
+	}
+}
+
+func TestTicketTriage(t *testing.T) {
+	srv, db := newTestServer(t)
+	tk := mustCreate(t, db, &ticket.Ticket{Title: "untriaged", Status: ticket.StatusTodo})
+
+	if code := req(t, srv, "POST", "/api/v1/tickets/"+tk.ID+"/triage",
+		map[string]string{"node_type": "leaf"}, nil); code != http.StatusOK {
+		t.Fatalf("triage status = %d, want 200", code)
+	}
+	got, err := db.GetTicket(tk.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.NodeType != ticket.NodeLeaf {
+		t.Fatalf("node_type = %q, want leaf", got.NodeType)
+	}
+}
+
 func TestTicketAddRemoveDependency(t *testing.T) {
 	srv, db := newTestServer(t)
 	a := mustCreate(t, db, &ticket.Ticket{Title: "a", Status: ticket.StatusTodo})
@@ -390,6 +432,8 @@ func TestRunReadEndpoints(t *testing.T) {
 	if _, err := db.AppendRunEvent(r.ID, "working", "msg", nil); err != nil {
 		t.Fatal(err)
 	}
+	writeRunTranscript(t, srv, r.ID, []byte(
+		`{"time":"2026-07-22T10:00:00Z","type":"working","message":"msg"}`+"\n"))
 
 	var list []sqlite.Run
 	if code := get(t, srv, "/api/v1/runs", &list); code != http.StatusOK || len(list) != 1 {
@@ -399,9 +443,18 @@ func TestRunReadEndpoints(t *testing.T) {
 	if code := get(t, srv, "/api/v1/runs/"+r.ID, &one); code != http.StatusOK || one.ID != r.ID {
 		t.Fatalf("get code=%d run=%+v", code, one)
 	}
-	var events []sqlite.RunEvent
+	var events []runTranscriptEvent
 	if code := get(t, srv, "/api/v1/runs/"+r.ID+"/events", &events); code != http.StatusOK || len(events) != 1 {
 		t.Fatalf("events code=%d len=%d", code, len(events))
+	}
+	if events[0].Message != "msg" {
+		t.Errorf("event message = %q, want msg", events[0].Message)
+	}
+	// The enriched event remains decodable by the gw CLI's existing RunEvent
+	// shape; unknown message fields are additive and payload stays JSON text.
+	var cliEvents []sqlite.RunEvent
+	if code := get(t, srv, "/api/v1/runs/"+r.ID+"/events", &cliEvents); code != http.StatusOK || len(cliEvents) != 1 {
+		t.Fatalf("CLI-compatible events code=%d len=%d", code, len(cliEvents))
 	}
 }
 

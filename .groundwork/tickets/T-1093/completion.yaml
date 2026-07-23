@@ -1,0 +1,19 @@
+node_id: T-1093
+outcome: produced
+changed:
+    - docs/contracts/http-api.md
+    - internal/server/server.go
+    - internal/server/server_test.go
+    - web/dist/assets/index-D4LahU4-.css
+    - web/dist/assets/index-DEKLepN9.js
+    - web/dist/assets/index-DylpaK8h.js
+    - web/dist/index.html
+    - web/src/main.ts
+    - web/src/style.css
+validation: []
+decisions:
+    - 'The broader smoke script reaches an unrelated existing scheduler/runtime failure: its temporary scheduled ticket does not reach `review`. Repository-wide `gofmt -l .` also reports two unchanged pre-existing files; the modified Go files are clean. No commit was created.'
+assumptions: []
+risks: []
+canon_updates: []
+created_at: "2026-07-22T16:55:32Z"

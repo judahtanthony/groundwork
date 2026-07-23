@@ -1,0 +1,24 @@
+node_id: T-1046
+outcome: produced
+changed:
+    - docs/contracts/http-api.md
+    - internal/agentsync/agentsync.go
+    - internal/agentsync/agentsync_test.go
+    - internal/cli/doctor.go
+    - internal/doctor/doctor.go
+    - internal/server/server.go
+    - internal/server/settings.go
+    - internal/server/settings_test.go
+    - web/dist/assets/index-B8Tr3AsA.js
+    - web/dist/assets/index-CPyt6Wop.css
+    - web/dist/assets/index-wIRycYJN.js
+    - web/dist/index.html
+    - web/src/main.ts
+    - web/src/style.css
+validation: []
+decisions:
+    - Browser visual verification was blocked by the browser’s local-address security policy; automated SPA build and server tests passed. No commit was created.
+assumptions: []
+risks: []
+canon_updates: []
+created_at: "2026-07-23T12:16:16Z"

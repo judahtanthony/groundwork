@@ -13,6 +13,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -71,14 +72,19 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /review/{id}", s.handleReviewPage)
 	s.mux.HandleFunc("POST /approvals/{id}/decide", s.handleApprovalDecideForm)
 	s.mux.HandleFunc("GET /static/groundwork.css", s.handleDashboardCSS)
+	s.mux.HandleFunc("GET /app", s.handleSPAEntry)
+	s.mux.Handle("GET /app/", spaHandler)
 	s.mux.HandleFunc("GET /api/v1/state", s.handleState)
+	s.mux.HandleFunc("GET /api/v1/readiness", s.handleReadiness)
 	s.mux.HandleFunc("GET /api/v1/tickets", s.handleTicketList)
 	s.mux.HandleFunc("POST /api/v1/tickets", s.handleTicketCreate)
 	s.mux.HandleFunc("GET /api/v1/tickets/{id}", s.handleTicketGet)
 	s.mux.HandleFunc("PATCH /api/v1/tickets/{id}", s.handleTicketPatch)
 	s.mux.HandleFunc("GET /api/v1/tickets/{id}/children", s.handleTicketChildren)
 	s.mux.HandleFunc("GET /api/v1/tickets/{id}/context", s.handleTicketContext)
+	s.mux.HandleFunc("POST /api/v1/tickets/{id}/claim", s.handleTicketClaim)
 	s.mux.HandleFunc("POST /api/v1/tickets/{id}/transition", s.handleTicketTransition)
+	s.mux.HandleFunc("POST /api/v1/tickets/{id}/triage", s.handleTicketTriage)
 	s.mux.HandleFunc("GET /api/v1/tickets/{id}/dependencies", s.handleTicketDependencies)
 	s.mux.HandleFunc("POST /api/v1/tickets/{id}/dependencies", s.handleTicketAddDependency)
 	s.mux.HandleFunc("DELETE /api/v1/tickets/{id}/dependencies/{depId}", s.handleTicketRemoveDependency)
@@ -109,6 +115,14 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("POST /api/v1/approvals/{id}/approve", s.handleApprovalApprove)
 	s.mux.HandleFunc("POST /api/v1/approvals/{id}/reject", s.handleApprovalReject)
 	s.mux.HandleFunc("POST /api/v1/approvals/{id}/clarify", s.handleApprovalClarify)
+	s.mux.HandleFunc("GET /api/v1/policies", s.handlePolicies)
+	s.mux.HandleFunc("PUT /api/v1/policies", s.handlePolicyUpdate)
+	s.mux.HandleFunc("GET /api/v1/policies/suggestions", s.handlePolicySuggestions)
+	s.mux.HandleFunc("POST /api/v1/policies/suggestions/{id}/promote", s.handlePolicySuggestionPromote)
+	s.mux.HandleFunc("POST /api/v1/policies/suggestions/{id}/dismiss", s.handlePolicySuggestionDismiss)
+	s.mux.HandleFunc("GET /api/v1/settings", s.handleSettings)
+	s.mux.HandleFunc("POST /api/v1/settings/agents-md/sync", s.handleAgentsMDSync)
+	s.mux.HandleFunc("POST /api/v1/doctor", s.handleDoctor)
 	s.mux.HandleFunc("GET /api/v1/events", s.handleEvents)
 }
 
@@ -274,6 +288,82 @@ func (s *Server) handleTicketTransition(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"id": id, "status": body.Status})
+}
+
+// handleTicketClaim performs the CLI's guided claim: only an eligible todo node
+// can be assigned and moved to in_progress. It composes existing store
+// primitives and adds no new authority.
+func (s *Server) handleTicketClaim(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		Actor string `json:"actor"`
+	}
+	if !decodeJSON(w, r, &body) {
+		return
+	}
+	if body.Actor == "" {
+		body.Actor = ownerActor
+	}
+	id := r.PathValue("id")
+	t, err := s.db.GetTicket(id)
+	if err != nil {
+		s.writeStoreError(w, err)
+		return
+	}
+	if t.Status != ticket.StatusTodo {
+		writeError(w, http.StatusConflict, "not_claimable",
+			fmt.Sprintf("%s is %s; only todo nodes can be claimed", id, t.Status))
+		return
+	}
+	deps, err := s.db.DependencyIDs(id)
+	if err != nil {
+		s.writeStoreError(w, err)
+		return
+	}
+	var blockers []string
+	for _, depID := range deps {
+		dep, err := s.db.GetTicket(depID)
+		if err != nil {
+			s.writeStoreError(w, err)
+			return
+		}
+		if !ticket.DependencyMet(dep.Status) {
+			blockers = append(blockers, fmt.Sprintf("%s (%s)", dep.ID, dep.Status))
+		}
+	}
+	if len(blockers) > 0 {
+		writeError(w, http.StatusConflict, "blocked",
+			fmt.Sprintf("%s is blocked by: %s", id, strings.Join(blockers, ", ")))
+		return
+	}
+	t.Assignee = body.Actor
+	if err := s.db.UpdateTicket(t, ownerActor); err != nil {
+		s.writeMutationError(w, err)
+		return
+	}
+	if err := s.db.TransitionTicket(id, ticket.StatusInProgress, ownerActor); err != nil {
+		s.writeMutationError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{
+		"id": id, "status": string(ticket.StatusInProgress), "assignee": body.Actor,
+	})
+}
+
+// handleTicketTriage classifies a node as leaf or composite using the same
+// store primitive as gw ticket triage.
+func (s *Server) handleTicketTriage(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		NodeType string `json:"node_type"`
+	}
+	if !decodeJSON(w, r, &body) {
+		return
+	}
+	id := r.PathValue("id")
+	if err := s.db.TriageTicket(id, ticket.NodeType(body.NodeType), ownerActor); err != nil {
+		s.writeMutationError(w, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"id": id, "node_type": body.NodeType})
 }
 
 // handleTicketAddDependency records that the path node depends on body.depends_on.
@@ -472,26 +562,50 @@ func (s *Server) handleRunList(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, runs)
 }
 
-// handleRunGet returns one run.
+// handleRunGet returns one run with the evidence needed by the run-detail UI.
 func (s *Server) handleRunGet(w http.ResponseWriter, r *http.Request) {
-	run, err := s.db.GetRun(r.PathValue("id"))
+	id := r.PathValue("id")
+	run, err := s.db.GetRun(id)
 	if err != nil {
 		s.writeStoreError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, run)
+	events, err := s.readRunTranscript(id)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "transcript_read_failed", err.Error())
+		return
+	}
+	changed, err := s.db.RunChangedFiles(id)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "run_evidence_failed", err.Error())
+		return
+	}
+	validations, err := s.runValidations(id, run.TicketID)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "run_evidence_failed", err.Error())
+		return
+	}
+	linkedApproval, err := s.approvalForRun(id)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "run_evidence_failed", err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, runDetailResponse{
+		Run: run, Plan: planEvents(events), ChangedFiles: changed,
+		Validations: validations, Approval: linkedApproval,
+	})
 }
 
-// handleRunEvents returns a run's event log.
+// handleRunEvents returns the durable per-run transcript, including messages.
 func (s *Server) handleRunEvents(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	if _, err := s.db.GetRun(id); err != nil {
 		s.writeStoreError(w, err)
 		return
 	}
-	events, err := s.db.ListRunEvents(id)
+	events, err := s.readRunTranscript(id)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "list_failed", err.Error())
+		writeError(w, http.StatusInternalServerError, "transcript_read_failed", err.Error())
 		return
 	}
 	writeJSON(w, http.StatusOK, events)

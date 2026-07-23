@@ -79,6 +79,8 @@ func classify(a Action) (risk.Class, int, bool, []string) {
 // a rule it resolves to require_human — identical to the former floor. Earlier
 // steps cannot be loosened by later ones.
 func (s *Set) Evaluate(a Action) Decision {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 	class, score, reversible, reasons := classify(a)
 	d := Decision{RiskClass: class, RiskScore: score, Reversible: reversible, Reasons: reasons}
 
@@ -129,6 +131,8 @@ func ruleOptsIntoIrreversible(r *Rule) bool {
 // (ADR 0028 default-deny). Reversibility/risk are reported for explanation but
 // do not themselves authorize a claim.
 func (s *Set) AuthorizeClaim(a Action) Decision {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 	class, score, reversible, reasons := classify(a)
 	d := Decision{Outcome: OutcomeDeny, RiskClass: class, RiskScore: score, Reversible: reversible, Reasons: reasons}
 	if s.Trust == nil {

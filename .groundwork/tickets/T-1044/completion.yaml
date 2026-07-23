@@ -1,0 +1,21 @@
+node_id: T-1044
+outcome: produced
+changed:
+    - docs/contracts/http-api.md
+    - internal/scheduler/scheduler.go
+    - internal/server/run_detail.go
+    - internal/server/server.go
+    - internal/server/server_test.go
+    - web/dist/assets/index-C8JRGgT8.js
+    - web/dist/assets/index-Coboxl5h.css
+    - web/dist/assets/index-DPbWXAiA.js
+    - web/dist/index.html
+    - web/src/main.ts
+    - web/src/style.css
+validation: []
+decisions:
+    - No commit was created.
+assumptions: []
+risks: []
+canon_updates: []
+created_at: "2026-07-23T00:09:29Z"

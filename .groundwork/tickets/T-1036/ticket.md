@@ -4,7 +4,7 @@ kind: epic
 node_type: composite
 work_type: null
 title: 'Web UI: full-featured, realtime, CLI parity'
-status: todo
+status: done
 assignee: null
 requested_actor: null
 priority: 0.88
@@ -13,7 +13,7 @@ labels:
 parent: T-1074
 depends_on: []
 created_at: "2026-06-24T15:37:14Z"
-updated_at: "2026-07-15T01:18:45Z"
+updated_at: "2026-07-23T13:55:50Z"
 ---
 
 ## Problem
