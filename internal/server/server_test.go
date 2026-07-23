@@ -432,6 +432,8 @@ func TestRunReadEndpoints(t *testing.T) {
 	if _, err := db.AppendRunEvent(r.ID, "working", "msg", nil); err != nil {
 		t.Fatal(err)
 	}
+	writeRunTranscript(t, srv, r.ID, []byte(
+		`{"time":"2026-07-22T10:00:00Z","type":"working","message":"msg"}`+"\n"))
 
 	var list []sqlite.Run
 	if code := get(t, srv, "/api/v1/runs", &list); code != http.StatusOK || len(list) != 1 {
@@ -441,9 +443,18 @@ func TestRunReadEndpoints(t *testing.T) {
 	if code := get(t, srv, "/api/v1/runs/"+r.ID, &one); code != http.StatusOK || one.ID != r.ID {
 		t.Fatalf("get code=%d run=%+v", code, one)
 	}
-	var events []sqlite.RunEvent
+	var events []runTranscriptEvent
 	if code := get(t, srv, "/api/v1/runs/"+r.ID+"/events", &events); code != http.StatusOK || len(events) != 1 {
 		t.Fatalf("events code=%d len=%d", code, len(events))
+	}
+	if events[0].Message != "msg" {
+		t.Errorf("event message = %q, want msg", events[0].Message)
+	}
+	// The enriched event remains decodable by the gw CLI's existing RunEvent
+	// shape; unknown message fields are additive and payload stays JSON text.
+	var cliEvents []sqlite.RunEvent
+	if code := get(t, srv, "/api/v1/runs/"+r.ID+"/events", &cliEvents); code != http.StatusOK || len(cliEvents) != 1 {
+		t.Fatalf("CLI-compatible events code=%d len=%d", code, len(cliEvents))
 	}
 }
 

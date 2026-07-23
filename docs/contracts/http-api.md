@@ -112,6 +112,17 @@ supplied by the Phase 6 runtime.
 
 Actor endpoints expose the current local actor registry from `.groundwork/actors.yaml`. Runs expose actor ids and snapshots through the run endpoints; snapshots are runtime audit records, not edits to the actor registry.
 
+`GET /api/v1/runs/:id` returns the run record plus run-detail evidence:
+`plan` (plan/triage/decomposition events), `changed_files`, `validations`, an optional
+linked `approval`, and optional `cost`. Token metrics remain the run record's
+`input_tokens`, `output_tokens`, and `total_tokens` fields. `GET
+/api/v1/runs/:id/events` reads `.groundwork/runs/<run-id>/events.ndjson` through
+the coordinator and returns events oldest-first as
+`{"id","run_id","event_type","message","payload","created_at"}`. A missing log
+returns an empty array. Malformed JSON records, a torn trailing append, and
+individual oversized records are skipped without failing the response; genuine
+filesystem/read errors return `500 transcript_read_failed`.
+
 `GET /api/v1/events` should use Server-Sent Events for realtime dashboard updates.
 
 ## Error Shape

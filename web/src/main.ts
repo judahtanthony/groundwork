@@ -105,19 +105,43 @@ type Run = {
   mode: string
   runtime: string
   model?: string
+  workspace_path?: string
+  base_commit?: string
   status: string
   started_at: string
   updated_at: string
   completed_at?: string
   last_event?: string
   last_message?: string
+
+  input_tokens: number
+  output_tokens: number
+  total_tokens: number
 }
 type RunEvent = {
   id: number
   run_id: string
   event_type: string
+  message?: string
   payload: string
   created_at: string
+}
+type Approval = {
+  id: string
+  run_id?: string
+  ticket_id: string
+  type: string
+  risk_class: string
+  summary: string
+  status: string
+  created_at: string
+}
+type RunDetail = Run & {
+  plan: RunEvent[]
+  changed_files: string[]
+  validations: Validation[]
+  approval?: Approval
+  cost?: number
 }
 type LandPreview = { staged: boolean; diff: string }
 
@@ -297,8 +321,10 @@ function navigate(ticket: Ticket) {
   window.location.hash = ticket.parent_id ? `#/node/${ticket.id}` : `#/root/${ticket.id}`
 }
 
-function parseRoute(): { view: 'roots' } | { view: 'readiness' } | { view: 'node'; id: string } {
+function parseRoute(): { view: 'roots' } | { view: 'readiness' } | { view: 'node'; id: string } | { view: 'run'; id: string } {
   if (window.location.hash === '#/ready') return { view: 'readiness' }
+  const runMatch = window.location.hash.match(/^#\/run\/([^/]+)$/)
+  if (runMatch) return { view: 'run', id: decodeURIComponent(runMatch[1]!) }
   const match = window.location.hash.match(/^#\/(?:root|node)\/([^/]+)$/)
   return match ? { view: 'node', id: decodeURIComponent(match[1]!) } : { view: 'roots' }
 }
@@ -971,13 +997,156 @@ function runList(runs: Run[]) {
   if (!runs.length) return el('p', 'gw-quiet', 'No runs recorded for this node.')
   const list = el('div', 'gw-evidence-list')
   for (const run of runs) {
-    const row = el('div', 'gw-evidence-row')
+    const row = button('gw-evidence-row gw-run-link', '', () => {
+      window.location.hash = `#/run/${encodeURIComponent(run.id)}`
+    })
+    row.replaceChildren()
     const copy = el('div')
     copy.append(el('strong', 'gw-mono', run.id), el('span', 'gw-row-detail', `${run.actor_id} · ${run.mode} · ${timeLabel(run.updated_at)}`))
     row.append(copy, Badge(pretty(run.status), statusTone(run.status)))
     list.append(row)
   }
   return list
+}
+
+async function renderRun(id: string) {
+  const app = el('main', 'gw gw-app gw-run-page')
+  app.append(appHeader(id, 'Run transcript, evidence, metrics, and controls.', true))
+  const loading = el('div', 'gw-loading', 'Loading run evidence…')
+  app.append(loading)
+  mount.replaceChildren(app)
+
+  try {
+    const [run, events] = await Promise.all([
+      getJSON<RunDetail>(`/api/v1/runs/${encodeURIComponent(id)}`),
+      getJSON<RunEvent[]>(`/api/v1/runs/${encodeURIComponent(id)}/events`),
+    ])
+    loading.remove()
+    app.append(renderRunControls(run), renderRunEvidence(run, events))
+  } catch (error) {
+    loading.replaceWith(ErrorState('Unable to load run', error instanceof Error ? error.message : 'Unknown coordinator error'))
+  }
+}
+
+function renderRunControls(run: RunDetail) {
+  const rail = el('section', 'gw-action-rail gw-run-actions')
+  const copy = el('div', 'gw-action-copy')
+  copy.append(el('p', 'gw-eyebrow', 'Live control'), el('h2', undefined, `${run.id} · ${pretty(run.status)}`))
+  const actions = el('div', 'gw-action-buttons')
+  const error = el('p', 'gw-action-error')
+  error.setAttribute('role', 'alert')
+  const control = (op: 'pause' | 'resume' | 'cancel') => async () => {
+    const buttons = [...actions.querySelectorAll('button')]
+    const disabled = buttons.map((item) => item.disabled)
+    for (const item of buttons) item.disabled = true
+    error.textContent = ''
+    try {
+      await requestJSON<Run>(`/api/v1/runs/${encodeURIComponent(run.id)}/${op}`, 'POST')
+      await refresh()
+    } catch (cause) {
+      error.textContent = cause instanceof Error ? cause.message : 'The coordinator rejected the run control.'
+      buttons.forEach((item, index) => { item.disabled = disabled[index]! })
+    }
+  }
+  actions.append(
+    Button('Pause', { disabled: run.status !== 'running', onClick: () => { void control('pause')() } }),
+    Button('Resume', { variant: 'primary', disabled: run.status !== 'paused' && run.status !== 'interrupted', onClick: () => { void control('resume')() } }),
+    Button('Cancel', { variant: 'danger', disabled: run.status === 'completed' || run.status === 'cancelled', onClick: () => { void control('cancel')() } }),
+  )
+  const hint = el('p', 'gw-action-hint', 'Controls use the same coordinator lifecycle gates as gw run pause, resume, and cancel.')
+  rail.append(copy, actions, hint, error)
+  return rail
+}
+
+function renderRunEvidence(run: RunDetail, events: RunEvent[]) {
+  const detail = el('section', 'gw-detail')
+  const heading = el('div', 'gw-detail-head')
+  const title = el('div')
+  title.append(el('p', 'gw-eyebrow', 'Durable run evidence'), el('h2', undefined, `${run.ticket_id} · ${run.mode}`))
+  heading.append(title, Badge(pretty(run.status), statusTone(run.status)))
+  detail.append(heading)
+
+  const metadata = el('div', 'gw-run-metadata')
+  metadata.append(
+    ActorBadge(`${run.actor_id}${run.model ? ` · ${run.model}` : ''}`, 'ai'),
+    el('span', 'gw-mono gw-quiet', run.runtime),
+    el('span', 'gw-mono gw-quiet', run.workspace_path || 'No workspace recorded'),
+  )
+
+  const metrics = el('div', 'gw-metric-list')
+  for (const [label, value] of [
+    ['Input tokens', run.input_tokens.toLocaleString()],
+    ['Output tokens', run.output_tokens.toLocaleString()],
+    ['Total tokens', run.total_tokens.toLocaleString()],
+    ['Cost', run.cost === undefined ? 'Not reported' : `$${run.cost.toFixed(4)}`],
+  ]) {
+    const item = el('div', 'gw-metric-item')
+    item.append(el('span', 'gw-field-label', label), el('strong', 'gw-mono', value))
+    metrics.append(item)
+  }
+
+  const grid = el('div', 'gw-detail-grid gw-run-grid')
+  grid.append(
+    Panel('Run', [metadata, runFactList(run)]),
+    Panel('Token & cost metrics', [metrics]),
+    Panel('Plan', [runEventList(run.plan, 'No plan events recorded in the run transcript.')]),
+    Panel('Changed files', [changedFileList(run.changed_files)]),
+    Panel('Validations', [validationList(run.validations)]),
+    Panel('Linked approval', [approvalView(run.approval)]),
+    Panel('Transcript', [runEventList(events, 'No transcript events have been recorded.')]),
+  )
+  detail.append(grid)
+  return detail
+}
+
+function runFactList(run: Run) {
+  const facts = el('div', 'gw-run-facts')
+  for (const [label, value] of [
+    ['Started', timeLabel(run.started_at)],
+    ['Updated', timeLabel(run.updated_at)],
+    ['Completed', run.completed_at ? timeLabel(run.completed_at) : 'Not completed'],
+    ['Base commit', run.base_commit || 'Not recorded'],
+  ]) {
+    const row = el('div', 'gw-scope-row')
+    row.append(el('span', 'sk', label), el('span', 'sv', value))
+    facts.append(row)
+  }
+  return facts
+}
+
+function runEventList(events: RunEvent[], empty: string) {
+  if (!events.length) return el('p', 'gw-quiet', empty)
+  const list = el('div', 'gw-tl gw-run-transcript')
+  for (const event of events) {
+    const row = el('div', 'gw-tl-item')
+    const rail = el('div', 'gw-tl-rail')
+    const tone = event.event_type.includes('fail') || event.event_type.includes('error') ? 'bad' : event.event_type.includes('checkpoint') ? 'ok' : 'run'
+    rail.append(el('span', `gw-tl-node ${tone}`), el('span', 'gw-tl-line'))
+    const body = el('div', 'gw-tl-body')
+    const message = event.message || (event.payload && event.payload !== '{}' ? event.payload : 'No message')
+    body.append(el('p', 'gw-tl-text', message), el('p', 'gw-tl-time', `${pretty(event.event_type)} · ${timeLabel(event.created_at)}`))
+    row.append(rail, body)
+    list.append(row)
+  }
+  return list
+}
+
+function changedFileList(files: string[]) {
+  if (!files.length) return el('p', 'gw-quiet', 'No changed files recorded for this run.')
+  const list = el('div', 'gw-file-list')
+  for (const file of files) list.append(el('div', 'gw-diff-file', file))
+  return list
+}
+
+function approvalView(approval: Approval | undefined) {
+  if (!approval) return el('p', 'gw-quiet', 'No approval is linked to this run.')
+  const wrap = el('div', 'gw-evidence-list')
+  const row = el('div', 'gw-evidence-row')
+  const copy = el('div')
+  copy.append(el('strong', 'gw-mono', approval.id), el('span', 'gw-row-detail', `${pretty(approval.type)} · ${approval.summary}`))
+  row.append(copy, Badge(pretty(approval.status), statusTone(approval.status)))
+  wrap.append(row, el('p', 'gw-quiet', `${pretty(approval.risk_class)} risk · requested ${timeLabel(approval.created_at)}`))
+  return wrap
 }
 
 function diffView(preview: LandPreview, changedFiles: string[]) {
@@ -1054,7 +1223,8 @@ async function render() {
     }
   }
   const route = parseRoute()
-  if (route.view === 'node') await renderNode(data, route.id)
+  if (route.view === 'run') await renderRun(route.id)
+  else if (route.view === 'node') await renderNode(data, route.id)
   else if (route.view === 'readiness') renderReadiness(data)
   else renderRootsBoard(data)
 }

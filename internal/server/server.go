@@ -554,26 +554,50 @@ func (s *Server) handleRunList(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, runs)
 }
 
-// handleRunGet returns one run.
+// handleRunGet returns one run with the evidence needed by the run-detail UI.
 func (s *Server) handleRunGet(w http.ResponseWriter, r *http.Request) {
-	run, err := s.db.GetRun(r.PathValue("id"))
+	id := r.PathValue("id")
+	run, err := s.db.GetRun(id)
 	if err != nil {
 		s.writeStoreError(w, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, run)
+	events, err := s.readRunTranscript(id)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "transcript_read_failed", err.Error())
+		return
+	}
+	changed, err := s.db.RunChangedFiles(id)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "run_evidence_failed", err.Error())
+		return
+	}
+	validations, err := s.runValidations(id, run.TicketID)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "run_evidence_failed", err.Error())
+		return
+	}
+	linkedApproval, err := s.approvalForRun(id)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "run_evidence_failed", err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, runDetailResponse{
+		Run: run, Plan: planEvents(events), ChangedFiles: changed,
+		Validations: validations, Approval: linkedApproval,
+	})
 }
 
-// handleRunEvents returns a run's event log.
+// handleRunEvents returns the durable per-run transcript, including messages.
 func (s *Server) handleRunEvents(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	if _, err := s.db.GetRun(id); err != nil {
 		s.writeStoreError(w, err)
 		return
 	}
-	events, err := s.db.ListRunEvents(id)
+	events, err := s.readRunTranscript(id)
 	if err != nil {
-		writeError(w, http.StatusInternalServerError, "list_failed", err.Error())
+		writeError(w, http.StatusInternalServerError, "transcript_read_failed", err.Error())
 		return
 	}
 	writeJSON(w, http.StatusOK, events)
