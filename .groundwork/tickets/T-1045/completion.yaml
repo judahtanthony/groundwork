@@ -1,0 +1,24 @@
+node_id: T-1045
+outcome: produced
+changed:
+    - docs/contracts/http-api.md
+    - internal/policy/gate.go
+    - internal/policy/load.go
+    - internal/policy/policy.go
+    - internal/server/approvals.go
+    - internal/server/policies.go
+    - internal/server/policies_test.go
+    - internal/server/server.go
+    - web/dist/assets/index-B8Tr3AsA.js
+    - web/dist/assets/index-Cyjg2d20.css
+    - web/dist/assets/index-glnbfPlM.js
+    - web/dist/index.html
+    - web/src/main.ts
+    - web/src/style.css
+validation: []
+decisions:
+    - Interactive Playwright verification was blocked because Chrome cannot launch within the macOS process sandbox; API behavior and production compilation are covered by tests. No commit was created.
+assumptions: []
+risks: []
+canon_updates: []
+created_at: "2026-07-23T00:55:01Z"

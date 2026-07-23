@@ -1,0 +1,25 @@
+node_id: T-1039
+outcome: produced
+changed:
+    - .gitignore
+    - Makefile
+    - internal/server/server.go
+    - internal/server/spa.go
+    - internal/server/spa_test.go
+    - web/dist/assets/index-BhgXNIP7.css
+    - web/dist/assets/index-Dj57CiYf.js
+    - web/dist/index.html
+    - web/embed.go
+    - web/index.html
+    - web/package-lock.json
+    - web/package.json
+    - web/src/main.ts
+    - web/src/style.css
+    - web/vite.config.js
+validation: []
+decisions:
+    - The complete Go test suite was attempted; existing tests requiring localhost listeners were blocked by sandbox networking permissions. All reached non-networked packages passed.
+assumptions: []
+risks: []
+canon_updates: []
+created_at: "2026-07-16T01:12:10Z"

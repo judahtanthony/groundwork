@@ -1,0 +1,20 @@
+node_id: T-1042
+outcome: produced
+changed:
+    - docs/contracts/http-api.md
+    - internal/server/readiness.go
+    - internal/server/readiness_test.go
+    - internal/server/server.go
+    - web/dist/assets/index-CBYyJQTq.css
+    - web/dist/assets/index-DEKLepN9.js
+    - web/dist/assets/index-DPbWXAiA.js
+    - web/dist/index.html
+    - web/src/main.ts
+    - web/src/style.css
+validation: []
+decisions:
+    - '- `git diff --check`'
+assumptions: []
+risks: []
+canon_updates: []
+created_at: "2026-07-22T23:57:58Z"

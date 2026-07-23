@@ -1,0 +1,23 @@
+node_id: T-1040
+outcome: produced
+changed:
+    - web/dist/assets/index-BhgXNIP7.css
+    - web/dist/assets/index-Cuo2Tz4f.js
+    - web/dist/assets/index-DbAP6uOd.css
+    - web/dist/assets/index-Dj57CiYf.js
+    - web/dist/index.html
+    - web/package-lock.json
+    - web/package.json
+    - web/src/design-system/components.ts
+    - web/src/design-system/theme.ts
+    - web/src/main.ts
+    - web/src/style.css
+    - web/src/vite-env.d.ts
+    - web/tsconfig.json
+validation: []
+decisions:
+    - Browser automation was attempted but the local Chrome process was blocked by the filesystem sandbox; compilation and server embedding tests passed.
+assumptions: []
+risks: []
+canon_updates: []
+created_at: "2026-07-22T12:12:33Z"

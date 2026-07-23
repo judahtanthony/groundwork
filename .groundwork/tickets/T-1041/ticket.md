@@ -4,7 +4,7 @@ kind: ticket
 node_type: leaf
 work_type: technical_implementation
 title: 'Tickets screen: work-node tree + node detail (show/context/edit/claim/triage/link/reparent)'
-status: backlog
+status: cancelled
 assignee: null
 requested_actor: null
 priority: 0.7
@@ -14,7 +14,7 @@ parent: T-1036
 depends_on:
     - T-1040
 created_at: "2026-06-24T15:37:14Z"
-updated_at: "2026-06-24T15:37:14Z"
+updated_at: "2026-07-22T12:39:56Z"
 ---
 
 ## Problem
