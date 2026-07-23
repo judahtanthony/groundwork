@@ -51,6 +51,9 @@ PUT  /api/v1/policies
 GET  /api/v1/policies/suggestions
 POST /api/v1/policies/suggestions/:id/promote
 POST /api/v1/policies/suggestions/:id/dismiss
+GET  /api/v1/settings
+POST /api/v1/settings/agents-md/sync
+POST /api/v1/doctor
 GET  /api/v1/events
 ```
 
@@ -149,6 +152,23 @@ suggestion. As with `gw policy promote`, promotion records intent only and never
 self-elevates or rewrites autonomy policy.
 
 Actor endpoints expose the current local actor registry from `.groundwork/actors.yaml`. Runs expose actor ids and snapshots through the run endpoints; snapshots are runtime audit records, not edits to the actor registry.
+
+### Settings and diagnostics
+
+`GET /api/v1/settings` returns the resolved repository, SQLite, and config paths;
+the configured server address split into bind and port; the agent engine, optional
+model, and sandbox mode; maximum concurrency and lease TTL/heartbeat; and AGENTS.md
+sync status (`missing`, `out_of_sync`, or `synced`).
+
+`POST /api/v1/settings/agents-md/sync` creates or refreshes a marker-delimited
+Groundwork section in the repository's `AGENTS.md`. Text outside that managed
+section is preserved. The response is the updated sync status.
+
+`POST /api/v1/doctor` runs the same project, configuration, actor-registry, and
+database checks as `gw doctor --json` and returns
+`{"healthy": bool, "checks": [{"name", "status", "detail"}]}`. Diagnostic
+failures are represented by `healthy: false` and error-status checks rather than
+an HTTP error.
 
 `GET /api/v1/runs/:id` returns the run record plus run-detail evidence:
 `plan` (plan/triage/decomposition events), `changed_files`, `validations`, an optional

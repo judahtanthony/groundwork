@@ -1,6 +1,8 @@
 import {
+  Activity,
   ArrowLeft,
   ChevronRight,
+  FolderGit2,
   GitBranch,
   Home,
   Link,
@@ -10,6 +12,7 @@ import {
   Pencil,
   Plus,
   Search,
+  Settings2,
   ShieldCheck,
   Split,
   Sun,
@@ -173,6 +176,18 @@ type PolicySuggestion = {
   id: string; kind: string; action_type: string; work_type: string; level: string
   rationale: string; status: string; created_at: string
 }
+type AgentsMDStatus = { path: string; state: 'missing' | 'out_of_sync' | 'synced'; detail: string }
+type Settings = {
+  repository_path: string
+  sqlite_path: string
+  config_path: string
+  server: { address: string; bind: string; port: string }
+  agent: { engine: string; model?: string; sandbox: string }
+  concurrency: { max: number; lease_ttl: string; lease_heartbeat: string }
+  agents_md: AgentsMDStatus
+}
+type DoctorCheck = { name: string; status: 'ok' | 'warn' | 'error'; detail: string }
+type DoctorReport = { healthy: boolean; checks: DoctorCheck[] }
 
 type AppData = { state: State; tickets: Ticket[]; runs: Run[]; readiness: Readiness; approvals: Approval[] }
 
@@ -351,10 +366,11 @@ function navigate(ticket: Ticket) {
   window.location.hash = ticket.parent_id ? `#/node/${ticket.id}` : `#/root/${ticket.id}`
 }
 
-function parseRoute(): { view: 'roots' } | { view: 'readiness' } | { view: 'policies' } | { view: 'approvals' } | { view: 'approval'; id: string } | { view: 'node'; id: string } | { view: 'run'; id: string } {
+function parseRoute(): { view: 'roots' } | { view: 'readiness' } | { view: 'policies' } | { view: 'settings' } | { view: 'approvals' } | { view: 'approval'; id: string } | { view: 'node'; id: string } | { view: 'run'; id: string } {
   if (window.location.hash === '#/ready') return { view: 'readiness' }
   if (window.location.hash === '#/approvals') return { view: 'approvals' }
   if (window.location.hash === '#/policies') return { view: 'policies' }
+  if (window.location.hash === '#/settings') return { view: 'settings' }
   const approvalMatch = window.location.hash.match(/^#\/approval\/([^/]+)$/)
   if (approvalMatch) return { view: 'approval', id: decodeURIComponent(approvalMatch[1]!) }
   const runMatch = window.location.hash.match(/^#\/run\/([^/]+)$/)
@@ -411,6 +427,11 @@ function appHeader(title: string, subtitle: string, showHome = false) {
     variant: parseRoute().view === 'policies' ? 'primary' : 'ghost',
     icon: ShieldCheck,
     onClick: () => { window.location.hash = '#/policies' },
+  }))
+  actions.append(Button('Settings', {
+    variant: parseRoute().view === 'settings' ? 'primary' : 'ghost',
+    icon: Settings2,
+    onClick: () => { window.location.hash = '#/settings' },
   }))
   if (showHome) {
     const home = IconButton('Back to roots board', Home, () => { window.location.hash = '#/' })
@@ -1365,6 +1386,138 @@ function renderSuggestionQueue(suggestions: PolicySuggestion[]) {
   return Panel('Suggestion queue', [list], [Badge(String(suggestions.length), suggestions.length ? 'warn' : 'idle')])
 }
 
+function settingsFacts(items: Array<[string, string]>) {
+  const list = el('dl', 'gw-settings-facts')
+  for (const [label, value] of items) {
+    const row = el('div', 'gw-settings-fact')
+    row.append(el('dt', undefined, label), el('dd', 'gw-mono', value || 'not configured'))
+    list.append(row)
+  }
+  return list
+}
+
+function renderDoctorChecks(report: DoctorReport) {
+  const list = el('div', 'gw-doctor-list')
+  for (const check of report.checks) {
+    const row = el('div', 'gw-doctor-check')
+    const copy = el('div')
+    copy.append(el('strong', undefined, pretty(check.name)), el('span', 'gw-row-detail', check.detail))
+    row.append(copy, Badge(check.status, check.status === 'error' ? 'bad' : check.status === 'warn' ? 'warn' : 'ok'))
+    list.append(row)
+  }
+  return list
+}
+
+async function renderSettings() {
+  const app = el('main', 'gw gw-app gw-settings-page')
+  app.append(appHeader('Settings', 'Resolved coordinator configuration, agent guidance, and project health.', true))
+  const loading = el('div', 'gw-loading', 'Reading local configuration and running doctor…')
+  app.append(loading)
+  mount.replaceChildren(app)
+
+  try {
+    let [settings, report] = await Promise.all([
+      getJSON<Settings>('/api/v1/settings'),
+      requestJSON<DoctorReport>('/api/v1/doctor', 'POST'),
+    ])
+    loading.remove()
+
+    const grid = el('div', 'gw-settings-grid')
+    grid.append(
+      Panel('Project paths', [settingsFacts([
+        ['Repository', settings.repository_path],
+        ['SQLite', settings.sqlite_path],
+        ['Config', settings.config_path],
+      ])], [Icon(FolderGit2, 'Project paths')]),
+      Panel('Coordinator server', [settingsFacts([
+        ['Address', settings.server.address],
+        ['Bind', settings.server.bind],
+        ['Port', settings.server.port],
+      ])]),
+      Panel('Agent runtime', [settingsFacts([
+        ['Engine', settings.agent.engine],
+        ['Model', settings.agent.model || 'runtime default'],
+        ['Sandbox', settings.agent.sandbox],
+      ])]),
+      Panel('Scheduling', [settingsFacts([
+        ['Concurrency', String(settings.concurrency.max)],
+        ['Lease TTL', settings.concurrency.lease_ttl],
+        ['Heartbeat', settings.concurrency.lease_heartbeat],
+      ])]),
+    )
+
+    const agentsBody = el('div', 'gw-settings-action')
+    const agentsCopy = el('div')
+    agentsCopy.append(
+      el('p', 'gw-settings-path gw-mono', settings.agents_md.path),
+      el('p', 'gw-quiet', settings.agents_md.detail),
+    )
+    const syncNotice = el('p', 'gw-form-notice')
+    syncNotice.setAttribute('role', 'status')
+    const syncButton = Button(settings.agents_md.state === 'synced' ? 'Sync again' : 'Sync AGENTS.md', {
+      variant: settings.agents_md.state === 'synced' ? 'default' : 'primary',
+    })
+    syncButton.addEventListener('click', () => {
+      void (async () => {
+        syncButton.disabled = true
+        syncNotice.textContent = ''
+        try {
+          const status = await requestJSON<AgentsMDStatus>('/api/v1/settings/agents-md/sync', 'POST')
+          settings = { ...settings, agents_md: status }
+          syncNotice.className = 'gw-form-notice ok'
+          syncNotice.textContent = status.detail
+          syncButton.textContent = 'Sync again'
+          agentsCopy.replaceChildren(
+            el('p', 'gw-settings-path gw-mono', status.path),
+            el('p', 'gw-quiet', status.detail),
+          )
+          statusBadge.replaceWith(statusBadge = Badge('synced', 'ok'))
+        } catch (error) {
+          syncNotice.className = 'gw-form-notice bad'
+          syncNotice.textContent = error instanceof Error ? error.message : 'AGENTS.md sync failed.'
+        } finally {
+          syncButton.disabled = false
+        }
+      })()
+    })
+    agentsBody.append(agentsCopy, syncButton, syncNotice)
+    let statusBadge = Badge(pretty(settings.agents_md.state), settings.agents_md.state === 'synced' ? 'ok' : 'warn')
+
+    const doctorBody = el('div', 'gw-doctor-body')
+    const doctorSummary = el('p', 'gw-quiet', report.healthy ? 'All required health checks passed.' : 'One or more health checks require attention.')
+    let doctorList = renderDoctorChecks(report)
+    let doctorBadge = Badge(report.healthy ? 'healthy' : 'attention', report.healthy ? 'ok' : 'bad')
+    const runDoctor = Button('Run doctor', { icon: Activity })
+    runDoctor.addEventListener('click', () => {
+      void (async () => {
+        runDoctor.disabled = true
+        doctorSummary.textContent = 'Running gw doctor checks…'
+        try {
+          report = await requestJSON<DoctorReport>('/api/v1/doctor', 'POST')
+          doctorSummary.textContent = report.healthy ? 'All required health checks passed.' : 'One or more health checks require attention.'
+          const nextList = renderDoctorChecks(report)
+          doctorList.replaceWith(nextList)
+          doctorList = nextList
+          doctorBadge.replaceWith(doctorBadge = Badge(report.healthy ? 'healthy' : 'attention', report.healthy ? 'ok' : 'bad'))
+        } catch (error) {
+          doctorSummary.textContent = error instanceof Error ? error.message : 'Doctor failed to run.'
+        } finally {
+          runDoctor.disabled = false
+        }
+      })()
+    })
+    doctorBody.append(doctorSummary, doctorList)
+
+    app.append(
+      grid,
+      Panel('AGENTS.md sync', [agentsBody], [statusBadge]),
+      Panel('gw doctor', [doctorBody], [doctorBadge, runDoctor]),
+    )
+  } catch (error) {
+    loading.replaceWith(ErrorState('Unable to load settings', error instanceof Error ? error.message : 'Unknown coordinator error'))
+  }
+}
+
 function approvalInboxRow(approval: Approval, appData: AppData) {
   const ticket = appData.tickets.find((candidate) => candidate.id === approval.ticket_id)
   const row = el('button', `gw-approval-row${approval.type === 'exception' ? ' exception' : ''}`)
@@ -1563,6 +1716,7 @@ async function render() {
   else if (route.view === 'readiness') renderReadiness(data)
   else if (route.view === 'approvals') renderApprovalsInbox(data)
   else if (route.view === 'policies') await renderPolicies()
+  else if (route.view === 'settings') await renderSettings()
   else renderRootsBoard(data)
 }
 

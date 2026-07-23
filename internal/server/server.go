@@ -120,6 +120,9 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /api/v1/policies/suggestions", s.handlePolicySuggestions)
 	s.mux.HandleFunc("POST /api/v1/policies/suggestions/{id}/promote", s.handlePolicySuggestionPromote)
 	s.mux.HandleFunc("POST /api/v1/policies/suggestions/{id}/dismiss", s.handlePolicySuggestionDismiss)
+	s.mux.HandleFunc("GET /api/v1/settings", s.handleSettings)
+	s.mux.HandleFunc("POST /api/v1/settings/agents-md/sync", s.handleAgentsMDSync)
+	s.mux.HandleFunc("POST /api/v1/doctor", s.handleDoctor)
 	s.mux.HandleFunc("GET /api/v1/events", s.handleEvents)
 }
 

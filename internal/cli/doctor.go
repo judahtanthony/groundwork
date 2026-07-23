@@ -4,43 +4,18 @@ import (
 	"fmt"
 	"os"
 
-	"groundwork/internal/actor"
 	"groundwork/internal/config"
-	"groundwork/internal/store/sqlite"
+	"groundwork/internal/doctor"
 )
 
 func newDoctorCmd() *Command {
 	return &Command{Name: "doctor", Usage: "Diagnose the Groundwork environment", Run: runDoctor}
 }
 
-// checkStatus is one diagnostic outcome level.
-type checkStatus string
-
-const (
-	checkOK    checkStatus = "ok"
-	checkWarn  checkStatus = "warn"
-	checkError checkStatus = "error"
-)
-
-type check struct {
-	Name   string      `json:"name"`
-	Status checkStatus `json:"status"`
-	Detail string      `json:"detail"`
-}
-
 func runDoctor(ctx *Context, args []string) error {
 	fs := ctx.NewFlagSet("gw doctor")
 	if _, err := parseFlags(fs, args); err != nil {
 		return err
-	}
-
-	var checks []check
-	healthy := true
-	add := func(name string, st checkStatus, detail string) {
-		checks = append(checks, check{name, st, detail})
-		if st == checkError {
-			healthy = false
-		}
 	}
 
 	cwd, err := os.Getwd()
@@ -50,65 +25,25 @@ func runDoctor(ctx *Context, args []string) error {
 
 	p, err := config.Open(cwd, ctx.RootFlag)
 	if err != nil {
-		add("project", checkError, err.Error())
-		return reportDoctor(ctx, checks, healthy)
+		return reportDoctor(ctx, doctor.Report{
+			Healthy: false,
+			Checks:  []doctor.Check{{Name: "project", Status: doctor.Error, Detail: err.Error()}},
+		})
 	}
-	add("project", checkOK, "root: "+p.Root)
-	add("config", checkOK, fmt.Sprintf("schema: %s, runtime: %s", p.Config.Schema, p.Config.Runtime))
-	for _, w := range p.Warnings {
-		add("config", checkWarn, w)
-	}
-
-	// Actor registry (ADR 0023).
-	if _, statErr := os.Stat(p.ActorsPath()); os.IsNotExist(statErr) {
-		add("actors", checkWarn, "no actors.yaml (run \"gw init\" to scaffold one)")
-	} else if reg, warnings, aerr := actor.Load(p.ActorsPath()); aerr != nil {
-		add("actors", checkError, aerr.Error())
-	} else {
-		for _, w := range warnings {
-			add("actors", checkWarn, w)
-		}
-		add("actors", checkOK, fmt.Sprintf("%d actors", len(reg.Actors)))
-	}
-
-	// Database: report status without forcing creation.
-	if _, statErr := os.Stat(p.DBPath()); os.IsNotExist(statErr) {
-		add("database", checkOK, "not created yet (created lazily on first store use)")
-	} else {
-		db, derr := sqlite.Open(p.DBPath())
-		if derr != nil {
-			add("database", checkError, derr.Error())
-		} else {
-			defer db.Close()
-			if merr := db.Migrate(); merr != nil {
-				add("database", checkError, merr.Error())
-			} else {
-				ids, _ := db.AppliedMigrationIDs()
-				latest := "none"
-				if len(ids) > 0 {
-					latest = ids[len(ids)-1]
-				}
-				tickets, _ := db.ListTickets()
-				add("database", checkOK, fmt.Sprintf("%s, migrations applied: %d (latest %s), tickets: %d",
-					p.DBPath(), len(ids), latest, len(tickets)))
-			}
-		}
-	}
-
-	return reportDoctor(ctx, checks, healthy)
+	return reportDoctor(ctx, doctor.Run(p))
 }
 
-func reportDoctor(ctx *Context, checks []check, healthy bool) error {
+func reportDoctor(ctx *Context, report doctor.Report) error {
 	if ctx.JSON {
-		if err := ctx.PrintJSON(map[string]any{"healthy": healthy, "checks": checks}); err != nil {
+		if err := ctx.PrintJSON(report); err != nil {
 			return err
 		}
 	} else {
-		for _, c := range checks {
+		for _, c := range report.Checks {
 			fmt.Fprintf(ctx.Stdout, "[%-5s] %-9s %s\n", c.Status, c.Name, c.Detail)
 		}
 	}
-	if !healthy {
+	if !report.Healthy {
 		// Signal failure via exit code without printing a duplicate error line.
 		return &silentError{}
 	}
