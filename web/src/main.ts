@@ -132,9 +132,18 @@ type Approval = {
   ticket_id: string
   type: string
   risk_class: string
+  risk_score?: number
+  reversible?: boolean
   summary: string
+  action_json: string
   status: string
+  requested_by_actor: string
+  decided_by_actor?: string
+  required_actors: string[]
+  required_roles: string[]
+  decision_reason?: string
   created_at: string
+  decided_at?: string
 }
 type RunDetail = Run & {
   plan: RunEvent[]
@@ -143,9 +152,9 @@ type RunDetail = Run & {
   approval?: Approval
   cost?: number
 }
-type LandPreview = { staged: boolean; diff: string }
+type LandPreview = { id: string; staged: boolean; diff: string }
 
-type AppData = { state: State; tickets: Ticket[]; runs: Run[]; readiness: Readiness }
+type AppData = { state: State; tickets: Ticket[]; runs: Run[]; readiness: Readiness; approvals: Approval[] }
 
 const mountPoint = document.querySelector<HTMLDivElement>('#app')
 if (!mountPoint) throw new Error('missing #app mount point')
@@ -321,8 +330,11 @@ function navigate(ticket: Ticket) {
   window.location.hash = ticket.parent_id ? `#/node/${ticket.id}` : `#/root/${ticket.id}`
 }
 
-function parseRoute(): { view: 'roots' } | { view: 'readiness' } | { view: 'node'; id: string } | { view: 'run'; id: string } {
+function parseRoute(): { view: 'roots' } | { view: 'readiness' } | { view: 'approvals' } | { view: 'approval'; id: string } | { view: 'node'; id: string } | { view: 'run'; id: string } {
   if (window.location.hash === '#/ready') return { view: 'readiness' }
+  if (window.location.hash === '#/approvals') return { view: 'approvals' }
+  const approvalMatch = window.location.hash.match(/^#\/approval\/([^/]+)$/)
+  if (approvalMatch) return { view: 'approval', id: decodeURIComponent(approvalMatch[1]!) }
   const runMatch = window.location.hash.match(/^#\/run\/([^/]+)$/)
   if (runMatch) return { view: 'run', id: decodeURIComponent(runMatch[1]!) }
   const match = window.location.hash.match(/^#\/(?:root|node)\/([^/]+)$/)
@@ -366,6 +378,12 @@ function appHeader(title: string, subtitle: string, showHome = false) {
     variant: parseRoute().view === 'readiness' ? 'primary' : 'ghost',
     icon: ListTodo,
     onClick: () => { window.location.hash = '#/ready' },
+  }))
+  const pending = data?.approvals.length ?? 0
+  actions.append(Button(`Approvals${pending ? ` (${pending})` : ''}`, {
+    variant: parseRoute().view === 'approvals' || parseRoute().view === 'approval' ? 'primary' : 'ghost',
+    icon: LockKeyhole,
+    onClick: () => { window.location.hash = '#/approvals' },
   }))
   if (showHome) {
     const home = IconButton('Back to roots board', Home, () => { window.location.hash = '#/' })
@@ -669,7 +687,7 @@ async function renderNode(appData: AppData, id: string) {
       getJSON<Brief>(`/api/v1/tickets/${encodeURIComponent(id)}/context`),
       getJSON<Dependencies>(`/api/v1/tickets/${encodeURIComponent(id)}/dependencies`),
       getJSON<Validation[]>(`/api/v1/tickets/${encodeURIComponent(id)}/validations`),
-      getJSON<LandPreview>(`/api/v1/tickets/${encodeURIComponent(id)}/land/preview`).catch(() => ({ staged: false, diff: '' })),
+      getJSON<LandPreview>(`/api/v1/tickets/${encodeURIComponent(id)}/land/preview`).catch(() => ({ id, staged: false, diff: '' })),
     ])
     const runs = appData.runs.filter((run) => run.ticket_id === id)
     const runEvents = (await Promise.all(runs.map(async (run) => {
@@ -1149,6 +1167,154 @@ function approvalView(approval: Approval | undefined) {
   return wrap
 }
 
+function renderApprovalsInbox(appData: AppData) {
+  const app = el('main', 'gw gw-app gw-approvals-page')
+  app.append(appHeader('Approvals', 'One inbox for pending envelopes, landings, decisions, and policy exceptions.', true))
+
+  const approvals = [...appData.approvals].sort((a, b) => {
+    const exceptionRank = Number(b.type === 'exception') - Number(a.type === 'exception')
+    if (exceptionRank) return exceptionRank
+    return Date.parse(a.created_at) - Date.parse(b.created_at)
+  })
+  const highRisk = approvals.filter((approval) => approval.risk_class === 'high' || approval.risk_class === 'critical').length
+  const strip = el('section', 'gw-strip')
+  strip.setAttribute('aria-label', 'Approval inbox summary')
+  strip.append(
+    metric('Pending', String(approvals.length), approvals.length ? 'warn' : undefined),
+    metric('High risk', String(highRisk), highRisk ? 'bad' : undefined),
+    metric('Landing', String(approvals.filter((approval) => approval.type === 'land_to_main').length)),
+    metric('Envelope', String(approvals.filter((approval) => approval.type === 'approve_envelope').length)),
+  )
+  app.append(strip)
+
+  const list = el('section', 'gw-approval-list')
+  list.setAttribute('aria-label', 'Pending approvals')
+  if (!approvals.length) {
+    list.append(EmptyState('No pending approvals', 'New gate requests will appear here.'))
+  } else {
+    for (const approval of approvals) list.append(approvalInboxRow(approval, appData))
+  }
+  app.append(list)
+  mount.replaceChildren(app)
+}
+
+function approvalInboxRow(approval: Approval, appData: AppData) {
+  const ticket = appData.tickets.find((candidate) => candidate.id === approval.ticket_id)
+  const row = el('button', `gw-approval-row${approval.type === 'exception' ? ' exception' : ''}`)
+  row.type = 'button'
+  row.addEventListener('click', () => { window.location.hash = `#/approval/${encodeURIComponent(approval.id)}` })
+  const copy = el('span', 'gw-approval-copy')
+  copy.append(
+    el('strong', undefined, approval.summary),
+    el('span', 'gw-row-detail', `${approval.id} · ${approval.ticket_id}${ticket ? ` · ${ticket.title}` : ''}`),
+    el('span', 'gw-row-detail', `Requested by ${approval.requested_by_actor || 'unknown actor'} · ${timeLabel(approval.created_at)}`),
+  )
+  const badges = el('span', 'gw-approval-badges')
+  badges.append(Badge(pretty(approval.type), approval.type === 'exception' ? 'bad' : 'idle'), Badge(`${pretty(approval.risk_class)} risk`, riskTone(approval.risk_class)))
+  row.append(copy, badges, Icon(ChevronRight))
+  return row
+}
+
+function riskTone(risk: string): SemanticTone {
+  if (risk === 'critical' || risk === 'high') return 'bad'
+  if (risk === 'medium') return 'warn'
+  return 'idle'
+}
+
+async function renderApproval(id: string) {
+  const app = el('main', 'gw gw-app gw-approval-page')
+  app.append(appHeader(id, 'Inspect the gate evidence before recording a decision.', true))
+  const loading = el('div', 'gw-loading', 'Loading approval…')
+  app.append(loading)
+  mount.replaceChildren(app)
+  try {
+    const approval = await getJSON<Approval>(`/api/v1/approvals/${encodeURIComponent(id)}`)
+    const preview = approval.type === 'land_to_main'
+      ? await getJSON<LandPreview>(`/api/v1/tickets/${encodeURIComponent(approval.ticket_id)}/land/preview`).then((value) => ({ value })).catch((error: unknown) => ({ error }))
+      : undefined
+    loading.remove()
+    app.append(approvalDecisionRail(approval), approvalDetail(approval, preview))
+  } catch (error) {
+    loading.replaceWith(ErrorState('Unable to load approval', error instanceof Error ? error.message : 'Unknown coordinator error'))
+  }
+}
+
+function approvalDecisionRail(approval: Approval) {
+  const rail = el('section', 'gw-action-rail gw-approval-actions')
+  const copy = el('div', 'gw-action-copy')
+  copy.append(el('p', 'gw-eyebrow', 'Human gate'), el('h2', undefined, `${approval.id} · ${pretty(approval.status)}`))
+  const controls = el('div', 'gw-approval-controls')
+  const reason = TextInput({ label: 'Decision reason', multiline: true, placeholder: 'Optional for approve; explain rejection or what needs clarification' })
+  reason.setAttribute('aria-label', 'Decision reason')
+  const buttons = el('div', 'gw-action-buttons')
+  const error = el('p', 'gw-action-error')
+  error.setAttribute('role', 'alert')
+  const decide = (operation: 'approve' | 'reject' | 'clarify') => async () => {
+    const choices = [...buttons.querySelectorAll('button')]
+    for (const choice of choices) choice.disabled = true
+    error.textContent = ''
+    try {
+      await requestJSON<Approval>(`/api/v1/approvals/${encodeURIComponent(approval.id)}/${operation}`, 'POST', { reason: reason.value.trim() })
+      await refresh()
+      window.location.hash = '#/approvals'
+    } catch (cause) {
+      error.textContent = cause instanceof Error ? cause.message : 'The coordinator rejected the decision.'
+      for (const choice of choices) choice.disabled = false
+    }
+  }
+  buttons.append(
+    Button('Approve', { variant: 'primary', disabled: approval.status !== 'pending', onClick: () => { void decide('approve')() } }),
+    Button('Reject', { variant: 'danger', disabled: approval.status !== 'pending', onClick: () => { void decide('reject')() } }),
+    Button('Request clarification', { disabled: approval.status !== 'pending', onClick: () => { void decide('clarify')() } }),
+  )
+  controls.append(reason, buttons)
+  rail.append(copy, controls, el('p', 'gw-action-hint', 'Decisions use the same coordinator approval service as gw approval approve, reject, and clarify.'), error)
+  return rail
+}
+
+function approvalDetail(approval: Approval, preview?: { value: LandPreview } | { error: unknown }) {
+  const detail = el('section', 'gw-detail')
+  const heading = el('div', 'gw-detail-head')
+  const title = el('div')
+  title.append(el('p', 'gw-eyebrow', pretty(approval.type)), el('h2', undefined, approval.summary))
+  heading.append(title, Badge(pretty(approval.risk_class), riskTone(approval.risk_class)))
+  detail.append(heading)
+
+  const facts = el('div', 'gw-run-facts')
+  const factValues = [
+    ['Ticket', approval.ticket_id],
+    ['Requested by', approval.requested_by_actor || 'Not recorded'],
+    ['Requested', timeLabel(approval.created_at)],
+    ['Required actors', approval.required_actors?.join(', ') || 'Any authorized owner'],
+    ['Required roles', approval.required_roles?.join(', ') || 'No additional role'],
+    ['Reversible', approval.reversible === undefined ? 'Not assessed' : approval.reversible ? 'Yes' : 'No'],
+  ]
+  for (const [label, value] of factValues) {
+    const row = el('div', 'gw-scope-row')
+    row.append(el('span', 'sk', label), el('span', 'sv', value))
+    facts.append(row)
+  }
+  const panels = [Panel('Approval details', [facts])]
+  if (approval.action_json && approval.action_json !== '{}') panels.push(Panel('Requested action', [actionJSONView(approval.action_json)]))
+  if (approval.type === 'land_to_main') panels.push(Panel('Landing diff preview', [landingPreviewView(preview)]))
+  const grid = el('div', 'gw-detail-grid gw-approval-grid')
+  grid.append(...panels)
+  detail.append(grid)
+  return detail
+}
+
+function actionJSONView(value: string) {
+  let shown = value
+  try { shown = JSON.stringify(JSON.parse(value), null, 2) } catch { /* Show the coordinator payload as recorded. */ }
+  return el('pre', 'gw-diff-code', shown)
+}
+
+function landingPreviewView(preview?: { value: LandPreview } | { error: unknown }) {
+  if (!preview) return el('p', 'gw-quiet', 'Landing preview was not requested.')
+  if ('error' in preview) return ErrorState('Landing preview unavailable', preview.error instanceof Error ? preview.error.message : 'Unknown coordinator error')
+  return diffView(preview.value, [])
+}
+
 function diffView(preview: LandPreview, changedFiles: string[]) {
   const wrap = el('div', 'gw-diff-view')
   if (changedFiles.length) {
@@ -1201,13 +1367,14 @@ function renderFailure(title: string, message: string) {
 }
 
 async function loadAppData() {
-  const [state, tickets, runs, readiness] = await Promise.all([
+  const [state, tickets, runs, readiness, approvals] = await Promise.all([
     getJSON<State>('/api/v1/state'),
     getJSON<Ticket[]>('/api/v1/tickets'),
     getJSON<Run[]>('/api/v1/runs'),
     getJSON<Readiness>('/api/v1/readiness'),
+    getJSON<Approval[]>('/api/v1/approvals?status=pending'),
   ])
-  return { state, tickets, runs, readiness }
+  return { state, tickets, runs, readiness, approvals }
 }
 
 async function render() {
@@ -1224,8 +1391,10 @@ async function render() {
   }
   const route = parseRoute()
   if (route.view === 'run') await renderRun(route.id)
+  else if (route.view === 'approval') await renderApproval(route.id)
   else if (route.view === 'node') await renderNode(data, route.id)
   else if (route.view === 'readiness') renderReadiness(data)
+  else if (route.view === 'approvals') renderApprovalsInbox(data)
   else renderRootsBoard(data)
 }
 
