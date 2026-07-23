@@ -4,6 +4,8 @@ import {
   GitBranch,
   Home,
   Link,
+  ListTodo,
+  LockKeyhole,
   Moon,
   Pencil,
   Plus,
@@ -63,15 +65,29 @@ type Decision = {
   status?: string
   created_at?: string
 }
+type CompletionSummary = { outcome: string; changed?: string[] }
 type Brief = {
   node: BriefNode
   acceptance: string[]
   ancestor_spine: BriefNode[]
   dependencies: BriefNode[]
+  parent_contract?: string
+  sops: string[]
+  open_escalations: string[]
   pending_blockers?: Decision[]
   recent_decisions?: Decision[]
   changed_files?: string[]
-  completion_summary?: unknown
+  completion_summary?: CompletionSummary
+  summary_stale?: boolean
+  summary_stale_reason?: string
+  summary_missing?: boolean
+}
+type Blocker = { id: string; status: string }
+type BlockedTicket = Ticket & { blocked_by: Blocker[] }
+type Readiness = {
+  next: { ticket: Ticket; brief: Brief } | null
+  ready: Ticket[]
+  blocked: BlockedTicket[]
 }
 type Dependencies = { depends_on: string[]; dependents: string[] }
 type Validation = {
@@ -105,7 +121,7 @@ type RunEvent = {
 }
 type LandPreview = { staged: boolean; diff: string }
 
-type AppData = { state: State; tickets: Ticket[]; runs: Run[] }
+type AppData = { state: State; tickets: Ticket[]; runs: Run[]; readiness: Readiness }
 
 const mountPoint = document.querySelector<HTMLDivElement>('#app')
 if (!mountPoint) throw new Error('missing #app mount point')
@@ -281,7 +297,8 @@ function navigate(ticket: Ticket) {
   window.location.hash = ticket.parent_id ? `#/node/${ticket.id}` : `#/root/${ticket.id}`
 }
 
-function parseRoute(): { view: 'roots' } | { view: 'node'; id: string } {
+function parseRoute(): { view: 'roots' } | { view: 'readiness' } | { view: 'node'; id: string } {
+  if (window.location.hash === '#/ready') return { view: 'readiness' }
   const match = window.location.hash.match(/^#\/(?:root|node)\/([^/]+)$/)
   return match ? { view: 'node', id: decodeURIComponent(match[1]!) } : { view: 'roots' }
 }
@@ -319,6 +336,11 @@ function appHeader(title: string, subtitle: string, showHome = false) {
   brand.append(eyebrow, heading, detail)
 
   const actions = el('div', 'gw-head-actions')
+  actions.append(Button('Next & ready', {
+    variant: parseRoute().view === 'readiness' ? 'primary' : 'ghost',
+    icon: ListTodo,
+    onClick: () => { window.location.hash = '#/ready' },
+  }))
   if (showHome) {
     const home = IconButton('Back to roots board', Home, () => { window.location.hash = '#/' })
     actions.append(home)
@@ -452,6 +474,153 @@ function renderRootRows(rows: HTMLElement, roots: Ticket[], appData: AppData) {
     if (activeRuns) attention.append(Badge(`${activeRuns} active`, 'run'))
     row.append(status, el('span', 'rr-id', rootTicket.id), el('span', 'rr-title', rootTicket.title), progressCopy, attention, Icon(ChevronRight))
     rows.append(row)
+  }
+}
+
+function renderReadiness(appData: AppData) {
+  const app = el('main', 'gw gw-app gw-readiness-page')
+  const snapshot = appData.readiness
+  app.append(appHeader('Next & ready', 'Take the highest-value eligible node or inspect what is waiting on dependencies.', true))
+
+  const strip = el('section', 'gw-strip')
+  strip.setAttribute('aria-label', 'Readiness summary')
+  strip.append(
+    metric('Recommended', snapshot.next ? snapshot.next.ticket.id : 'None'),
+    metric('Ready', String(snapshot.ready.length), snapshot.ready.length ? 'warn' : undefined),
+    metric('Blocked', String(snapshot.blocked.length), snapshot.blocked.length ? 'bad' : undefined),
+  )
+  app.append(strip)
+
+  if (snapshot.next) app.append(renderNextRecommendation(snapshot.next, appData))
+  else app.append(EmptyState('Nothing is ready', 'No todo nodes currently have all dependencies satisfied.'))
+
+  const columns = el('div', 'gw-readiness-columns')
+  columns.append(renderReadyList(snapshot.ready), renderBlockedList(snapshot.blocked, appData.tickets))
+  app.append(columns)
+  mount.replaceChildren(app)
+}
+
+function renderNextRecommendation(next: NonNullable<Readiness['next']>, appData: AppData) {
+  const section = el('section', 'gw-next')
+  const head = el('div', 'gw-next-head')
+  const title = el('div')
+  title.append(el('p', 'gw-eyebrow', 'Top recommendation'), el('h2', undefined, `${next.ticket.id} · ${next.ticket.title}`))
+  const actions = el('div', 'gw-next-actions')
+  const claim = Button('Claim as human.owner', {
+    variant: 'primary',
+    onClick: () => void claimTicket(next.ticket, section, claim),
+  })
+  actions.append(
+    Badge(pretty(next.ticket.status), statusTone(next.ticket.status)),
+    NodeTypeBadge(next.ticket.node_type ?? 'leaf'),
+    Button('Open node', { onClick: () => navigate(next.ticket) }),
+    claim,
+  )
+  head.append(title, actions)
+
+  const brief = next.brief
+  const grid = el('div', 'gw-next-brief')
+  grid.append(
+    Panel('Acceptance criteria', [acceptanceList(brief.acceptance)]),
+    Panel('Ancestor spine', [briefNodes(brief.ancestor_spine, appData.tickets, 'Root node — no ancestors.')]),
+    Panel('Parent contract', [textBlock(brief.parent_contract, 'No parent contract recorded.')]),
+    Panel('Dependencies', [briefNodes(brief.dependencies, appData.tickets, 'No dependencies.')]),
+    Panel('SOPs', [stringList(brief.sops, 'No matching SOPs.')]),
+    Panel('Open escalations', [stringList(brief.open_escalations, 'No open escalations.')]),
+  )
+  if (brief.pending_blockers?.length) {
+    grid.append(Panel('Pending blockers', [stringList(brief.pending_blockers.map((item) => item.statement || pretty(item.event_type || 'Pending decision')), 'No pending blockers.')]))
+  }
+  if (brief.completion_summary) {
+    const summary = brief.completion_summary
+    const summaryCopy = `${summary.outcome} · ${summary.changed?.length ?? 0} changed file(s)${brief.summary_stale ? ` · Stale: ${brief.summary_stale_reason || 'summary no longer matches the node'}` : ''}`
+    grid.append(Panel('Completion summary', [el('p', brief.summary_stale ? 'gw-action-error' : 'gw-copy', summaryCopy)]))
+  } else if (brief.summary_missing) {
+    grid.append(Panel('Completion summary', [el('p', 'gw-action-error', 'No completion summary is recorded for this review/done node.')]))
+  }
+  section.append(head, grid)
+  return section
+}
+
+function briefNodes(nodes: BriefNode[], tickets: Ticket[], fallback: string) {
+  if (!nodes.length) return el('p', 'gw-quiet', fallback)
+  const list = el('div', 'gw-brief-list')
+  for (const node of nodes) {
+    const full = tickets.find((ticket) => ticket.id === node.id)
+    const row = button('gw-brief-node', '', () => full ? navigate(full) : undefined)
+    row.replaceChildren(el('span', 'gw-mono', node.id), el('span', undefined, node.title), Badge(pretty(node.status), statusTone(node.status)))
+    list.append(row)
+  }
+  return list
+}
+
+function stringList(items: string[], fallback: string) {
+  if (!items.length) return el('p', 'gw-quiet', fallback)
+  const list = el('ul', 'gw-string-list')
+  for (const item of items) list.append(el('li', undefined, item))
+  return list
+}
+
+function renderReadyList(ready: Ticket[]) {
+  const panel = el('section', 'gw-ready-panel gw-work-list')
+  const head = el('div', 'gw-work-list-head')
+  head.append(el('div', undefined, undefined), Badge(`${ready.length} eligible`, ready.length ? 'warn' : 'idle', false))
+  head.firstElementChild!.append(el('p', 'gw-eyebrow', 'Value ordered'), el('h2', undefined, 'Ready nodes'))
+  panel.append(head)
+  if (!ready.length) {
+    panel.append(EmptyState('No ready nodes', 'Todo nodes appear here once every dependency is satisfied.'))
+    return panel
+  }
+  for (const [index, ticket] of ready.entries()) {
+    const row = el('div', 'gw-work-row')
+    const rank = el('span', 'gw-work-rank', String(index + 1))
+    const copy = el('button', 'gw-work-copy')
+    copy.type = 'button'
+    copy.addEventListener('click', () => navigate(ticket))
+    copy.append(el('span', 'gw-mono', ticket.id), el('strong', undefined, ticket.title), el('span', 'gw-row-detail', `Priority ${ticket.priority ?? 0} · ${pretty(ticket.work_type || ticket.kind)}`))
+    const claim = Button('Claim', { size: 'small', onClick: () => void claimTicket(ticket, row, claim) })
+    row.append(rank, copy, Badge(pretty(ticket.status), statusTone(ticket.status)), claim)
+    panel.append(row)
+  }
+  return panel
+}
+
+function renderBlockedList(blocked: BlockedTicket[], tickets: Ticket[]) {
+  const panel = el('section', 'gw-blocked-panel gw-work-list')
+  const head = el('div', 'gw-work-list-head')
+  head.append(el('div', undefined, undefined), Badge(`${blocked.length} waiting`, blocked.length ? 'bad' : 'idle', false))
+  head.firstElementChild!.append(el('p', 'gw-eyebrow', 'Unmet dependencies'), el('h2', undefined, 'Blocked nodes'))
+  panel.append(head)
+  if (!blocked.length) {
+    panel.append(EmptyState('No dependency-blocked nodes', 'Todo nodes with unmet dependencies will appear here.'))
+    return panel
+  }
+  for (const ticket of blocked) {
+    const row = el('div', 'gw-blocked-row')
+    const copy = el('button', 'gw-work-copy')
+    copy.type = 'button'
+    copy.addEventListener('click', () => navigate(ticket))
+    copy.append(el('span', 'gw-mono', ticket.id), el('strong', undefined, ticket.title))
+    const blockers = el('div', 'gw-blockers')
+    blockers.append(Icon(LockKeyhole), el('span', 'gw-blocked-label', 'Blocked by'))
+    for (const blocker of ticket.blocked_by) {
+      const target = tickets.find((item) => item.id === blocker.id)
+      blockers.append(button('gw-blocker', `${blocker.id} · ${pretty(blocker.status)}`, () => target ? navigate(target) : undefined))
+    }
+    row.append(copy, blockers)
+    panel.append(row)
+  }
+  return panel
+}
+
+async function claimTicket(ticket: Ticket, container: HTMLElement, control: HTMLButtonElement) {
+  control.disabled = true
+  try {
+    await requestJSON(`/api/v1/tickets/${encodeURIComponent(ticket.id)}/claim`, 'POST', { actor: 'human.owner' })
+    await refresh()
+  } catch (error) {
+    control.disabled = false
+    showActionError(container, error)
   }
 }
 
@@ -863,12 +1032,13 @@ function renderFailure(title: string, message: string) {
 }
 
 async function loadAppData() {
-  const [state, tickets, runs] = await Promise.all([
+  const [state, tickets, runs, readiness] = await Promise.all([
     getJSON<State>('/api/v1/state'),
     getJSON<Ticket[]>('/api/v1/tickets'),
     getJSON<Run[]>('/api/v1/runs'),
+    getJSON<Readiness>('/api/v1/readiness'),
   ])
-  return { state, tickets, runs }
+  return { state, tickets, runs, readiness }
 }
 
 async function render() {
@@ -885,6 +1055,7 @@ async function render() {
   }
   const route = parseRoute()
   if (route.view === 'node') await renderNode(data, route.id)
+  else if (route.view === 'readiness') renderReadiness(data)
   else renderRootsBoard(data)
 }
 

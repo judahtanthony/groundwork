@@ -75,6 +75,7 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /app", s.handleSPAEntry)
 	s.mux.Handle("GET /app/", spaHandler)
 	s.mux.HandleFunc("GET /api/v1/state", s.handleState)
+	s.mux.HandleFunc("GET /api/v1/readiness", s.handleReadiness)
 	s.mux.HandleFunc("GET /api/v1/tickets", s.handleTicketList)
 	s.mux.HandleFunc("POST /api/v1/tickets", s.handleTicketCreate)
 	s.mux.HandleFunc("GET /api/v1/tickets/{id}", s.handleTicketGet)

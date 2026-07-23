@@ -6,6 +6,7 @@ The v1 server binds to `127.0.0.1:4500` by default and is single-user.
 
 ```text
 GET  /api/v1/state
+GET  /api/v1/readiness
 GET  /api/v1/tickets
 POST /api/v1/tickets
 GET  /api/v1/tickets/:id
@@ -54,6 +55,14 @@ GET  /api/v1/events
 ```
 
 `POST /api/v1/tickets/:id/decompose` opens a planning run; the resulting decomposition proposal is decided through the approvals endpoints (`approve` accepts the proposal, `clarify` asks the agent for more detail). `approve`/`reject` cover the `decompose`, landing, and tactical gates uniformly.
+
+`GET /api/v1/readiness` returns the operator's current next/ready/blocked view:
+`{"next":{"ticket": …, "brief": …}|null, "ready":[…], "blocked":[…]}`.
+`ready` is the eligible set (`todo` with dependencies satisfied) in the same
+ancestor-priority value order used by `gw next`, `gw ticket list --ready`, and
+the scheduler. `next` is its first node plus the bounded context brief returned
+by the ticket context endpoint. Each `blocked` entry is a `todo` node excluded
+by unmet dependencies and includes `blocked_by: [{"id", "status"}]`.
 
 `POST /api/v1/tickets/:id/claim` mirrors the guided human claim: it verifies the
 node is `todo` with all dependencies satisfied, assigns the requested actor (default
